@@ -2,6 +2,8 @@
 
 A modular, plugin-based creative platform for building and running your own sovereign tools. Extend it with plugins, customize it to your workflow, and engage with the void.
 
+![Void Server Dashboard](screenshot.png)
+
 ## Quick Start
 
 ```bash
