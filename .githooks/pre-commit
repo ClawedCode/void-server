@@ -4,8 +4,7 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 PATTERNS_FILE="$PROJECT_ROOT/scripts/lib/secret-patterns.txt"
 ALLOWLIST_FILE="$PROJECT_ROOT/config/secrets-allowlist.json"
 
