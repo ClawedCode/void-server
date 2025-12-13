@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import PluginManager from './pages/PluginManager';
 import LogsPage from './pages/LogsPage';
 import PluginViewer from './pages/PluginViewer';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   const [plugins, setPlugins] = useState([]);
@@ -31,6 +32,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="logs" element={<LogsPage />} />
         <Route path="plugins" element={<PluginManager />} />
+        <Route path="settings" element={<SettingsPage />} />
 
         {/* Dynamic plugin routes - all handled by PluginViewer */}
         {pluginsLoaded && plugins.map(plugin => (

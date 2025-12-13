@@ -11,7 +11,8 @@ import {
     Music,
     Video,
     Palette,
-    FileText
+    FileText,
+    Settings
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -127,6 +128,13 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
             title: 'Plugins',
             icon: Box,
             path: '/plugins',
+            single: true
+        });
+
+        contentItems.push({
+            title: 'Settings',
+            icon: Settings,
+            path: '/settings',
             single: true
         });
 

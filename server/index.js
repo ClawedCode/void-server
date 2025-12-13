@@ -11,6 +11,10 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 // Plugin management module
 const pluginManager = require('./plugins');
 
+// AI Provider system
+const aiProvider = require('./services/ai-provider');
+const aiProvidersRoutes = require('./routes/ai-providers');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -137,6 +141,12 @@ app.use(express.json());
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: APP_VERSION });
 });
+
+// AI Providers API
+app.use('/api/ai-providers', aiProvidersRoutes);
+
+// Initialize AI Provider system
+aiProvider.initialize();
 
 // Plugin Manager
 const plugins = [];
