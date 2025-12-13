@@ -35,6 +35,10 @@ export default defineConfig({
     fs: {
       allow: ['..']
     },
+    // Configure HMR to connect to Vite's port when app is loaded via Express
+    hmr: {
+      port: 4480
+    },
     // Proxy API and WebSocket calls to Express server
     proxy: {
       '/api': {

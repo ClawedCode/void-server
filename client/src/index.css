@@ -30,6 +30,47 @@
   }
 }
 
+/* Wallet page responsive grid layout */
+.wallet-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .wallet-grid {
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+.wallet-grid .card {
+  padding: 0.75rem;
+}
+
+/* Hide text on mobile, show on sm+ */
+.hide-mobile-text {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .hide-mobile-text {
+    display: inline;
+  }
+}
+
+/* Two-column grid for forms (stacks on mobile) */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* ============================================
    COLOR CONTRAST GUIDELINES
    ============================================

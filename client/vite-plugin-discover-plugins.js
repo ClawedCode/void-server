@@ -104,7 +104,18 @@ export const pluginNames = ${JSON.stringify(plugins.map(p => p.name))};
     configureServer(server) {
       server.watcher.add(pluginsDir);
       server.watcher.on('all', (event, filePath) => {
-        if (filePath.includes(pluginsDir)) {
+        // Only reload on source file changes, not data files
+        const isSourceFile = filePath.endsWith('.js') ||
+                            filePath.endsWith('.jsx') ||
+                            filePath.endsWith('.ts') ||
+                            filePath.endsWith('.tsx') ||
+                            filePath.endsWith('.css') ||
+                            filePath.endsWith('manifest.json');
+        const isDataFile = filePath.includes('/data/') ||
+                          filePath.includes('\\data\\') ||
+                          filePath.includes('node_modules');
+
+        if (filePath.includes(pluginsDir) && isSourceFile && !isDataFile) {
           // Invalidate the virtual module to trigger re-generation
           const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
           if (mod) {

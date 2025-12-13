@@ -6,6 +6,7 @@ const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
 const { spawn } = require('child_process');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // Plugin management module
 const pluginManager = require('./plugins');
@@ -173,7 +174,7 @@ function loadPluginManifest(pluginPath) {
 }
 
 function loadPlugins() {
-  console.log('Loading plugins...');
+  console.log('🔌 Loading plugins...');
   const savedConfig = loadPluginConfig();
 
   // Load plugins from plugins/ directory (symlinks or submodules)
@@ -204,7 +205,7 @@ function loadPlugins() {
         if (dir.startsWith('void-plugin-')) {
           const siblingPath = path.join(parentDir, dir);
           if (fs.statSync(siblingPath).isDirectory()) {
-            console.log('No plugins in plugins/ dir, falling back to sibling directories');
+            console.log('⚠️ No plugins in plugins/ dir, falling back to sibling directories');
             pluginPaths.push(siblingPath);
           }
         }
@@ -214,7 +215,7 @@ function loadPlugins() {
 
   for (const pluginPath of pluginPaths) {
     if (!fs.existsSync(pluginPath)) {
-      console.log(`Plugin not found at ${pluginPath}`);
+      console.log(`❌ Plugin not found at ${pluginPath}`);
       continue;
     }
 
@@ -225,7 +226,7 @@ function loadPlugins() {
     // Check if plugin is disabled
     const pluginConfig = savedConfig[pluginName] || {};
     if (pluginConfig.enabled === false) {
-      console.log(`Skipping disabled plugin: ${pluginName}`);
+      console.log(`⏸️ Skipping disabled plugin: ${pluginName}`);
       continue;
     }
 
@@ -241,7 +242,7 @@ function loadPlugins() {
     // Load the plugin module
     const plugin = require(pluginPath);
     if (typeof plugin !== 'function') {
-      console.log(`${pluginName} found but does not export a function`);
+      console.log(`⚠️ ${pluginName} found but does not export a function`);
       continue;
     }
 
@@ -263,6 +264,13 @@ function loadPlugins() {
 
     plugin(app, { mountPath });
 
+    // Serve static assets from plugin's assets folder if it exists
+    const assetsPath = path.join(pluginPath, 'assets');
+    if (fs.existsSync(assetsPath)) {
+      app.use(`${mountPath}/assets`, express.static(assetsPath));
+      console.log(`📁 Serving assets at ${mountPath}/assets`);
+    }
+
     plugins.push({
       name: pluginName,
       mountPath,
@@ -275,7 +283,7 @@ function loadPlugins() {
       configurable: true
     });
 
-    console.log(`Loaded ${pluginName} at ${mountPath} with ${resolvedRoutes.length} client routes`);
+    console.log(`✅ Loaded ${pluginName} at ${mountPath} with ${resolvedRoutes.length} client routes`);
   }
 }
 
@@ -555,38 +563,58 @@ app.get('/api/pm2/logs', (req, res) => {
 });
 
 // ============================================================================
-// Static Files
+// Static Files / Dev Proxy
 // ============================================================================
 
-// Serve static files from client/dist
+const isDev = process.env.NODE_ENV !== 'production';
+const VITE_DEV_PORT = 4480;
 const clientDistPath = path.join(__dirname, '../client/dist');
-if (fs.existsSync(clientDistPath)) {
+
+if (isDev) {
+  // In development, proxy to Vite dev server for HMR
+  // Note: ws: false because Vite's HMR WebSocket connects directly to Vite (port 4480)
+  // and we need Socket.IO WebSocket connections to stay on Express (port 4401)
+  const viteProxy = createProxyMiddleware({
+    target: `http://localhost:${VITE_DEV_PORT}`,
+    changeOrigin: true,
+    ws: false,
+    // Don't proxy API routes
+    filter: (pathname) => {
+      return !pathname.startsWith('/api') &&
+             !pathname.startsWith('/health') &&
+             !pathname.startsWith('/socket.io');
+    }
+  });
+
+  app.use(viteProxy);
+  console.log(`🔧 Development mode: Proxying client requests to Vite dev server at port ${VITE_DEV_PORT}`);
+} else if (fs.existsSync(clientDistPath)) {
+  // In production, serve static files from client/dist
   app.use(express.static(clientDistPath));
 
   // Handle SPA routing - return index.html for any unknown route that isn't an API
   app.get('*', (req, res) => {
-    // Exclude /api and /health from SPA routing, but ALLOW /clawed (plugin routes) to be handled by SPA
     if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
       return res.status(404).json({ error: 'Not found' });
     }
     res.sendFile(path.join(clientDistPath, 'index.html'));
   });
 } else {
-  console.log('Client build not found. Please run "npm run build" in the client directory.');
+  console.log('⚠️ Client build not found. Please run "npm run build" in the client directory.');
   app.get('/', (req, res) => {
     res.send('Void Server Core is running. Client build not found. Please build the client.');
   });
 }
 
 server.listen(PORT, () => {
-  console.log(`Void Server Core running on port ${PORT}`);
-  console.log(`Content Directory: ${CONTENT_DIR}`);
-  console.log(`WebSocket server ready`);
+  console.log(`🚀 Void Server Core running on port ${PORT}`);
+  console.log(`📂 Content Directory: ${CONTENT_DIR}`);
+  console.log(`🔌 WebSocket server ready`);
 
   // Start PM2 log streaming if running under PM2
   if (process.env.PM2_HOME) {
     logStreamer = setupLogStreaming();
-    console.log(`PM2 log streaming initialized`);
+    console.log(`📋 PM2 log streaming initialized`);
   }
 
   // Send ready signal to PM2
@@ -597,27 +625,27 @@ server.listen(PORT, () => {
 
 // Graceful shutdown
 const gracefulShutdown = () => {
-  console.log('Received shutdown signal, closing gracefully...');
+  console.log('🛑 Received shutdown signal, closing gracefully...');
 
   // Kill log streamer
   if (logStreamer) {
     logStreamer.kill();
-    console.log('Log streaming stopped');
+    console.log('📋 Log streaming stopped');
   }
 
   server.close(() => {
-    console.log('HTTP server closed');
+    console.log('✅ HTTP server closed');
 
     // Close WebSocket connections
     io.close(() => {
-      console.log('WebSocket server closed');
+      console.log('✅ WebSocket server closed');
       process.exit(0);
     });
   });
 
   // Force close after 10 seconds
   setTimeout(() => {
-    console.error('Forced shutdown after 10 seconds');
+    console.error('❌ Forced shutdown after 10 seconds');
     process.exit(1);
   }, 10000);
 };
