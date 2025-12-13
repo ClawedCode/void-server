@@ -104,9 +104,9 @@ echo ""
 # Change to project root
 cd "$PROJECT_ROOT"
 
-# Add submodule
+# Add submodule (force flag needed since plugins/* is in .gitignore for dev symlinks)
 echo "Adding git submodule..."
-git submodule add -b "$BRANCH" "$GIT_URL" "$PLUGIN_PATH"
+git submodule add -f -b "$BRANCH" "$GIT_URL" "$PLUGIN_PATH"
 
 # Initialize and update
 echo "Initializing submodule..."
