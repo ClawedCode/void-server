@@ -1,5 +1,5 @@
 /**
- * AI Providers REST API Routes
+ * Providers REST API Routes
  */
 
 const express = require('express');

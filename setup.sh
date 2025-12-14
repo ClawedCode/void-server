@@ -69,7 +69,36 @@ if ! command -v git &>/dev/null; then
   exit 1
 fi
 
+# Check for Neo4j (optional but recommended for memory features)
+NEO4J_INSTALLED=false
+if command -v neo4j &>/dev/null; then
+  NEO4J_INSTALLED=true
+  print_success "Neo4j found: $(neo4j --version 2>/dev/null || echo 'version unknown')"
+elif command -v cypher-shell &>/dev/null; then
+  NEO4J_INSTALLED=true
+  print_success "Neo4j found (via cypher-shell)"
+elif [[ -d "/Applications/Neo4j Desktop.app" ]] || [[ -d "$HOME/Library/Application Support/Neo4j Desktop" ]]; then
+  NEO4J_INSTALLED=true
+  print_success "Neo4j Desktop detected"
+else
+  print_warning "Neo4j not detected. Memory features require Neo4j."
+  echo -e "         Install from: ${CYAN}https://neo4j.com/download/${NC}"
+  echo -e "         Or via Homebrew: ${CYAN}brew install neo4j${NC}"
+fi
+
 print_success "Prerequisites satisfied (Node $(node -v), npm $(npm -v))"
+
+# Initialize git submodules (plugins)
+if [[ -d ".git" ]]; then
+  if [[ -f ".gitmodules" ]]; then
+    print_step "Initializing git submodules (plugins)..."
+    git submodule init
+    git submodule update --recursive
+    print_success "Git submodules initialized"
+  else
+    print_skip "No git submodules configured"
+  fi
+fi
 
 # Install server dependencies (check if node_modules is up to date)
 if [[ -d "node_modules" ]] && [[ "package.json" -ot "node_modules" ]]; then

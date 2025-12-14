@@ -1,5 +1,5 @@
 /**
- * Base AI Provider Class
+ * Base Provider Class
  * All providers must extend this class and implement required methods
  */
 

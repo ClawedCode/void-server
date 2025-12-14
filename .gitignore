@@ -33,4 +33,12 @@ plugins/*
 config/*.json
 !config/.gitkeep
 
+# Prompts - track templates/variables, ignore chat history
+!config/prompts/
+config/prompts/chats/*
+!config/prompts/chats/.gitkeep
+
 .playwright-mcp
+
+# TODO: global share for memories, versioned on IPFS and written with $CLAWED
+backups/*

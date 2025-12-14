@@ -1,6 +1,6 @@
 /**
- * AI Provider Factory and Base Provider
- * Manages multiple AI providers with a unified interface
+ * Provider Factory and Base Provider
+ * Manages multiple providers with a unified interface
  */
 
 const fs = require('fs');
@@ -9,14 +9,15 @@ const path = require('path');
 const CONFIG_DIR = path.resolve(__dirname, '../../config');
 const AI_PROVIDERS_CONFIG_PATH = path.join(CONFIG_DIR, 'ai-providers.json');
 
-// Default configuration
+// Default configuration - all providers disabled by default
+// Users must configure a provider in Settings before using Chat
 const DEFAULT_CONFIG = {
-  activeProvider: 'lmstudio',
+  activeProvider: null,
   providers: {
     claude: {
       name: 'Claude',
       type: 'cli',
-      enabled: true,
+      enabled: false,
       command: 'claude',
       description: 'Use the Claude CLI for local Anthropic-powered responses.',
       link: 'https://www.anthropic.com/claude',
@@ -115,10 +116,10 @@ const DEFAULT_CONFIG = {
     lmstudio: {
       name: 'LM Studio',
       type: 'api',
-      enabled: true,
+      enabled: false,
       endpoint: 'http://localhost:1234/v1',
       apiKey: 'lm-studio',
-      description: 'Connect to the LM Studio local server. Download the desktop app and enable the local API server.',
+      description: 'Run models locally and privately. Download LM Studio, load a model, and start the local server.',
       link: 'https://lmstudio.ai/',
       models: {
         light: 'lmstudio-community/Llama-3.2-3B-Instruct-GGUF',

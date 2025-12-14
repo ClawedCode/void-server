@@ -11,9 +11,21 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 // Plugin management module
 const pluginManager = require('./plugins');
 
-// AI Provider system
+// Provider system
 const aiProvider = require('./services/ai-provider');
 const aiProvidersRoutes = require('./routes/ai-providers');
+
+// Prompt and Chat system
+const promptExecutor = require('./services/prompt-executor');
+const promptsRoutes = require('./routes/prompts');
+const chatRoutes = require('./routes/chat');
+
+// Memory system
+const memoriesRoutes = require('./routes/memories');
+
+// Backup system
+const backupRoutes = require('./routes/backup');
+const { setIO } = require('./utils/broadcast');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +35,9 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
+
+// Set up broadcast utility with socket.io instance
+setIO(io);
 
 const PORT = process.env.PORT || 4401;
 if (!process.env.CONTENT_DIR) {
@@ -142,11 +157,24 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: APP_VERSION });
 });
 
-// AI Providers API
+// Providers API
 app.use('/api/ai-providers', aiProvidersRoutes);
 
-// Initialize AI Provider system
+// Prompts and Chat API
+app.use('/api/prompts', promptsRoutes);
+app.use('/api/chat', chatRoutes);
+
+// Memories API
+app.use('/api/memories', memoriesRoutes);
+
+// Backup API
+app.use('/api/backup', backupRoutes);
+
+// Initialize Provider system
 aiProvider.initialize();
+
+// Initialize Prompt Executor (which initializes prompt and chat services)
+promptExecutor.initialize();
 
 // Plugin Manager
 const plugins = [];
