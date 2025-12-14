@@ -238,15 +238,15 @@ function MemoriesTab({ neo4jStatus, fetchStatus }) {
       {/* Search and Filter */}
       <div className="flex gap-3 items-center">
         <div className="relative flex-grow" style={{ minWidth: '200px' }}>
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchMemories()}
             placeholder="Search memories..."
-            className="form-input w-full pl-12"
+            className="form-input w-full pr-10"
           />
+          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
         </div>
         <select
           value={filterCategory}
