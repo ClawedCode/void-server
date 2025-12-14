@@ -49,10 +49,14 @@ export default defineConfig({
         target: 'http://localhost:4401',
         ws: true
       },
-      // Plugin routes (e.g., /wallet) should hit the server
-      '/wallet': {
+      // Plugin APIs should hit the server (UI stays on Vite)
+      '/wallet/api': {
         target: 'http://localhost:4401',
         changeOrigin: true
+      },
+      '/wallet/socket.io': {
+        target: 'http://localhost:4401',
+        ws: true
       }
     }
   },
