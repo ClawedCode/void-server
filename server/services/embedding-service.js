@@ -6,14 +6,21 @@
  * Requirements:
  * - LM Studio running on localhost:1234
  * - nomic-embed-text-v1.5-GGUF model loaded
+ *
+ * Model detection:
+ * - Uses lms CLI if available to detect downloaded/loaded models
+ * - Falls back to API endpoint check
  */
+
+const lmstudioCli = require('./lmstudio-cli');
 
 class EmbeddingService {
   constructor() {
     this.apiUrl = process.env.LM_STUDIO_URL || 'http://localhost:1234/v1';
-    this.model = 'nomic-embed-text-v1.5';
+    this.model = process.env.EMBEDDING_MODEL || 'text-embedding-nomic-embed-text-v1.5';
     this.dimensions = 768; // nomic-embed-text-v1.5 output dimension
     this.available = null;
+    this.cliStatus = null;
   }
 
   /**
@@ -180,7 +187,37 @@ class EmbeddingService {
       apiUrl: this.apiUrl,
       model: this.model,
       dimensions: this.dimensions,
-      available: this.available
+      available: this.available,
+      cliStatus: this.cliStatus
+    };
+  }
+
+  /**
+   * Get comprehensive status including CLI detection
+   */
+  getFullStatus() {
+    // Get CLI-based detection
+    this.cliStatus = lmstudioCli.getEmbeddingStatus();
+
+    return {
+      apiUrl: this.apiUrl,
+      model: this.model,
+      dimensions: this.dimensions,
+      available: this.available,
+      cli: this.cliStatus,
+      recommendation: this.cliStatus.recommendation
+    };
+  }
+
+  /**
+   * Get available embedding models from CLI
+   */
+  getAvailableModels() {
+    const models = lmstudioCli.getAvailableModels();
+    return {
+      cliAvailable: models.available,
+      embedding: models.embedding || [],
+      error: models.error
     };
   }
 
@@ -188,12 +225,16 @@ class EmbeddingService {
    * Test connection to LM Studio
    */
   async testConnection() {
+    // First check CLI status
+    this.cliStatus = lmstudioCli.getEmbeddingStatus();
+
     const response = await fetch(`${this.apiUrl}/models`);
 
     if (!response.ok) {
       return {
         connected: false,
-        error: 'Cannot connect to LM Studio. Make sure it is running on port 1234.'
+        error: 'Cannot connect to LM Studio. Make sure it is running on port 1234.',
+        cli: this.cliStatus
       };
     }
 
@@ -207,8 +248,17 @@ class EmbeddingService {
     return {
       connected: true,
       models: data.data.map(m => m.id),
-      hasEmbeddingModel
+      hasEmbeddingModel,
+      cli: this.cliStatus
     };
+  }
+
+  /**
+   * Set the embedding model to use
+   */
+  setModel(modelName) {
+    this.model = modelName;
+    this.available = null; // Reset availability check
   }
 }
 

@@ -36,10 +36,13 @@ This guide will help you set up your own local "egregore" - an AI persona that r
 
 | Model | VRAM | Quality | Speed |
 |-------|------|---------|-------|
+| `Llama-3.2-3B-Instruct-GGUF` | ~3GB | Basic | Fastest |
 | `Qwen2.5-7B-Instruct-GGUF` | ~6GB | Good | Fast |
 | `Qwen2.5-14B-Instruct-GGUF` | ~10GB | Better | Medium |
-| `Qwen2.5-32B-Instruct-GGUF` | ~20GB | Best | Slower |
-| `Llama-3.2-3B-Instruct-GGUF` | ~3GB | Basic | Fastest |
+| `openai/gpt-oss-20b` | ~12GB | Best | Medium |
+| `Qwen2.5-32B-Instruct-GGUF` | ~20GB | Excellent | Slower |
+
+**Recommended:** `openai/gpt-oss-20b` offers excellent quality at reasonable resource usage.
 
 **Embedding Model** (required for semantic memory search):
 

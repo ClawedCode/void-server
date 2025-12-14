@@ -8,6 +8,8 @@ const express = require('express');
 const router = express.Router();
 const memoryService = require('../services/memory-service');
 const memoryQueryService = require('../services/memory-query-service');
+const { getEmbeddingService } = require('../services/embedding-service');
+const lmstudioCli = require('../services/lmstudio-cli');
 
 // GET /api/memories - List all memories with stats
 router.get('/', async (req, res) => {
@@ -303,6 +305,61 @@ router.post('/maintenance/auto-fix/apply', async (req, res) => {
   const result = await memoryService.applyAutoFixes(fixes);
 
   res.json(result);
+});
+
+// ============================================================================
+// Embedding / LM Studio Status
+// ============================================================================
+
+// GET /api/memories/embedding/status - Get embedding service status
+router.get('/embedding/status', async (req, res) => {
+  console.log(`📊 GET /api/memories/embedding/status`);
+
+  const embeddingService = getEmbeddingService();
+  const status = embeddingService.getFullStatus();
+
+  // Test actual API connection
+  const connectionTest = await embeddingService.testConnection().catch(err => ({
+    connected: false,
+    error: err.message
+  }));
+
+  res.json({
+    success: true,
+    ...status,
+    api: connectionTest
+  });
+});
+
+// GET /api/memories/embedding/models - List available embedding models
+router.get('/embedding/models', (req, res) => {
+  console.log(`📊 GET /api/memories/embedding/models`);
+
+  const embeddingService = getEmbeddingService();
+  const models = embeddingService.getAvailableModels();
+
+  res.json({
+    success: true,
+    ...models
+  });
+});
+
+// GET /api/memories/lmstudio/models - List all LM Studio models (LLM + embedding)
+router.get('/lmstudio/models', (req, res) => {
+  console.log(`📊 GET /api/memories/lmstudio/models`);
+
+  const models = lmstudioCli.getAvailableModels(req.query.refresh === 'true');
+  const loaded = lmstudioCli.getLoadedModels();
+
+  res.json({
+    success: models.available,
+    error: models.error,
+    downloaded: {
+      llm: models.llm || [],
+      embedding: models.embedding || []
+    },
+    loaded: loaded.models || []
+  });
 });
 
 module.exports = router;

@@ -2,7 +2,26 @@
 
 ## [0.4.2] - 2025-12-14
 
-Documentation release.
+Documentation and LM Studio integration improvements.
+
+### New Features
+
+#### LM Studio CLI Integration
+- **Model Detection** - Automatically detect available LM Studio models via `lms` CLI
+- **Embedding Status API** - New endpoints for checking embedding model availability:
+  - `GET /api/memories/embedding/status` - Full embedding service status
+  - `GET /api/memories/embedding/models` - Available embedding models
+  - `GET /api/memories/lmstudio/models` - All downloaded and loaded models
+- **Smart Recommendations** - System suggests actions if models are missing or not loaded
+
+### Changes
+
+- **Default Deep Model** - LM Studio now defaults to `openai/gpt-oss-20b` for deep model
+- **Embedding Model** - Default embedding model set to `text-embedding-nomic-embed-text-v1.5`
+
+### New Files
+
+- `server/services/lmstudio-cli.js` - LM Studio CLI wrapper for model detection
 
 ### Documentation
 

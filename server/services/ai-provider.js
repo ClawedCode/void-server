@@ -124,7 +124,7 @@ const DEFAULT_CONFIG = {
       models: {
         light: 'lmstudio-community/Llama-3.2-3B-Instruct-GGUF',
         medium: 'lmstudio-community/Qwen2.5-14B-Instruct-GGUF',
-        deep: 'lmstudio-community/Qwen2.5-32B-Instruct-GGUF'
+        deep: 'openai/gpt-oss-20b'
       },
       settings: {
         temperature: 0.8,
