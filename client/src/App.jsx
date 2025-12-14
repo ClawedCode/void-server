@@ -6,6 +6,10 @@ import PluginManager from './pages/PluginManager';
 import LogsPage from './pages/LogsPage';
 import PluginViewer from './pages/PluginViewer';
 import SettingsPage from './pages/SettingsPage';
+import ChatPage from './pages/ChatPage';
+import TemplatesPage from './pages/TemplatesPage';
+import VariablesPage from './pages/VariablesPage';
+import MemoriesPage from './pages/MemoriesPage';
 
 function App() {
   const [plugins, setPlugins] = useState([]);
@@ -34,6 +38,11 @@ function App() {
         <Route path="plugins" element={<PluginManager />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/:tab" element={<SettingsPage />} />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="chat/:id" element={<ChatPage />} />
+        <Route path="prompts/templates" element={<TemplatesPage />} />
+        <Route path="prompts/variables" element={<VariablesPage />} />
+        <Route path="memories" element={<MemoriesPage />} />
 
         {/* Dynamic plugin routes - all handled by PluginViewer */}
         {pluginsLoaded && plugins.map(plugin => (

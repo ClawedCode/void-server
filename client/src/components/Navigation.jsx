@@ -5,14 +5,17 @@ import {
     ChevronDown,
     ChevronRight,
     ChevronLeft,
-    RotateCw,
     Box,
     Cat,
     Music,
     Video,
     Palette,
     FileText,
-    Settings
+    Settings,
+    MessageSquare,
+    FileCode,
+    Braces,
+    Brain
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -41,8 +44,6 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
     const { appInfo } = useWebSocket();
     const [expandedSections, setExpandedSections] = useState({});
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const [restarting, setRestarting] = useState(false);
-    const [confirmRestart, setConfirmRestart] = useState(false);
     const [prevTheme, setPrevTheme] = useState(themeName);
 
     // Show toast when theme changes
@@ -118,9 +119,23 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
 
         // Add core pages
         contentItems.push({
+            title: 'Chat',
+            icon: MessageSquare,
+            path: '/chat',
+            single: true
+        });
+
+        contentItems.push({
             title: 'Logs',
             icon: FileText,
             path: '/logs',
+            single: true
+        });
+
+        contentItems.push({
+            title: 'Memories',
+            icon: Brain,
+            path: '/memories',
             single: true
         });
 
@@ -132,10 +147,12 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
         });
 
         contentItems.push({
-            title: 'Settings',
-            icon: Settings,
-            path: '/settings',
-            single: true
+            title: 'Prompts',
+            icon: FileCode,
+            children: [
+                { title: 'Templates', icon: FileCode, path: '/prompts/templates' },
+                { title: 'Variables', icon: Braces, path: '/prompts/variables' }
+            ]
         });
 
         // Sort all content items alphabetically by title
@@ -201,17 +218,6 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
         if (window.innerWidth < 768) {
             toggleSidebar();
         }
-    };
-
-    const handleRestart = async () => {
-        setRestarting(true);
-        setConfirmRestart(false);
-        toast.loading('Restarting application...');
-
-        // Mock restart
-        setTimeout(() => {
-            window.location.reload();
-        }, 2000);
     };
 
     return (
@@ -351,24 +357,25 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
                         <div className="flex items-center justify-between">
                             {sidebarOpen && <span>v{appInfo.version || '...'}</span>}
                             <div className="flex items-center gap-1">
+                                {sidebarOpen && (
+                                    <button
+                                        data-testid="nav-theme-button"
+                                        onClick={() => {
+                                            cycleTheme();
+                                        }}
+                                        className="p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent text-text-primary"
+                                        title={`Theme: ${themeName} (click to cycle)`}
+                                    >
+                                        <Palette size={18} />
+                                    </button>
+                                )}
                                 <button
-                                    data-testid="nav-theme-button"
-                                    onClick={() => {
-                                        cycleTheme();
-                                    }}
-                                    className="p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent text-text-primary"
-                                    title={`Theme: ${themeName} (click to cycle)`}
+                                    data-testid="nav-settings-button"
+                                    onClick={() => handleNavigation('/settings')}
+                                    className={`p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent ${isActive('/settings') ? 'text-primary' : 'text-text-primary'}`}
+                                    title="Settings"
                                 >
-                                    <Palette size={18} />
-                                </button>
-                                <button
-                                    data-testid="nav-restart-button"
-                                    onClick={() => setConfirmRestart(true)}
-                                    disabled={restarting}
-                                    className={`p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent text-text-primary ${restarting ? 'opacity-50' : ''}`}
-                                    title="Restart application"
-                                >
-                                    <RotateCw size={18} className={restarting ? 'animate-spin' : ''} />
+                                    <Settings size={18} />
                                 </button>
                             </div>
                         </div>
@@ -388,44 +395,6 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
                 />
             )}
 
-            {/* Restart Confirmation Modal */}
-            {confirmRestart && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]" onClick={() => setConfirmRestart(false)}>
-                    <div
-                        data-testid="nav-restart-modal"
-                        className="rounded-lg max-w-sm w-full p-6 shadow-xl bg-surface border border-border"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-start gap-3 mb-4">
-                            <div className="text-2xl">⚠️</div>
-                            <div className="flex-1">
-                                <h3 className="font-semibold mb-2 text-text-primary">
-                                    Restart Application?
-                                </h3>
-                                <p className="text-sm text-secondary">
-                                    This will restart the server and reload the page. It will take approximately 10 seconds.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                data-testid="nav-restart-cancel"
-                                onClick={() => setConfirmRestart(false)}
-                                className="flex-1 px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] btn-secondary"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                data-testid="nav-restart-confirm"
-                                onClick={handleRestart}
-                                className="flex-1 px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] btn-primary"
-                            >
-                                Restart
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }

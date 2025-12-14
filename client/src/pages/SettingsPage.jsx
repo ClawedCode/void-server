@@ -1,29 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Settings, 
-  Bot, 
-  Check, 
-  X, 
-  AlertCircle, 
-  Eye, 
-  EyeOff, 
-  Play, 
-  Save, 
-  RefreshCw, 
-  Server, 
-  Shield, 
+import {
+  Settings,
+  Bot,
+  Check,
+  X,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Play,
+  Save,
+  RefreshCw,
+  Server,
+  Shield,
   Terminal,
   Cpu,
   Sliders,
-  ExternalLink
+  ExternalLink,
+  Palette
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTheme } from '../contexts/ThemeContext';
 
 const SettingsPage = () => {
   const { tab } = useParams();
   const navigate = useNavigate();
-  
+  const { themeName, setTheme, themes } = useTheme();
+
   const [providers, setProviders] = useState({});
   const [activeProvider, setActiveProvider] = useState('');
   const [loading, setLoading] = useState(true);
@@ -245,7 +248,7 @@ const SettingsPage = () => {
           }`}
         >
           <Cpu className="w-4 h-4" />
-          AI Providers ({providerList.length})
+          Providers ({providerList.length})
         </button>
       </div>
 
@@ -255,10 +258,10 @@ const SettingsPage = () => {
           <div className="card">
             <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
               <Bot className="w-5 h-5" />
-              Active AI Provider
+              Active Provider
             </h3>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              Select the default AI provider to use for all generation tasks. 
+              Select the default provider to use for all generation tasks. 
               Only enabled providers are listed here.
             </p>
             
@@ -301,20 +304,87 @@ const SettingsPage = () => {
               {providerList.filter(p => p.enabled).length === 0 && (
                 <div className="col-span-full flex items-center gap-2 text-yellow-500 bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/20">
                   <AlertCircle className="w-5 h-5" />
-                  <p className="text-sm">No providers are currently enabled. Please enable a provider in the "AI Providers" tab.</p>
+                  <p className="text-sm">No providers are currently enabled. Please enable a provider in the "Providers" tab.</p>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="card opacity-60 pointer-events-none">
-             <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">System Preferences</h3>
-             <p className="text-sm text-[var(--color-text-secondary)]">Additional system-wide settings will appear here.</p>
+          {/* Theme Selection */}
+          <div className="card">
+            <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
+              <Palette className="w-5 h-5" />
+              Theme
+            </h3>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+              Choose a color theme for the interface.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(themes).map(([key, themeConfig]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setTheme(key);
+                    toast.success(`Theme: ${themeConfig.name}`);
+                  }}
+                  className={`relative flex flex-col p-4 rounded-lg border transition-all ${
+                    themeName === key
+                      ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
+                  }`}
+                  style={{ backgroundColor: themeConfig.background }}
+                >
+                  {/* Color preview swatches */}
+                  <div className="flex gap-2 mb-3">
+                    <div
+                      className="w-6 h-6 rounded-full border border-white/20"
+                      style={{ backgroundColor: themeConfig.primary }}
+                      title="Primary"
+                    />
+                    <div
+                      className="w-6 h-6 rounded-full border border-white/20"
+                      style={{ backgroundColor: themeConfig.secondary }}
+                      title="Secondary"
+                    />
+                    <div
+                      className="w-6 h-6 rounded-full border border-white/20"
+                      style={{ backgroundColor: themeConfig.surface }}
+                      title="Surface"
+                    />
+                  </div>
+
+                  {/* Theme name */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="font-medium"
+                      style={{ color: themeConfig.textPrimary }}
+                    >
+                      {themeConfig.name}
+                    </span>
+                    {themeName === key && (
+                      <Check
+                        className="w-4 h-4"
+                        style={{ color: themeConfig.primary }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Sample text */}
+                  <span
+                    className="text-xs mt-1"
+                    style={{ color: themeConfig.textSecondary }}
+                  >
+                    Sample text
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* AI Providers Tab */}
+      {/* Providers Tab */}
       {activeTab === 'providers' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {providerList.map((provider) => (
