@@ -19,6 +19,10 @@ Documentation and LM Studio integration improvements.
 - **Default Deep Model** - LM Studio now defaults to `openai/gpt-oss-20b` for deep model
 - **Embedding Model** - Default embedding model set to `text-embedding-nomic-embed-text-v1.5`
 
+### UI Improvements
+
+- **Memory Search** - Moved search icon to right side of input for cleaner layout
+
 ### New Files
 
 - `server/services/lmstudio-cli.js` - LM Studio CLI wrapper for model detection
