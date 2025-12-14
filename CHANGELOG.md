@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.3] - 2025-12-14
+
+Improved error handling when Neo4j is not installed or running.
+
+### Improvements
+
+- **Neo4j Error Messages** - User-friendly error messages when Neo4j connection fails:
+  - `NOT_RUNNING` - Neo4j service not started
+  - `AUTH_FAILED` - Invalid credentials
+  - `DB_NOT_FOUND` - Database doesn't exist
+  - Each error includes specific help tips for resolution
+
+### UI Improvements
+
+- **Memory Page Banner** - Enhanced Neo4j status banner shows detailed error information:
+  - Specific error message and description
+  - Bullet list of troubleshooting steps
+  - Links to documentation
+
+### Changes
+
+- `getNeo4jStatus()` is now async with full connection attempt
+- Added `parseConnectionError()` for error classification
+- Added `tryConnect()` and `getFullStatus()` methods to Neo4jService
+
+---
+
 ## [0.4.2] - 2025-12-14
 
 Documentation and LM Studio integration improvements.

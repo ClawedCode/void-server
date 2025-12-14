@@ -579,19 +579,19 @@ async function syncToNeo4j() {
 }
 
 /**
- * Check Neo4j availability
+ * Check Neo4j availability (catches errors)
  */
 async function isNeo4jAvailable() {
   const neo4j = getNeo4jService();
-  return await neo4j.isAvailable();
+  return await neo4j.isAvailable().catch(() => false);
 }
 
 /**
- * Get Neo4j status
+ * Get Neo4j status with detailed error info
  */
-function getNeo4jStatus() {
+async function getNeo4jStatus() {
   const neo4j = getNeo4jService();
-  return neo4j.getStatus();
+  return await neo4j.getFullStatus();
 }
 
 /**

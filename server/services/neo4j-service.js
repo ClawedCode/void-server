@@ -17,6 +17,69 @@ class Neo4jService {
     this.driver = null;
     this.connected = false;
     this.connectionError = null;
+    this.lastErrorCode = null;
+  }
+
+  /**
+   * Parse Neo4j error into user-friendly message
+   */
+  parseConnectionError(error) {
+    const code = error.code || '';
+    const message = error.message || '';
+
+    // Connection refused - Neo4j not running
+    if (code === 'ServiceUnavailable' || message.includes('Failed to connect')) {
+      return {
+        code: 'NOT_RUNNING',
+        message: 'Neo4j is not running',
+        details: 'Please start Neo4j to enable the memory system.',
+        help: [
+          'If using Neo4j Desktop: Open the app and start your database',
+          'If using Homebrew: Run "neo4j start"',
+          'If using Docker: Run "docker start neo4j-void"',
+          'See docs/CHAT.md for setup instructions'
+        ]
+      };
+    }
+
+    // Authentication failed
+    if (code === 'Neo.ClientError.Security.Unauthorized' || message.includes('authentication')) {
+      return {
+        code: 'AUTH_FAILED',
+        message: 'Neo4j authentication failed',
+        details: 'Check your Neo4j username and password.',
+        help: [
+          'Default credentials: neo4j / clawedcode',
+          'Set NEO4J_USER and NEO4J_PASSWORD in .env file',
+          'Or update password in Neo4j Browser at http://localhost:7474'
+        ]
+      };
+    }
+
+    // Database not found
+    if (message.includes('database') && message.includes('not found')) {
+      return {
+        code: 'DB_NOT_FOUND',
+        message: 'Neo4j database not found',
+        details: `Database "${this.database}" does not exist.`,
+        help: [
+          'Create the database in Neo4j Browser',
+          'Or set NEO4J_DATABASE=neo4j in .env file'
+        ]
+      };
+    }
+
+    // Generic error
+    return {
+      code: 'CONNECTION_ERROR',
+      message: 'Cannot connect to Neo4j',
+      details: message,
+      help: [
+        'Ensure Neo4j is installed and running',
+        'Check the connection URI: ' + this.uri,
+        'See docs/CHAT.md for setup instructions'
+      ]
+    };
   }
 
   /**
@@ -38,6 +101,7 @@ class Neo4jService {
     await this.driver.verifyConnectivity();
     this.connected = true;
     this.connectionError = null;
+    this.lastErrorCode = null;
     console.log('🧠 Connected to Neo4j');
     return true;
   }
@@ -60,18 +124,66 @@ class Neo4jService {
     await this.driver.verifyConnectivity();
     this.connected = true;
     this.connectionError = null;
+    this.lastErrorCode = null;
     return true;
   }
 
   /**
-   * Get connection status
+   * Try to connect, capturing errors for status reporting
+   */
+  async tryConnect() {
+    if (this.connected) return { success: true };
+
+    this.driver = neo4j.driver(
+      this.uri,
+      neo4j.auth.basic(this.user, this.password),
+      {
+        maxConnectionPoolSize: 50,
+        connectionAcquisitionTimeout: 5000
+      }
+    );
+
+    await this.driver.verifyConnectivity();
+    this.connected = true;
+    this.connectionError = null;
+    this.lastErrorCode = null;
+    console.log('🧠 Connected to Neo4j');
+    return { success: true };
+  }
+
+  /**
+   * Get connection status with detailed error info
    */
   getStatus() {
     return {
       connected: this.connected,
       uri: this.uri,
       database: this.database,
-      error: this.connectionError
+      error: this.connectionError,
+      errorCode: this.lastErrorCode
+    };
+  }
+
+  /**
+   * Get full status including connection attempt
+   */
+  async getFullStatus() {
+    // Try to connect if not connected
+    if (!this.connected) {
+      await this.tryConnect().catch(err => {
+        const parsed = this.parseConnectionError(err);
+        this.connectionError = parsed;
+        this.lastErrorCode = parsed.code;
+        console.log(`⚠️ Neo4j: ${parsed.message} - ${parsed.details}`);
+      });
+    }
+
+    return {
+      connected: this.connected,
+      uri: this.uri,
+      database: this.database,
+      error: this.connectionError,
+      errorCode: this.lastErrorCode
     };
   }
 

@@ -1834,7 +1834,7 @@ function VisualizationTab() {
 // ============================================
 function MemoriesPage() {
   const [activeTab, setActiveTab] = useState('memories');
-  const [neo4jStatus, setNeo4jStatus] = useState({ available: null });
+  const [neo4jStatus, setNeo4jStatus] = useState({ connected: null });
 
   // Fetch Neo4j status
   const fetchStatus = useCallback(async () => {
@@ -1865,19 +1865,33 @@ function MemoriesPage() {
       </div>
 
       {/* Neo4j Status Banner */}
-      {neo4jStatus.available === false && (
-        <div className="card bg-error/10 border-error/20 flex items-center gap-3">
-          <AlertTriangle size={20} className="text-error" />
-          <div className="flex-1">
-            <p className="font-medium text-error">Neo4j Not Connected</p>
-            <p className="text-sm text-text-secondary">
-              Memory features require Neo4j. Make sure Neo4j is running on {neo4jStatus.uri || 'bolt://localhost:7687'}.
-            </p>
+      {neo4jStatus.connected === false && (
+        <div className="card bg-error/10 border-error/20">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-error mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-error">
+                {neo4jStatus.error?.message || 'Neo4j Not Connected'}
+              </p>
+              <p className="text-sm text-text-secondary">
+                {neo4jStatus.error?.details || `Memory features require Neo4j. Make sure Neo4j is running on ${neo4jStatus.uri || 'bolt://localhost:7687'}.`}
+              </p>
+              {neo4jStatus.error?.help && (
+                <ul className="mt-2 text-xs text-text-tertiary space-y-1">
+                  {neo4jStatus.error.help.map((tip, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-text-tertiary">•</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {neo4jStatus.available === true && (
+      {neo4jStatus.connected === true && (
         <div className="card bg-success/10 border-success/20 flex items-center gap-3">
           <Database size={20} className="text-success" />
           <div className="flex-1">

@@ -116,15 +116,11 @@ router.get('/graph', async (req, res) => {
 router.get('/status', async (req, res) => {
   console.log(`📊 GET /api/memories/status`);
 
-  const neo4jStatus = memoryService.getNeo4jStatus();
-  const neo4jAvailable = await memoryService.isNeo4jAvailable();
+  const neo4jStatus = await memoryService.getNeo4jStatus();
 
   res.json({
     success: true,
-    neo4j: {
-      ...neo4jStatus,
-      available: neo4jAvailable
-    }
+    neo4j: neo4jStatus
   });
 });
 

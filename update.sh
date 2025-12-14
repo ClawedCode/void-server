@@ -42,17 +42,13 @@ cd "$SCRIPT_DIR"
 
 print_header "Void Server Update"
 
-# Check for uncommitted changes
+# Auto-stash uncommitted changes
+STASHED=false
 if [[ -n $(git status --porcelain) ]]; then
-  print_warning "You have uncommitted changes:"
-  git status --short
-  echo ""
-  read -p "Continue anyway? (y/N) " -n 1 -r
-  echo ""
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    print_error "Update cancelled."
-    exit 1
-  fi
+  print_step "Stashing local changes..."
+  git stash push -m "void-update-auto-stash" --include-untracked
+  STASHED=true
+  print_success "Changes stashed"
 fi
 
 # Stop services
@@ -95,6 +91,12 @@ npx pm2 restart ecosystem.config.js
 # Show status
 echo ""
 npx pm2 status
+
+# Restore stashed changes
+if [[ "$STASHED" == true ]]; then
+  print_step "Restoring stashed changes..."
+  git stash pop || print_warning "Could not auto-restore stash. Run 'git stash pop' manually."
+fi
 
 print_header "Update Complete!"
 
