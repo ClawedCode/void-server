@@ -141,6 +141,8 @@ LM_STUDIO_URL=http://localhost:1234/v1
    - **Basic Chat** - Simple assistant
 4. Start typing!
 
+![Chat Page](assets/chat-page.png)
+
 ### Memory Integration
 
 When Neo4j is connected:

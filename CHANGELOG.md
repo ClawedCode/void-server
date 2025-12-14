@@ -13,6 +13,15 @@ Documentation release.
   - Creating custom egregore personas
   - Memory categories and architecture overview
   - Troubleshooting guide
+  - Added chat page screenshot
+
+- **MEMORIES.md** - Complete documentation for the memory management system:
+  - Memory structure and categories
+  - Page features (Memories, Maintenance, Visualization tabs)
+  - Creating and retrieving memories
+  - REST API reference with examples
+  - Backup and restore procedures
+  - Added memories page screenshot
 
 ---
 
