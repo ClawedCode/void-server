@@ -12,9 +12,14 @@ cd void-server
 ./setup.sh
 ```
 
-This installs dependencies, builds the client, starts services with PM2, and configures auto-start.
+This installs dependencies, starts dev services with PM2, and configures auto-start.
 
-Open http://localhost:4401 in your browser.
+Development defaults:
+
+- API server: http://localhost:4401
+- Client (Vite dev with HMR): http://localhost:4480
+
+PM2 runs both: `void-server` (Express API) and `void-client` (Vite dev server). Use the Vite URL for the live-reload UI; API requests proxy to 4401.
 
 **Manage services:**
 ```bash
@@ -149,4 +154,3 @@ void-server/
 ## License
 
 MIT
-

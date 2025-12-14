@@ -123,7 +123,7 @@ const DEFAULT_CONFIG = {
       models: {
         light: 'lmstudio-community/Llama-3.2-3B-Instruct-GGUF',
         medium: 'lmstudio-community/Qwen2.5-14B-Instruct-GGUF',
-        deep: 'openai/gpt-oss-20b'
+        deep: 'lmstudio-community/Qwen2.5-32B-Instruct-GGUF'
       },
       settings: {
         temperature: 0.8,
@@ -160,7 +160,13 @@ function loadConfig() {
       ...Object.keys(savedProviders)
     ]);
 
-    for (const key of providerKeys) {
+    const orderedKeys = [...providerKeys].sort((a, b) => {
+      if (a === 'lmstudio') return -1;
+      if (b === 'lmstudio') return 1;
+      return 0;
+    });
+
+    for (const key of orderedKeys) {
       const defaultProvider = DEFAULT_CONFIG.providers[key] || {};
       const savedProvider = savedProviders[key] || {};
 
@@ -198,11 +204,14 @@ function getProviders() {
 
   const result = {};
   for (const [key, providerConfig] of Object.entries(config.providers)) {
+    const defaults = DEFAULT_CONFIG.providers[key] || {};
+    const mergedConfig = { ...defaults, ...providerConfig };
+
     result[key] = {
-      ...providerConfig,
+      ...mergedConfig,
       active: key === config.activeProvider,
       // Mask API key for security
-      apiKey: providerConfig.apiKey ? '••••••••' : ''
+      apiKey: mergedConfig.apiKey ? '••••••••' : ''
     };
   }
 
@@ -218,9 +227,11 @@ function getProviders() {
 function getActiveProvider() {
   if (!config) loadConfig();
   const providerKey = config.activeProvider;
+  const defaults = DEFAULT_CONFIG.providers[providerKey] || {};
+  const mergedConfig = { ...defaults, ...config.providers[providerKey] };
   return {
     key: providerKey,
-    ...config.providers[providerKey]
+    ...mergedConfig
   };
 }
 

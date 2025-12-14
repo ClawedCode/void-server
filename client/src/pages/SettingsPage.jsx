@@ -191,10 +191,16 @@ const SettingsPage = () => {
   };
 
   // Get list of providers
-  const providerList = Object.entries(editedConfigs).map(([key, config]) => ({
-    key,
-    ...config
-  }));
+  const providerList = Object.entries(editedConfigs)
+    .map(([key, config]) => ({
+      key,
+      ...config
+    }))
+    .sort((a, b) => {
+      if (a.key === 'lmstudio') return -1;
+      if (b.key === 'lmstudio') return 1;
+      return 0;
+    });
 
   if (loading) {
     return (

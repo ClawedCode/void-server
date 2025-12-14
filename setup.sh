@@ -135,27 +135,6 @@ else
   print_skip "Not a git repository, skipping hooks"
 fi
 
-# Build client for production (check if dist exists and is newer than src)
-if [[ -d "client/dist" ]] && [[ -f "client/dist/index.html" ]]; then
-  # Check if any source file is newer than dist
-  NEWEST_SRC=$(find client/src -type f -newer client/dist/index.html 2>/dev/null | head -1)
-  if [[ -z "$NEWEST_SRC" ]]; then
-    print_skip "Client already built"
-  else
-    print_step "Rebuilding client (source changed)..."
-    cd client
-    npm run build --silent
-    cd ..
-    print_success "Client rebuilt"
-  fi
-else
-  print_step "Building client..."
-  cd client
-  npm run build
-  cd ..
-  print_success "Client built"
-fi
-
 # PM2 setup
 print_header "Starting Services with PM2"
 
@@ -164,8 +143,8 @@ print_step "Stopping existing instances..."
 npx pm2 delete ecosystem.config.js 2>/dev/null || true
 
 # Start with PM2
-print_step "Starting void-server and void-client..."
-npx pm2 start ecosystem.config.js
+print_step "Starting void-server (4401) and void-client dev (4480)..."
+npx pm2 start ecosystem.config.js --env development
 
 # Configure PM2 startup (run on system boot)
 print_step "Configuring PM2 startup..."
@@ -188,8 +167,8 @@ print_header "Setup Complete!"
 
 echo -e "${GREEN}Void Server is running!${NC}"
 echo ""
-echo "  Server:  http://localhost:4401"
-echo "  Client:  http://localhost:4480"
+echo "  API:     http://localhost:4401"
+echo "  Client:  http://localhost:4480 (Vite dev server with HMR)"
 echo ""
 echo -e "${CYAN}Commands:${NC}"
 echo "  npm run pm2:logs      View logs"

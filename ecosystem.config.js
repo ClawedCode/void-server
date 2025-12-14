@@ -35,6 +35,9 @@ module.exports = {
       env: {
         NODE_ENV: 'development'
       },
+      env_production: {
+        NODE_ENV: 'development'
+      },
       error_file: '../logs/client-error.log',
       out_file: '../logs/client-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
