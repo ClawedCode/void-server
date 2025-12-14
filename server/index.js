@@ -440,7 +440,10 @@ app.get('/api/pm2/processes', async (req, res) => {
   const execAsync = promisify(exec);
 
   const { stdout } = await execAsync('pm2 jlist');
-  const processes = JSON.parse(stdout);
+  // PM2 sometimes outputs extra text before the JSON (e.g., ">>> In-memory PM2...")
+  const jsonStart = stdout.indexOf('[');
+  const jsonString = jsonStart >= 0 ? stdout.slice(jsonStart) : '[]';
+  const processes = JSON.parse(jsonString);
 
   const processList = processes.map(p => ({
     name: p.name,
