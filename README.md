@@ -6,6 +6,36 @@ A modular, plugin-based creative platform for building and running your own sove
 
 ## Quick Start
 
+Choose your preferred installation method:
+
+### Option 1: Docker (Recommended)
+
+The easiest way to run Void Server with all dependencies included.
+
+**Prerequisites:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your platform (macOS, Windows, or Linux).
+
+```bash
+git clone https://github.com/ClawedCode/void-server.git
+cd void-server
+docker-compose up -d
+```
+
+That's it! Access the app at **http://localhost:4401**
+
+Docker Compose starts both Void Server and Neo4j (for the memory system) with persistent storage.
+
+**Manage Docker services:**
+```bash
+docker-compose logs -f      # View logs (Ctrl+C to exit)
+docker-compose restart      # Restart services
+docker-compose down         # Stop services
+docker-compose up -d        # Start services
+```
+
+### Option 2: Native Installation
+
+For development or if you prefer running services directly on your machine.
+
 ```bash
 git clone https://github.com/ClawedCode/void-server.git
 cd void-server
@@ -21,13 +51,61 @@ Development defaults:
 
 PM2 runs both: `void-server` (Express API) and `void-client` (Vite dev server). Use the Vite URL for the live-reload UI; API requests proxy to 4401.
 
-**Manage services:**
+**Manage native services:**
 ```bash
 npm run status    # Check status
 npm run logs      # View logs
 npm run restart   # Restart
 npm run stop      # Stop
 ```
+
+## Docker Configuration
+
+### Environment Variables
+
+Customize your Docker deployment with environment variables:
+
+```bash
+# Custom Neo4j password
+NEO4J_PASSWORD=mysecurepassword docker-compose up -d
+
+# Or create a .env file
+echo "NEO4J_PASSWORD=mysecurepassword" > .env
+docker-compose up -d
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEO4J_PASSWORD` | `voidserver` | Neo4j database password |
+| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
+| `LM_STUDIO_URL` | `http://host.docker.internal:1234/v1` | LM Studio API endpoint |
+
+### Using External Services
+
+To use an external Neo4j instance instead of the bundled one:
+
+```bash
+NEO4J_URI=bolt://your-server:7687 \
+NEO4J_USER=neo4j \
+NEO4J_PASSWORD=yourpassword \
+docker-compose up -d void-server
+```
+
+### LM Studio Integration
+
+If running [LM Studio](https://lmstudio.ai/) on your host machine, the Docker container automatically connects via `host.docker.internal`. Just start LM Studio's local server and it will be available to the containerized app.
+
+### Persistent Data
+
+Docker volumes preserve your data across restarts:
+
+| Host Path | Container Path | Purpose |
+|-----------|----------------|---------|
+| `./config` | `/app/config` | App configuration |
+| `./backups` | `/app/backups` | Database backups |
+| `./logs` | `/app/logs` | Application logs |
+| `./data` | `/app/data` | General data |
+| `neo4j_data` | Neo4j volume | Graph database |
 
 ## Features
 
@@ -129,11 +207,16 @@ Environment variables (`.env` file supported):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | 4401 | Server port |
-| `CONTENT_DIR` | `../content` | Content directory path |
-| `NODE_ENV` | development | Environment mode |
+| `PORT` | `4401` | Server port |
+| `NODE_ENV` | `development` | Environment mode |
+| `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection URI |
+| `NEO4J_USER` | `neo4j` | Neo4j username |
+| `NEO4J_PASSWORD` | `clawedcode` | Neo4j password |
+| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
+| `LM_STUDIO_URL` | `http://localhost:1234/v1` | LM Studio API endpoint |
 
 Plugin configurations are stored in `config/plugins.json`.
+AI provider settings are stored in `config/ai-providers.json`.
 
 ## Project Structure
 
