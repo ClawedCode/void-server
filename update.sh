@@ -46,9 +46,19 @@ print_header "Void Server Update"
 STASHED=false
 if [[ -n $(git status --porcelain) ]]; then
   print_step "Stashing local changes..."
-  git stash push -m "void-update-auto-stash" --include-untracked
-  STASHED=true
-  print_success "Changes stashed"
+  if git stash push -m "void-update-auto-stash" --include-untracked 2>/dev/null; then
+    STASHED=true
+    print_success "Changes stashed"
+  else
+    print_warning "Could not stash changes, trying git stash --all..."
+    if git stash --all; then
+      STASHED=true
+      print_success "Changes stashed"
+    else
+      print_error "Failed to stash changes. Please commit or discard your changes first."
+      exit 1
+    fi
+  fi
 fi
 
 # Stop services
@@ -58,10 +68,6 @@ npx pm2 stop ecosystem.config.js 2>/dev/null || true
 # Pull latest code
 print_step "Pulling latest code..."
 git pull --rebase
-
-# Update submodules
-print_step "Updating submodules..."
-git submodule update --recursive --remote
 
 # Update server dependencies
 print_step "Updating server dependencies..."
