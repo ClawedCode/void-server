@@ -107,6 +107,16 @@ Docker volumes preserve your data across restarts:
 | `./data` | `/app/data` | General data |
 | `neo4j_data` | Neo4j volume | Graph database |
 
+### Remote Access
+
+Access your Void Server from your phone or anywhere using [Tailscale](https://tailscale.com/):
+
+1. Install Tailscale on your server and phone
+2. Sign in with the same account
+3. Access via Tailscale IP: `http://100.x.y.z:4401`
+
+See [docs/REMOTE-ACCESS.md](docs/REMOTE-ACCESS.md) for detailed setup instructions.
+
 ## Features
 
 - **Plugin System** - Install, enable/disable, and configure plugins via UI or CLI
