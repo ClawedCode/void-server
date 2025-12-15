@@ -27,6 +27,10 @@ const memoriesRoutes = require('./routes/memories');
 const backupRoutes = require('./routes/backup');
 const { setIO } = require('./utils/broadcast');
 
+// Browser management
+const browsersRoutes = require('./routes/browsers');
+const browserService = require('./services/browser-service');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -170,6 +174,9 @@ app.use('/api/memories', memoriesRoutes);
 // Backup API
 app.use('/api/backup', backupRoutes);
 
+// Browsers API
+app.use('/api/browsers', browsersRoutes);
+
 // Initialize Provider system
 aiProvider.initialize();
 
@@ -300,7 +307,7 @@ function loadPlugins() {
       enabled: routeOverrides[route.path]?.enabled !== false
     }));
 
-    plugin(app, { mountPath });
+    plugin(app, { mountPath, services: { browserService } });
 
     // Serve static assets from plugin's assets folder if it exists
     const assetsPath = path.join(pluginPath, 'assets');

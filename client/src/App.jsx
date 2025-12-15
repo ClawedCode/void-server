@@ -10,6 +10,7 @@ import ChatPage from './pages/ChatPage';
 import TemplatesPage from './pages/TemplatesPage';
 import VariablesPage from './pages/VariablesPage';
 import MemoriesPage from './pages/MemoriesPage';
+import BrowsersPage from './pages/BrowsersPage';
 
 function App() {
   const [plugins, setPlugins] = useState([]);
@@ -44,6 +45,7 @@ function App() {
         <Route path="prompts/variables" element={<VariablesPage />} />
         <Route path="memories" element={<MemoriesPage />} />
         <Route path="memories/:tab" element={<MemoriesPage />} />
+        <Route path="browsers" element={<BrowsersPage />} />
 
         {/* Dynamic plugin routes - all handled by PluginViewer */}
         {pluginsLoaded && plugins.map(plugin => (

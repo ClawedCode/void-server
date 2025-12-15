@@ -15,7 +15,8 @@ import {
     MessageSquare,
     FileCode,
     Braces,
-    Brain
+    Brain,
+    Globe
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -136,6 +137,13 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
             title: 'Memories',
             icon: Brain,
             path: '/memories',
+            single: true
+        });
+
+        contentItems.push({
+            title: 'Browsers',
+            icon: Globe,
+            path: '/browsers',
             single: true
         });
 

@@ -34,6 +34,7 @@ plugins/*
 
 # Config - track structure but not instance-specific settings
 config/*.json
+config/browsers/
 !config/.gitkeep
 
 # Prompts - track templates/variables, ignore chat history
