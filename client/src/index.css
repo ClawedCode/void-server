@@ -2,7 +2,6 @@
 
 /* Include plugin directories for Tailwind class scanning */
 @source "../../plugins";
-@source "../../../void-plugin-*";
 
 /* Plugin utility classes - ensure these are available for plugins */
 .char-grid {

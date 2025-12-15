@@ -1,10 +1,11 @@
 # Void Server - Production Dockerfile
 # Multi-stage build for optimized production image
+# Uses Debian slim images (Alpine musl libc can cause esbuild/Vite issues)
 
 # =============================================================================
 # Stage 1: Builder - Install dependencies and build client
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -19,13 +20,15 @@ RUN npm ci && cd client && npm ci
 COPY . .
 
 # Build client for production
+# Set memory limit to prevent OOM with large dependencies (three.js)
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build --prefix client
 
 # =============================================================================
 # Stage 2: Production - Minimal runtime image
 # =============================================================================
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -46,18 +49,18 @@ COPY ecosystem.config.js ./
 # Create directories for volume mounts
 RUN mkdir -p config backups logs data
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S voidserver && \
-    adduser -S voidserver -u 1001 -G voidserver && \
+# Create non-root user for security (Debian syntax)
+RUN groupadd -g 1001 voidserver && \
+    useradd -u 1001 -g voidserver -m voidserver && \
     chown -R voidserver:voidserver /app
 
 USER voidserver
 
 EXPOSE 4401
 
-# Health check
+# Health check (using node since wget/curl not in slim image)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4401/health || exit 1
+  CMD node -e "fetch('http://localhost:4401/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Start with PM2 runtime
 CMD ["npx", "pm2-runtime", "ecosystem.config.js", "--env", "production"]

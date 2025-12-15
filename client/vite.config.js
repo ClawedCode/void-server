@@ -26,7 +26,11 @@ export default defineConfig({
       'react-hot-toast': path.resolve(__dirname, 'node_modules/react-hot-toast'),
       '@heroicons/react': path.resolve(__dirname, 'node_modules/@heroicons/react'),
       'lucide-react': path.resolve(__dirname, 'node_modules/lucide-react'),
-      'tone': path.resolve(__dirname, 'node_modules/tone')
+      'tone': path.resolve(__dirname, 'node_modules/tone'),
+      // Three.js packages for 3D visualization
+      'three': path.resolve(__dirname, 'node_modules/three'),
+      '@react-three/fiber': path.resolve(__dirname, 'node_modules/@react-three/fiber'),
+      '@react-three/drei': path.resolve(__dirname, 'node_modules/@react-three/drei')
     }
   },
   // Allow imports from outside the client directory (for plugins)
@@ -60,15 +64,17 @@ export default defineConfig({
       }
     }
   },
-  // Optimize dependencies for plugins
+  // Optimize dependencies for plugins and heavy libraries
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'react-hot-toast']
+    include: ['react', 'react-dom', 'react-router-dom', 'react-hot-toast', 'three', '@react-three/fiber', '@react-three/drei']
   },
   // Production build optimizations
   build: {
     // Disable source maps in production for faster builds
     sourcemap: false,
     // Reduce chunk size warnings threshold
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    // Ensure no watch mode during build
+    watch: null
   }
 })
