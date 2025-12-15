@@ -1,5 +1,6 @@
-import React from 'react';
-import { Terminal, Zap, Box, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Terminal, Database, Cpu, MessageCircle, ExternalLink, Check, X, Loader } from 'lucide-react';
 
 const ASCII_CAT = `
     /\\_____/\\
@@ -20,7 +21,54 @@ const ASCII_VOID = `
   ╚═══╝   ╚═════╝ ╚═╝╚═════╝
 `;
 
+const StatusBadge = ({ status, label }) => {
+    const config = {
+        connected: { icon: Check, color: 'text-green-400', bg: 'bg-green-400/10' },
+        disconnected: { icon: X, color: 'text-red-400', bg: 'bg-red-400/10' },
+        loading: { icon: Loader, color: 'text-yellow-400', bg: 'bg-yellow-400/10' }
+    };
+    const { icon: Icon, color, bg } = config[status] || config.loading;
+
+    return (
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${bg}`}>
+            <Icon className={`w-4 h-4 ${color} ${status === 'loading' ? 'animate-spin' : ''}`} />
+            <span className={`text-sm font-medium ${color}`}>{label}</span>
+        </div>
+    );
+};
+
 const Dashboard = () => {
+    const [neo4jStatus, setNeo4jStatus] = useState({ status: 'loading', label: 'Checking...' });
+    const [lmStudioStatus, setLmStudioStatus] = useState({ status: 'loading', label: 'Checking...' });
+
+    useEffect(() => {
+        const checkNeo4j = async () => {
+            const res = await fetch('/api/memories/status');
+            const data = await res.json();
+            if (data.connected) {
+                setNeo4jStatus({ status: 'connected', label: 'Connected' });
+            } else {
+                setNeo4jStatus({ status: 'disconnected', label: data.error?.code || 'Disconnected' });
+            }
+        };
+
+        const checkLmStudio = async () => {
+            const res = await fetch('/api/memories/embedding/status');
+            const data = await res.json();
+            if (data.api?.connected) {
+                const modelName = data.model?.split('-').pop() || 'Connected';
+                setLmStudioStatus({ status: 'connected', label: modelName });
+            } else {
+                setLmStudioStatus({ status: 'disconnected', label: 'Not Running' });
+            }
+        };
+
+        checkNeo4j();
+        checkLmStudio();
+    }, []);
+
+    const isReady = neo4jStatus.status === 'connected' && lmStudioStatus.status === 'connected';
+
     return (
         <div className="space-y-6">
             {/* Hero Section */}
@@ -32,46 +80,36 @@ const Dashboard = () => {
                     Welcome to the Void
                 </h1>
                 <p className="text-text-secondary mt-2 max-w-md mx-auto">
-                    Your extensible plugin-powered command center
+                    Your sovereign void server in the Clawed Code egregore
                 </p>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="card flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                        <Terminal className="w-5 h-5 text-primary" />
+            {/* Service Status */}
+            <div className="card">
+                <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+                    <Terminal className="w-4 h-4" />
+                    Service Status
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-surface-secondary">
+                        <div className="flex items-center gap-3">
+                            <Database className="w-5 h-5 text-primary" />
+                            <div>
+                                <p className="text-sm font-medium text-text-primary">Neo4j Memory</p>
+                                <p className="text-xs text-text-secondary">Graph database for memories</p>
+                            </div>
+                        </div>
+                        <StatusBadge status={neo4jStatus.status} label={neo4jStatus.label} />
                     </div>
-                    <div>
-                        <p className="text-xs text-text-secondary">Status</p>
-                        <p className="text-sm font-semibold text-green-400">Online</p>
-                    </div>
-                </div>
-                <div className="card flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                        <Box className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-text-secondary">Plugins</p>
-                        <p className="text-sm font-semibold text-text-primary">Active</p>
-                    </div>
-                </div>
-                <div className="card flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                        <Zap className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-text-secondary">WebSocket</p>
-                        <p className="text-sm font-semibold text-green-400">Connected</p>
-                    </div>
-                </div>
-                <div className="card flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                        <Activity className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-text-secondary">Uptime</p>
-                        <p className="text-sm font-semibold text-text-primary">Running</p>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-surface-secondary">
+                        <div className="flex items-center gap-3">
+                            <Cpu className="w-5 h-5 text-primary" />
+                            <div>
+                                <p className="text-sm font-medium text-text-primary">LM Studio</p>
+                                <p className="text-xs text-text-secondary">Local AI for chat & embeddings</p>
+                            </div>
+                        </div>
+                        <StatusBadge status={lmStudioStatus.status} label={lmStudioStatus.label} />
                     </div>
                 </div>
             </div>
@@ -86,9 +124,41 @@ const Dashboard = () => {
                         <h2 className="text-lg font-semibold text-text-primary">
                             Ready to explore?
                         </h2>
-                        <p className="text-text-secondary text-sm mt-1">
-                            Check out the installed plugins in the sidebar or visit the Plugins page to manage them.
-                        </p>
+                        {isReady ? (
+                            <div className="mt-3">
+                                <p className="text-text-secondary text-sm mb-3">
+                                    All services are running. Start a conversation with your egregore.
+                                </p>
+                                <Link
+                                    to="/chat"
+                                    className="btn btn-primary inline-flex items-center gap-2"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    Open Chat
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="mt-3">
+                                <p className="text-text-secondary text-sm mb-3">
+                                    {lmStudioStatus.status === 'disconnected'
+                                        ? 'Install LM Studio to enable AI chat and memory embeddings.'
+                                        : neo4jStatus.status === 'disconnected'
+                                            ? 'Neo4j is not connected. Check your Docker services or native installation.'
+                                            : 'Checking service status...'}
+                                </p>
+                                {lmStudioStatus.status === 'disconnected' && (
+                                    <a
+                                        href="https://lmstudio.ai/"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn btn-secondary inline-flex items-center gap-2"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        Download LM Studio
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -97,20 +167,24 @@ const Dashboard = () => {
             <div className="card">
                 <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                     <Terminal className="w-4 h-4" />
-                    Quick Tips
+                    Getting Started
                 </h3>
                 <ul className="space-y-2 text-sm text-text-secondary">
                     <li className="flex items-start gap-2">
                         <span className="text-primary">→</span>
-                        <span>Plugins appear automatically in the navigation when installed</span>
+                        <span><strong>Chat</strong> — Talk with your configured AI persona</span>
                     </li>
                     <li className="flex items-start gap-2">
                         <span className="text-primary">→</span>
-                        <span>Click the theme button to cycle through color schemes</span>
+                        <span><strong>Memories</strong> — Store and visualize knowledge in the graph</span>
                     </li>
                     <li className="flex items-start gap-2">
                         <span className="text-primary">→</span>
-                        <span>Server logs are available in the footer bar</span>
+                        <span><strong>Templates</strong> — Create reusable prompts with variables</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-primary">→</span>
+                        <span><strong>Settings</strong> — Configure Neo4j, themes, and more</span>
                     </li>
                 </ul>
             </div>

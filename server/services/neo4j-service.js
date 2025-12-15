@@ -15,7 +15,7 @@ const NEO4J_CONFIG_PATH = path.join(CONFIG_DIR, 'neo4j.json');
 const DEFAULT_CONFIG = {
   uri: 'bolt://localhost:7687',
   user: 'neo4j',
-  password: 'clawedcode',
+  password: 'voidserver',
   database: 'clawed'
 };
 
@@ -139,7 +139,7 @@ class Neo4jService {
         message: 'Neo4j authentication failed',
         details: 'Check your Neo4j username and password.',
         help: [
-          'Default credentials: neo4j / clawedcode',
+          'Default credentials: neo4j / voidserver',
           'Set NEO4J_USER and NEO4J_PASSWORD in .env file',
           'Or update password in Neo4j Browser at http://localhost:7474'
         ]

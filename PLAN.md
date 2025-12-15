@@ -63,7 +63,7 @@ POST   /api/backup/config      # Update backup configuration
 
 ### Requirements
 - **Neo4j** running on `bolt://localhost:7687`
-- Default credentials: `neo4j` / `clawedcode`
+- Default credentials: `neo4j` / `voidserver`
 - **LM Studio** for embeddings (optional, enhances search)
 
 ### Memory Categories

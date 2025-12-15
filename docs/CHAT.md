@@ -79,7 +79,7 @@ Neo4j enables the memory system - without it, chat works but doesn't remember pr
 2. Create a new project
 3. Add a local DBMS with:
    - Name: `void-memories`
-   - Password: `clawedcode` (or your choice)
+   - Password: `voidserver` (or your choice)
 4. Start the database
 
 ### Option B: Homebrew (macOS)
@@ -97,7 +97,7 @@ Default credentials: `neo4j` / `neo4j` (you'll be prompted to change the passwor
 docker run -d \
   --name neo4j-void \
   -p 7474:7474 -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/clawedcode \
+  -e NEO4J_AUTH=neo4j/voidserver \
   neo4j:latest
 ```
 
@@ -121,7 +121,7 @@ Create a `.env` file in the project root:
 # Neo4j Connection
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=clawedcode
+NEO4J_PASSWORD=voidserver
 NEO4J_DATABASE=clawed
 
 # LM Studio (default: localhost:1234)
@@ -291,7 +291,7 @@ Memories are auto-categorized based on content, but you can manually assign cate
 
 1. Check Neo4j is running: `neo4j status` or check Docker
 2. Verify credentials in `.env` match your Neo4j setup
-3. Default password is `clawedcode` - update if you changed it
+3. Default password is `voidserver` - update if you changed it
 
 ### LM Studio not responding
 

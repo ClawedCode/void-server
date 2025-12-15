@@ -2,9 +2,15 @@
 
 ## [0.6.1] - 2025-12-15
 
-Post-release improvements to Docker deployment and Neo4j configuration.
+Post-release improvements to Docker deployment, Neo4j configuration, and dashboard.
 
 ### New Features
+
+#### Dashboard Overhaul
+- **Service Status Panel** - Real-time status indicators for Neo4j and LM Studio
+- **Smart Onboarding** - Shows "Open Chat" button when services are ready, or "Download LM Studio" link when not
+- **Getting Started Section** - Quick links to Chat, Memories, Templates, and Settings
+- **Updated Tagline** - "Your sovereign void server in the Clawed Code egregore"
 
 #### Neo4j Configuration UI
 - **Settings Panel** - New Neo4j section in Settings page to configure connection parameters
@@ -15,6 +21,7 @@ Post-release improvements to Docker deployment and Neo4j configuration.
 
 #### Documentation
 - **Tailscale Remote Access Guide** - New documentation for accessing void-server remotely via Tailscale
+- **LM Studio in Prerequisites** - Added to README Quick Start as required dependency
 
 ### Improvements
 

@@ -11,7 +11,10 @@ A modular, plugin-based creative platform for building and running your own sove
 | Tool | Purpose | Install |
 |------|---------|---------|
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Run the app + Neo4j database | Required |
+| [LM Studio](https://lmstudio.ai/) | Local AI for chat & embeddings | Required |
 | [Tailscale](https://tailscale.com/download) | Access from phone/anywhere | Optional |
+
+After installing LM Studio, download an embedding model (e.g., `nomic-embed-text`) and a chat model, then start the local server.
 
 ### 2. Run
 
@@ -50,7 +53,7 @@ docker-compose down         # Stop services
 docker-compose up -d        # Start services
 ```
 
-### Option 2: Native Installation
+### Native Installation
 
 For development or if you prefer running services directly on your machine.
 
@@ -241,7 +244,7 @@ Environment variables (`.env` file supported):
 | `NODE_ENV` | `development` | Environment mode |
 | `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection URI |
 | `NEO4J_USER` | `neo4j` | Neo4j username |
-| `NEO4J_PASSWORD` | `clawedcode` | Neo4j password |
+| `NEO4J_PASSWORD` | `voidserver` | Neo4j password |
 | `NEO4J_DATABASE` | `clawed` | Neo4j database name |
 | `LM_STUDIO_URL` | `http://localhost:1234/v1` | LM Studio API endpoint |
 
