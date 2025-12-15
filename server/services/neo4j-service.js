@@ -18,6 +18,11 @@ class Neo4jService {
     this.connected = false;
     this.connectionError = null;
     this.lastErrorCode = null;
+
+    // Log if using environment variable overrides
+    if (process.env.NEO4J_URI) {
+      console.log(`🔧 Neo4j URI from environment: ${this.uri}`);
+    }
   }
 
   /**
@@ -102,7 +107,7 @@ class Neo4jService {
     this.connected = true;
     this.connectionError = null;
     this.lastErrorCode = null;
-    console.log('🧠 Connected to Neo4j');
+    console.log(`🧠 Connected to Neo4j at ${this.uri}`);
     return true;
   }
 
