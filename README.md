@@ -14,13 +14,21 @@ A modular, plugin-based creative platform for building and running your own sove
 | [LM Studio](https://lmstudio.ai/) | Local AI for chat & embeddings | Required |
 | [Tailscale](https://tailscale.com/download) | Access from phone/anywhere | Optional |
 
-After installing LM Studio, download an embedding model (e.g., `nomic-embed-text`) and a chat model, then start the local server.
+After installing LM Studio, download an embedding model (e.g., `text-embedding-nomic-embed-text-v1.5`) and a chat model, then start the local server.
 
 ### 2. Run
 
+**With git:**
 ```bash
 git clone https://github.com/ClawedCode/void-server.git
 cd void-server
+docker-compose up -d
+```
+
+**Without git:**
+```bash
+curl -L https://github.com/ClawedCode/void-server/archive/refs/heads/main.zip -o void-server.zip
+unzip void-server.zip && cd void-server-main
 docker-compose up -d
 ```
 

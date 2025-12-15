@@ -45,10 +45,10 @@ const Dashboard = () => {
         const checkNeo4j = async () => {
             const res = await fetch('/api/memories/status');
             const data = await res.json();
-            if (data.connected) {
+            if (data.neo4j?.connected) {
                 setNeo4jStatus({ status: 'connected', label: 'Connected' });
             } else {
-                setNeo4jStatus({ status: 'disconnected', label: data.error?.code || 'Disconnected' });
+                setNeo4jStatus({ status: 'disconnected', label: data.neo4j?.error?.code || 'Disconnected' });
             }
         };
 
