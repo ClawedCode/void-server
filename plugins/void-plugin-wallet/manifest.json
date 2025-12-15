@@ -1,0 +1,41 @@
+{
+  "name": "void-plugin-wallet",
+  "version": "1.0.0",
+  "description": "Crypto wallet management with send/sign capabilities",
+  "server": {
+    "entry": "server/index.js"
+  },
+  "client": {
+    "entry": "client/index.jsx",
+    "routes": [
+      {
+        "path": "",
+        "component": "WalletPage",
+        "title": "Wallets"
+      }
+    ]
+  },
+  "nav": {
+    "section": null,
+    "title": "Wallets",
+    "icon": "wallet"
+  },
+  "defaultMountPath": "/wallet",
+  "dependencies": {
+    "runtime": ["react-hot-toast", "lucide-react"],
+    "devDependencies": []
+  },
+  "configSchema": {
+    "heliusApiKey": {
+      "type": "string",
+      "label": "Helius API Key",
+      "description": "API key for Helius RPC (recommended for production). Get one at helius.dev",
+      "secret": true
+    },
+    "rpcUrl": {
+      "type": "string",
+      "label": "Custom RPC URL",
+      "description": "Custom Solana RPC endpoint (overrides Helius if both set)"
+    }
+  }
+}

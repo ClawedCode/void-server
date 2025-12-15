@@ -1,0 +1,28 @@
+{
+  "name": "void-plugin-ascii",
+  "version": "1.0.0",
+  "description": "ASCII text generator with block letters and terminal box styling",
+  "server": {
+    "entry": "server/index.js"
+  },
+  "client": {
+    "entry": "client/index.jsx",
+    "routes": [
+      {
+        "path": "",
+        "component": "AsciiGeneratorPage",
+        "title": "ASCII Generator"
+      }
+    ]
+  },
+  "nav": {
+    "section": null,
+    "title": "ASCII",
+    "icon": "terminal"
+  },
+  "defaultMountPath": "/ascii",
+  "dependencies": {
+    "runtime": ["react-hot-toast", "lucide-react"],
+    "devDependencies": []
+  }
+}

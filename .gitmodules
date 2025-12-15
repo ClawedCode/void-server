@@ -1,9 +1,0 @@
-[submodule "plugins/void-plugin-ascii"]
-	path = plugins/void-plugin-ascii
-	url = git@github.com:ClawedCode/void-plugin-ascii.git
-[submodule "plugins/void-plugin-verify"]
-	path = plugins/void-plugin-verify
-	url = git@github.com:ClawedCode/void-plugin-verify.git
-[submodule "plugins/void-plugin-wallet"]
-	path = plugins/void-plugin-wallet
-	url = git@github.com:ClawedCode/void-plugin-wallet.git

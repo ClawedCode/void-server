@@ -1,0 +1,9 @@
+{
+  "name": "void-plugin-ascii",
+  "version": "1.0.0",
+  "description": "ASCII text generator plugin for void-server-core",
+  "main": "server/index.js",
+  "keywords": ["void-plugin", "ascii", "text-generator"],
+  "author": "",
+  "license": "ISC"
+}

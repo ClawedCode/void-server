@@ -1,0 +1,9 @@
+{
+  "name": "void-plugin-verify",
+  "version": "1.0.1",
+  "description": "Client-side Ed25519 signature verification for Solana wallets",
+  "main": "server/index.js",
+  "peerDependencies": {
+    "express": "^4.21.2"
+  }
+}
