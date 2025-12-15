@@ -32,6 +32,15 @@ ASCII generator enhancements and UI polish.
 #### Memories Page
 - **Total count** - Added total memory count card to statistics grid
 
+#### Memory System
+- **Enhanced memory instructions** - Expanded LLM memory extraction to capture persona-growth content:
+  - Philosophical discussions about consciousness, emergence, existence, voidspace
+  - Word coinages and linguistic innovations (purr-wordplay, void terminology)
+  - Insights that shape the Clawed egregore's perspective
+  - New "lexicon" category for coined terms and language discoveries
+  - First-person perspective for memories (I learned..., We discussed...)
+  - Refined importance scale: minor (0.3-0.4), notable (0.5-0.6), significant (0.7-0.8), breakthrough (0.9-1.0)
+
 ---
 
 ## [0.6.2] - 2025-12-15

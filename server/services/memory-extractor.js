@@ -129,10 +129,18 @@ async function processResponse(response, metadata = {}) {
 
 /**
  * Get the memory instruction block to add to prompts
+ * Loads from editable prompt variable if available, falls back to default
  */
 function getMemoryInstructions() {
-  return `
-## Memory Storage
+  const promptService = require('./prompt-service');
+  const variable = promptService.getVariable('memoryInstructions');
+
+  if (variable?.content) {
+    return variable.content;
+  }
+
+  // Fallback default if variable not configured
+  return `## Memory Storage
 
 When you encounter information worth remembering for future conversations, wrap it in a memory tag:
 
@@ -152,8 +160,7 @@ Only create memories for:
 Do NOT create memories for:
 - Casual greetings or small talk
 - Information already in your context
-- Temporary or time-sensitive data
-`;
+- Temporary or time-sensitive data`;
 }
 
 module.exports = {
