@@ -16,7 +16,7 @@ const DEFAULT_CONFIG = {
   uri: 'bolt://localhost:7687',
   user: 'neo4j',
   password: 'voidserver',
-  database: 'clawed'
+  database: 'neo4j'  // Community Edition only supports default database
 };
 
 /**
@@ -154,7 +154,7 @@ class Neo4jService {
         details: `Database "${this.database}" does not exist.`,
         help: [
           'Create the database in Neo4j Browser',
-          'Or set NEO4J_DATABASE=clawed in .env file'
+          'Or set NEO4J_DATABASE=neo4j in .env file'
         ]
       };
     }
@@ -317,10 +317,14 @@ class Neo4jService {
 
     const session = this.driver.session({ database: this.database });
 
-    const result = await session.run(cypher, params);
-    await session.close();
-
-    return result.records.map(record => record.toObject());
+    return session.run(cypher, params).then(result => {
+      session.close();
+      return result.records.map(record => record.toObject());
+    }).catch(err => {
+      session.close();
+      console.log(`❌ Neo4j read error: ${err.message}`);
+      throw err;
+    });
   }
 
   /**
@@ -331,10 +335,14 @@ class Neo4jService {
 
     const session = this.driver.session({ database: this.database });
 
-    const result = await session.run(cypher, params);
-    await session.close();
-
-    return result.records.map(record => record.toObject());
+    return session.run(cypher, params).then(result => {
+      session.close();
+      return result.records.map(record => record.toObject());
+    }).catch(err => {
+      session.close();
+      console.log(`❌ Neo4j write error: ${err.message}`);
+      throw err;
+    });
   }
 
   /**

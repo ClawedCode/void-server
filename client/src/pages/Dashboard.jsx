@@ -56,8 +56,7 @@ const Dashboard = () => {
             const res = await fetch('/api/memories/embedding/status');
             const data = await res.json();
             if (data.api?.connected) {
-                const modelName = data.model?.split('-').pop() || 'Connected';
-                setLmStudioStatus({ status: 'connected', label: modelName });
+                setLmStudioStatus({ status: 'connected', label: 'Running' });
             } else {
                 setLmStudioStatus({ status: 'disconnected', label: 'Not Running' });
             }
