@@ -133,10 +133,12 @@ See [docs/REMOTE-ACCESS.md](docs/REMOTE-ACCESS.md) for detailed setup instructio
 
 ## Ports
 
-| Service | Port |
-|---------|------|
-| Server  | 4401 |
-| Client (dev) | 4480 |
+| Service | Docker | Native |
+|---------|--------|--------|
+| App | 4420 | 4401 |
+| Neo4j Browser | 4421 | 7474 |
+| Neo4j Bolt | 4422 | 7687 |
+| Client (dev) | — | 4480 |
 
 ## Commands
 
