@@ -1,5 +1,6 @@
 # Void Server - Setup Script for Windows
 # Run this to bootstrap the project. Safe to run multiple times (idempotent).
+# Prefers Docker installation, falls back to native if Docker unavailable.
 
 $ErrorActionPreference = "Stop"
 
@@ -66,6 +67,43 @@ function Prompt-YesNo {
 function Test-WingetAvailable {
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     return $null -ne $winget
+}
+
+function Test-DockerAvailable {
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $docker) {
+        return $false
+    }
+    # Check if Docker daemon is running
+    try {
+        $null = docker info 2>$null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
+function Start-DockerSetup {
+    Write-Header "Starting with Docker Compose"
+
+    Write-Step "Starting Void Server and Neo4j containers..."
+    docker compose up -d
+
+    Write-Host ""
+    Write-Success "Void Server is running with Docker!"
+    Write-Host ""
+    Write-Host "  App:     http://localhost:4401"
+    Write-Host "  Neo4j:   http://localhost:7474"
+    Write-Host ""
+    Write-Host "Commands:" -ForegroundColor Cyan
+    Write-Host "  docker compose logs -f    View logs"
+    Write-Host "  docker compose restart    Restart services"
+    Write-Host "  docker compose down       Stop services"
+    Write-Host ""
+    Write-Host "Streaming logs (Ctrl+C to exit)..." -ForegroundColor Cyan
+    Write-Host ""
+    docker compose logs -f
+    exit 0
 }
 
 function Install-NodeJS {
@@ -152,7 +190,48 @@ Write-Header "Void Server Setup"
 
 Write-Step "Detected OS: Windows"
 
-# Check prerequisites
+# Check for Docker first (preferred installation method)
+Write-Step "Checking for Docker..."
+
+if (Test-DockerAvailable) {
+    Write-Success "Docker is installed and running"
+    Write-Host ""
+    Write-Host "Docker detected!" -ForegroundColor Green -NoNewline
+    Write-Host " This is the recommended way to run Void Server."
+    Write-Host "It includes Neo4j and all dependencies in containers."
+    Write-Host ""
+
+    if (Prompt-YesNo "Would you like to run with Docker? (Recommended)" "y") {
+        Start-DockerSetup
+    } else {
+        Write-Step "Continuing with native installation..."
+    }
+} else {
+    Write-Warning "Docker not detected or not running"
+    Write-Host ""
+    Write-Host "Docker Desktop is the easiest way to run Void Server."
+    Write-Host "It includes Neo4j and all dependencies with a single command."
+    Write-Host ""
+    Write-Host "Download Docker Desktop: " -NoNewline
+    Write-Host "https://www.docker.com/products/docker-desktop/" -ForegroundColor Cyan
+    Write-Host ""
+
+    if (Prompt-YesNo "Would you like to install Docker Desktop? (Opens download page)" "y") {
+        Start-Process "https://www.docker.com/products/docker-desktop/"
+        Write-Host ""
+        Write-Warning "After installing Docker Desktop, run this script again."
+        Write-Host ""
+
+        if (-not (Prompt-YesNo "Continue with native installation instead?" "n")) {
+            exit 0
+        }
+    }
+    Write-Step "Continuing with native installation..."
+}
+
+Write-Host ""
+
+# Check prerequisites for native installation
 Write-Step "Checking prerequisites..."
 
 # Check git

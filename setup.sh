@@ -1,6 +1,7 @@
 #!/bin/bash
 # Void Server - Setup Script
 # Run this to bootstrap the project. Safe to run multiple times (idempotent).
+# Prefers Docker installation, falls back to native if Docker unavailable.
 
 set -e
 
@@ -55,6 +56,40 @@ prompt_yes_no() {
   response="${response:-$default}"
 
   [[ "$response" =~ ^[Yy]$ ]]
+}
+
+# Check if Docker is installed and running
+check_docker() {
+  if command -v docker &>/dev/null; then
+    if docker info &>/dev/null 2>&1; then
+      return 0  # Docker installed and running
+    fi
+  fi
+  return 1  # Docker not available
+}
+
+# Run with Docker Compose
+run_docker_setup() {
+  print_header "Starting with Docker Compose"
+
+  print_step "Starting Void Server and Neo4j containers..."
+  docker compose up -d
+
+  echo ""
+  print_success "Void Server is running with Docker!"
+  echo ""
+  echo "  App:     http://localhost:4401"
+  echo "  Neo4j:   http://localhost:7474"
+  echo ""
+  echo -e "${CYAN}Commands:${NC}"
+  echo "  docker compose logs -f    View logs"
+  echo "  docker compose restart    Restart services"
+  echo "  docker compose down       Stop services"
+  echo ""
+  echo -e "${CYAN}Streaming logs (Ctrl+C to exit)...${NC}"
+  echo ""
+  docker compose logs -f
+  exit 0
 }
 
 # Detect OS
@@ -199,7 +234,51 @@ print_header "Void Server Setup"
 OS=$(detect_os)
 print_step "Detected OS: $OS"
 
-# Check prerequisites
+# Check for Docker first (preferred installation method)
+print_step "Checking for Docker..."
+
+if check_docker; then
+  print_success "Docker is installed and running"
+  echo ""
+  echo -e "${GREEN}Docker detected!${NC} This is the recommended way to run Void Server."
+  echo "It includes Neo4j and all dependencies in containers."
+  echo ""
+  if prompt_yes_no "Would you like to run with Docker? (Recommended)" "y"; then
+    run_docker_setup
+  else
+    print_step "Continuing with native installation..."
+  fi
+else
+  print_warning "Docker not detected or not running"
+  echo ""
+  echo "Docker Desktop is the easiest way to run Void Server."
+  echo "It includes Neo4j and all dependencies with a single command."
+  echo ""
+  echo -e "Download Docker Desktop: ${CYAN}https://www.docker.com/products/docker-desktop/${NC}"
+  echo ""
+  if prompt_yes_no "Would you like to install Docker Desktop? (Opens download page)" "y"; then
+    case "$OS" in
+      macos)
+        open "https://www.docker.com/products/docker-desktop/"
+        ;;
+      *)
+        xdg-open "https://www.docker.com/products/docker-desktop/" 2>/dev/null || \
+        echo -e "Please visit: ${CYAN}https://www.docker.com/products/docker-desktop/${NC}"
+        ;;
+    esac
+    echo ""
+    print_warning "After installing Docker Desktop, run this script again."
+    echo ""
+    if ! prompt_yes_no "Continue with native installation instead?" "n"; then
+      exit 0
+    fi
+  fi
+  print_step "Continuing with native installation..."
+fi
+
+echo ""
+
+# Check prerequisites for native installation
 print_step "Checking prerequisites..."
 
 # Check for git first (required for everything)
