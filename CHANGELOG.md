@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.5.0] - 2025-12-14
+
+Simplified installation by embedding core plugins directly in the repository.
+
+### Breaking Changes
+
+- **Plugins are now embedded** - The wallet, verify, and ascii plugins are no longer git submodules. They are now part of the core codebase.
+
+### Changes
+
+#### Plugin Architecture
+- **Removed git submodules** - Plugins are now regular directories tracked in the main repo
+- **Consolidated dependencies** - Wallet plugin dependencies moved to root `package.json`
+- **Empty plugins manifest** - `plugins/manifest.json` cleared for future third-party plugins
+- **Updated .gitignore** - Core plugins are now tracked, third-party plugins still ignored
+
+#### Update Script
+- **Improved stash handling** - More robust auto-stash with fallback for edge cases
+- **Removed submodule step** - No longer runs `git submodule update`
+
+### Migration Notes
+
+For existing installations with submodule issues:
+1. Run `git submodule deinit -f plugins/void-plugin-*`
+2. Run `rm -rf .git/modules/plugins`
+3. Delete and re-clone the plugins directories
+4. Run `./update.sh` to pull the new version
+
+New installations just need to run `./setup.sh` as usual.
+
+---
+
 ## [0.4.3] - 2025-12-14
 
 Improved error handling when Neo4j is not installed or running.
