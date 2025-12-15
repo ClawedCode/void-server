@@ -9,9 +9,9 @@ export default function BrowsersPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newBrowser, setNewBrowser] = useState({ id: '', name: '', description: '', port: '' });
   const [isDockerEnv, setIsDockerEnv] = useState(false);
-  const [portRange, setPortRange] = useState({ start: 9222, end: 9299 });
-  const [editingPort, setEditingPort] = useState(null);
-  const [editPortValue, setEditPortValue] = useState('');
+  const [portRange, setPortRange] = useState({ start: 9111, end: 9199 });
+  const [editingBrowser, setEditingBrowser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', port: '' });
 
   useEffect(() => {
     loadBrowsers();
@@ -71,24 +71,41 @@ export default function BrowsersPage() {
     }
   };
 
-  const handleUpdatePort = async (id) => {
-    const port = editPortValue ? parseInt(editPortValue, 10) : null;
+  const startEditing = (browser) => {
+    setEditingBrowser(browser.id);
+    setEditForm({
+      name: browser.name || '',
+      description: browser.description || '',
+      port: browser.port || ''
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingBrowser(null);
+    setEditForm({ name: '', description: '', port: '' });
+  };
+
+  const handleUpdate = async (id) => {
+    const updates = {
+      name: editForm.name || undefined,
+      description: editForm.description,
+      port: editForm.port ? parseInt(editForm.port, 10) : null
+    };
 
     const response = await fetch(`/api/browsers/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ port })
+      body: JSON.stringify(updates)
     });
 
     const data = await response.json();
 
     if (data.success) {
-      toast.success(`Port updated to ${port || 'none'}`);
-      setEditingPort(null);
-      setEditPortValue('');
+      toast.success('Browser profile updated');
+      cancelEditing();
       loadBrowsers();
     } else {
-      toast.error(data.error || 'Failed to update port');
+      toast.error(data.error || 'Failed to update browser');
     }
   };
 
@@ -330,55 +347,75 @@ export default function BrowsersPage() {
         <div className="space-y-4">
           {browsers.map((browser) => (
             <div key={browser.id} className="card">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Globe className="w-10 h-10 text-primary p-2 bg-primary/10 rounded-lg" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-text-primary">{browser.name || browser.id}</h3>
-                    {browser.description && (
-                      <p className="text-secondary text-sm">{browser.description}</p>
-                    )}
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-tertiary">ID: {browser.id}</span>
-                      {editingPort === browser.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={editPortValue}
-                            onChange={(e) => setEditPortValue(e.target.value)}
-                            placeholder={`${portRange.start}`}
-                            className="form-input py-0 px-2 w-20 text-xs"
-                            min={1024}
-                            max={65535}
-                          />
-                          <button
-                            onClick={() => handleUpdatePort(browser.id)}
-                            className="text-success p-1"
-                            title="Save port"
-                          >
-                            <Save size={14} />
-                          </button>
-                          <button
-                            onClick={() => { setEditingPort(null); setEditPortValue(''); }}
-                            className="text-tertiary p-1"
-                            title="Cancel"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span
-                          className="text-xs text-tertiary flex items-center gap-1 cursor-pointer hover:text-primary"
-                          onClick={() => { setEditingPort(browser.id); setEditPortValue(browser.port || ''); }}
-                          title="Click to edit port"
-                        >
-                          Port: {browser.port || 'none'}
-                          {!browser.running && <Edit2 size={12} />}
-                        </span>
-                      )}
+              {editingBrowser === browser.id ? (
+                /* Edit Mode */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-text-primary">Edit Browser Profile</h3>
+                    <span className="text-xs text-tertiary">ID: {browser.id}</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-secondary mb-1">Display Name</label>
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        placeholder="Browser name"
+                        className="form-input w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-secondary mb-1">Description</label>
+                      <input
+                        type="text"
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        placeholder="Description"
+                        className="form-input w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-secondary mb-1">CDP Port</label>
+                      <input
+                        type="number"
+                        value={editForm.port}
+                        onChange={(e) => setEditForm({ ...editForm, port: e.target.value })}
+                        placeholder={`Auto (${portRange.start}-${portRange.end})`}
+                        className="form-input w-full"
+                        min={1024}
+                        max={65535}
+                      />
                     </div>
                   </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button onClick={cancelEditing} className="btn btn-secondary btn-sm">
+                      Cancel
+                    </button>
+                    <button onClick={() => handleUpdate(browser.id)} className="btn btn-primary btn-sm flex items-center gap-1">
+                      <Save size={16} />
+                      Save Changes
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                /* View Mode */
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Globe className="w-10 h-10 text-primary p-2 bg-primary/10 rounded-lg" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-primary">{browser.name || browser.id}</h3>
+                      {browser.description && (
+                        <p className="text-secondary text-sm">{browser.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-tertiary">ID: {browser.id}</span>
+                        <span className="text-xs text-tertiary">Port: {browser.port || 'none'}</span>
+                      </div>
+                    </div>
+                  </div>
 
                 <div className="flex items-center gap-4">
                   {renderStatusBadge(browser)}
@@ -415,6 +452,14 @@ export default function BrowsersPage() {
                       </>
                     )}
                     <button
+                      onClick={() => startEditing(browser)}
+                      className="btn btn-ghost btn-sm"
+                      title="Edit profile"
+                      disabled={browser.running}
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
                       onClick={() => handleDelete(browser.id)}
                       className="btn btn-ghost btn-sm text-error"
                       title="Delete profile"
@@ -425,6 +470,7 @@ export default function BrowsersPage() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           ))}
         </div>

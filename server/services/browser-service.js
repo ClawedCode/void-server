@@ -16,9 +16,9 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, '../../config/browsers');
 const CONFIG_FILE = path.join(DATA_DIR, 'browsers.json');
 
-// Default port range for CDP debugging
-const DEFAULT_PORT_START = 9222;
-const DEFAULT_PORT_END = 9299;
+// Default port range for CDP debugging (supports many browser profiles)
+const DEFAULT_PORT_START = 9111;
+const DEFAULT_PORT_END = 9199;
 
 // Detect if running in Docker
 const isDocker = () => {
