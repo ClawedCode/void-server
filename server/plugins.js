@@ -6,7 +6,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 const { spawnSync } = require('child_process');
+const AdmZip = require('adm-zip');
 
 // Paths
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -323,50 +326,70 @@ const buildReleaseUrl = (repoUrl, version) => {
 };
 
 /**
- * Download a file from URL
+ * Download a file from URL using Node.js native https (cross-platform)
  * @param {string} url - URL to download
  * @param {string} destPath - Destination file path
- * @returns {{success: boolean, error?: string}}
+ * @returns {Promise<{success: boolean, error?: string}>}
  */
 const downloadFile = (url, destPath) => {
-  const result = spawnSync('curl', ['-L', '-o', destPath, '-s', '--fail-with-body', '--max-time', '120', url], {
-    encoding: 'utf8'
+  return new Promise((resolve) => {
+    const protocol = url.startsWith('https') ? https : http;
+    const file = fs.createWriteStream(destPath);
+    let redirectCount = 0;
+    const maxRedirects = 10;
+
+    const makeRequest = (requestUrl) => {
+      protocol.get(requestUrl, (response) => {
+        // Handle redirects
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          redirectCount++;
+          if (redirectCount > maxRedirects) {
+            file.close();
+            fs.unlinkSync(destPath);
+            return resolve({ success: false, error: 'Too many redirects' });
+          }
+          const redirectUrl = response.headers.location.startsWith('http')
+            ? response.headers.location
+            : new URL(response.headers.location, requestUrl).href;
+          return makeRequest(redirectUrl);
+        }
+
+        if (response.statusCode !== 200) {
+          file.close();
+          fs.unlinkSync(destPath);
+          return resolve({ success: false, error: `HTTP ${response.statusCode}: ${response.statusMessage}` });
+        }
+
+        response.pipe(file);
+
+        file.on('finish', () => {
+          file.close();
+          // Verify file exists and has content
+          if (!fs.existsSync(destPath) || fs.statSync(destPath).size === 0) {
+            return resolve({ success: false, error: 'Downloaded file is empty or missing' });
+          }
+          resolve({ success: true });
+        });
+      }).on('error', (err) => {
+        file.close();
+        if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
+        resolve({ success: false, error: `Download error: ${err.message}` });
+      });
+    };
+
+    makeRequest(url);
   });
-
-  if (result.error) {
-    return { success: false, error: `Spawn error: ${result.error.message}` };
-  }
-
-  if (result.signal) {
-    return { success: false, error: `Process killed by signal: ${result.signal}` };
-  }
-
-  if (result.status !== 0) {
-    return { success: false, error: result.stderr || `curl exited with status ${result.status}` };
-  }
-
-  // Verify file exists and has content
-  if (!fs.existsSync(destPath) || fs.statSync(destPath).size === 0) {
-    return { success: false, error: 'Downloaded file is empty or missing' };
-  }
-
-  return { success: true };
 };
 
 /**
- * Extract a zip file
+ * Extract a zip file using AdmZip (cross-platform)
  * @param {string} zipPath - Path to zip file
  * @param {string} destDir - Destination directory
  * @returns {{success: boolean, extractedDir?: string, error?: string}}
  */
 const extractZip = (zipPath, destDir) => {
-  const result = spawnSync('unzip', ['-o', '-q', zipPath, '-d', destDir], {
-    encoding: 'utf8'
-  });
-
-  if (result.status !== 0) {
-    return { success: false, error: result.stderr || 'Extraction failed' };
-  }
+  const zip = new AdmZip(zipPath);
+  zip.extractAllTo(destDir, true);
 
   // Find the extracted directory (usually repo-name-version/)
   const entries = fs.readdirSync(destDir);
@@ -382,9 +405,9 @@ const extractZip = (zipPath, destDir) => {
  * @param {string} zipUrl - URL to zip file
  * @param {string} pluginName - Target plugin name
  * @param {string} pluginPath - Target installation path
- * @returns {{success: boolean, error?: string}}
+ * @returns {Promise<{success: boolean, error?: string}>}
  */
-const installFromZip = (zipUrl, pluginName, pluginPath) => {
+const installFromZip = async (zipUrl, pluginName, pluginPath) => {
   const tempDir = path.join(PLUGINS_DIR, '.temp-install');
   const zipFile = path.join(tempDir, 'plugin.zip');
 
@@ -396,7 +419,7 @@ const installFromZip = (zipUrl, pluginName, pluginPath) => {
 
   // Download zip
   console.log(`📥 Downloading plugin from ${zipUrl}`);
-  const downloadResult = downloadFile(zipUrl, zipFile);
+  const downloadResult = await downloadFile(zipUrl, zipFile);
   if (!downloadResult.success) {
     fs.rmSync(tempDir, { recursive: true, force: true });
     return { success: false, error: `Download failed: ${downloadResult.error}` };
@@ -456,9 +479,9 @@ const installFromGit = (gitUrl, pluginName, branch) => {
  * @param {Object} options - Installation options
  * @param {string} options.branch - Git branch (default: main)
  * @param {string} options.name - Override plugin name
- * @returns {{success: boolean, plugin?: string, requiresRestart?: boolean, message?: string, error?: string}}
+ * @returns {Promise<{success: boolean, plugin?: string, requiresRestart?: boolean, message?: string, error?: string}>}
  */
-const installPlugin = (source, options = {}) => {
+const installPlugin = async (source, options = {}) => {
   const manifest = loadManifest();
   const isUrl = source.includes('://') || source.includes('@');
 
@@ -524,7 +547,7 @@ const installPlugin = (source, options = {}) => {
   // Install based on source type
   let installResult;
   if (installSource.type === 'zip') {
-    installResult = installFromZip(installSource.url, pluginName, pluginPath);
+    installResult = await installFromZip(installSource.url, pluginName, pluginPath);
   } else {
     installResult = installFromGit(installSource.url, pluginName, installSource.branch);
   }

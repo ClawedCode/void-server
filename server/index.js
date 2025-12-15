@@ -361,7 +361,7 @@ app.get('/api/plugins/manifest', (req, res) => {
 });
 
 // API to install a plugin
-app.post('/api/plugins/install', (req, res) => {
+app.post('/api/plugins/install', async (req, res) => {
   const { plugin, gitUrl, branch, name } = req.body;
 
   // Either plugin name from manifest or gitUrl required
@@ -370,7 +370,7 @@ app.post('/api/plugins/install', (req, res) => {
     return res.status(400).json({ error: 'Plugin name or gitUrl required' });
   }
 
-  const result = pluginManager.installPlugin(source, { branch, name });
+  const result = await pluginManager.installPlugin(source, { branch, name });
 
   if (!result.success) {
     return res.status(400).json({ error: result.error });

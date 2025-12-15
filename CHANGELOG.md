@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.1] - 2025-12-15
+
+Cross-platform fix for plugin installation on Windows.
+
+### Fixes
+
+- **Windows Plugin Installation** - Fixed `spawnSync curl ENOENT` error on Windows
+  - Replaced `curl` with Node.js native `https` module for downloads
+  - Replaced `unzip` command with `adm-zip` package for extraction
+  - Both download and extraction now work on Windows, macOS, and Linux
+
+### Dependencies
+
+- Added `adm-zip` for cross-platform zip extraction
+
+---
+
 ## [0.7.0] - 2025-12-15
 
 Major plugin system overhaul with zip-based installation, built-in plugin protection, and browser profile management enhancements.

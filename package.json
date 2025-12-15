@@ -1,6 +1,6 @@
 {
   "name": "void-server",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Void Server",
   "main": "server/index.js",
   "scripts": {
@@ -20,6 +20,7 @@
   "dependencies": {
     "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.95.0",
+    "adm-zip": "^0.5.16",
     "bip39": "^3.1.0",
     "bs58": "^6.0.0",
     "cors": "^2.8.5",
