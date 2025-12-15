@@ -68,6 +68,37 @@ const PluginManager = () => {
 
   const [uninstallingPlugin, setUninstallingPlugin] = useState(null);
   const [togglingPlugin, setTogglingPlugin] = useState(null);
+  const [restarting, setRestarting] = useState(false);
+
+  // Handle server restart
+  const handleRestart = async () => {
+    setRestarting(true);
+    toast.loading('Restarting server...', { id: 'restart' });
+
+    await fetch('/api/server/restart', { method: 'POST' });
+
+    // Wait for server to come back up
+    let attempts = 0;
+    const maxAttempts = 30;
+    const checkServer = async () => {
+      attempts++;
+      const response = await fetch('/api/plugins').catch(() => null);
+      if (response?.ok) {
+        toast.success('Server restarted successfully', { id: 'restart' });
+        setPendingChanges([]);
+        setRestarting(false);
+        fetchPlugins();
+      } else if (attempts < maxAttempts) {
+        setTimeout(checkServer, 1000);
+      } else {
+        toast.error('Server restart timed out. Please refresh the page.', { id: 'restart' });
+        setRestarting(false);
+      }
+    };
+
+    // Start checking after a short delay
+    setTimeout(checkServer, 2000);
+  };
 
   // Fetch plugins data
   const fetchPlugins = useCallback(async () => {
@@ -288,6 +319,14 @@ const PluginManager = () => {
               </p>
             </div>
           </div>
+          <button
+            onClick={handleRestart}
+            disabled={restarting}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <RotateCw className={`w-4 h-4 ${restarting ? 'animate-spin' : ''}`} />
+            {restarting ? 'Restarting...' : 'Restart Now'}
+          </button>
         </div>
       )}
 

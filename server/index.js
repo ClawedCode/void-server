@@ -461,6 +461,17 @@ app.put('/api/plugins/:name/config', (req, res) => {
   });
 });
 
+// API to restart the server
+app.post('/api/server/restart', (req, res) => {
+  console.log('🔄 Server restart requested via API');
+  res.json({ success: true, message: 'Server restarting...' });
+
+  // Delay restart slightly to allow response to be sent
+  setTimeout(() => {
+    process.exit(0); // PM2 will auto-restart the process
+  }, 500);
+});
+
 // ============================================================================
 // PM2 Logs API
 // ============================================================================

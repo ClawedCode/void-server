@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.2] - 2025-12-15
+
+Added server restart functionality for plugin changes.
+
+### New Features
+
+- **Restart Now Button** - Plugin Manager shows "Restart Now" button when changes require restart
+  - Automatically polls server until it comes back online
+  - Shows loading state with spinning icon during restart
+  - Clears pending changes and refreshes plugin list after restart
+- **Server Restart API** - New `POST /api/server/restart` endpoint
+  - Triggers graceful server restart via PM2
+
+---
+
 ## [0.7.1] - 2025-12-15
 
 Cross-platform fix for plugin installation on Windows.
