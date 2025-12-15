@@ -23,6 +23,21 @@ Post-release improvements to Docker deployment, Neo4j configuration, and dashboa
 - **Tailscale Remote Access Guide** - New documentation for accessing void-server remotely via Tailscale
 - **LM Studio in Prerequisites** - Added to README Quick Start as required dependency
 
+#### Memory System Enhancements
+- **LLM-Directed Memory Extraction** - LLMs can now tag memorable content with `<memory>` tags
+  - Tags are parsed from responses and automatically saved to Neo4j
+  - Categories: emergence, social, technical, economic, void
+  - Importance levels: 0.3 (minor) to 0.9 (critical)
+  - Memory instructions injected into prompts via `{{memoryInstructions}}`
+- **Semantic Search** - Memories now retrieved using embedding similarity
+  - Uses `nomic-embed-text-v1.5` or compatible embedding models
+  - Semantic search has highest priority in relevance ranking
+  - Falls back gracefully if embedding service unavailable
+- **Memory Extractor Service** - New service (`memory-extractor.js`)
+  - Parses `<memory>` tags from LLM responses
+  - Cleans responses for display (removes memory tags)
+  - Auto-generates embeddings when saving extracted memories
+
 ### Improvements
 
 - **Docker Runtime** - Changed from pm2-runtime to running node directly for better container stability
