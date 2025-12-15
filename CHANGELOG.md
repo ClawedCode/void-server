@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.7.0] - 2025-12-15
+
+Major plugin system overhaul with zip-based installation, built-in plugin protection, and browser profile management enhancements.
+
+### New Features
+
+#### Plugin System Overhaul
+- **Zip-based Installation** - Plugins now install from GitHub release zips instead of git clone
+  - Faster installation with smaller download sizes
+  - No git history or .git directories in plugin folders
+  - Manifest-based installs download from `{repo}/archive/refs/tags/v{version}.zip`
+  - Git clone available as fallback when no version specified
+- **Install from URL** - Supports both git repo URLs and direct zip URLs
+  - Git: `https://github.com/user/void-plugin-example`
+  - Zip: `https://github.com/user/void-plugin-example/archive/refs/tags/v1.0.0.zip`
+- **Built-in Plugin Protection** - Core plugins (ASCII, Verify, Wallets) are now protected
+  - "built-in" badge displayed in Plugin Manager
+  - Uninstall button hidden for built-in plugins
+  - Server blocks uninstall attempts via API
+- **Plugin Manifest Version** - `minServerVersion` field for compatibility checking
+- **Video Download Plugin** - Added to plugin manifest for easy installation
+  - Download videos from X.com with authenticated browser profiles
+  - Automatic frame extraction for LLM analysis
+
+#### Browser Profile Management
+- **CDP Port Configuration** - Each browser profile can have a custom Chrome DevTools Protocol port
+  - Port range 9111-9199 to avoid conflicts with automation browsers
+  - Auto-increments from 9111 when creating new profiles
+- **Full Config Editing** - New "Configure" button opens editor for all browser settings
+  - Edit name, userAgent, viewport, headless mode, CDP port
+  - JSON-based configuration in modal dialog
+- **Browser Config API** - `PUT /api/browsers/:id/config` endpoint for config updates
+
+### Improvements
+
+- **Download Error Handling** - Better error messages for plugin downloads
+  - Spawn errors now properly captured and reported
+  - Signal-based process termination detected
+- **Plugin Documentation** - Updated README with `minServerVersion` manifest field
+
+### API Changes
+
+#### New Endpoints
+- `PUT /api/browsers/:id/config` - Update browser profile configuration
+
+#### Plugin Manager
+- `POST /api/plugins/install` - Now accepts both git URLs and zip URLs
+- Built-in plugins return `builtIn: true` flag
+- Uninstall blocked for built-in plugins with clear error message
+
+---
+
 ## [0.6.3] - 2025-12-15
 
 ASCII generator enhancements and UI polish.
