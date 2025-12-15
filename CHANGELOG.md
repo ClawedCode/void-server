@@ -1,38 +1,58 @@
 # Changelog
 
-## [0.6.0] - 2025-12-14
+## [0.6.0] - 2025-12-15
 
 Docker containerization and GitHub Container Registry support.
 
 ### New Features
 
 #### Docker Support
-- **Dockerfile** - Multi-stage production build with Node.js 20 Alpine
+- **Dockerfile** - Multi-stage production build with Node.js 20 Slim (Debian)
   - Stage 1: Build client with all dependencies
   - Stage 2: Minimal production image with only runtime dependencies
   - Non-root user for security
-  - Health check endpoint
+  - Health check using Node.js fetch
+  - 4GB memory limit for Vite builds with large dependencies
 - **docker-compose.yml** - Full stack with Neo4j
   - void-server service on port 4401
   - Neo4j 5 Community with APOC plugin
   - Persistent volumes for config, backups, logs, and data
   - Health checks with dependency ordering
+  - LM Studio integration via `host.docker.internal`
 - **.dockerignore** - Optimized build context
 
 #### GitHub Actions CI/CD
 - **docker.yml workflow** - Automated Docker image builds
   - Triggers on push to main and version tags
-  - Builds for linux/amd64 and linux/arm64
+  - Builds for linux/amd64 (ARM64 disabled due to QEMU emulation issues)
   - Pushes to ghcr.io/clawedcode/void-server
   - Tags: `latest`, version (`0.6.0`), major.minor (`0.6`), SHA
+  - Build provenance attestation
+
+#### Environment Variable Overrides
+- **LM_STUDIO_URL** - Override LM Studio endpoint for Docker/external hosts
+- **NEO4J_URI** - Connect to external Neo4j instances
+- **NEO4J_USER/PASSWORD/DATABASE** - Full Neo4j credential support
+- Startup logs show when environment overrides are active
 
 ### Changes
 
 - **ecosystem.config.js** - Production mode improvements
   - Disables file watching in production
   - Only runs server process (no Vite dev server)
+- **Dockerfile uses Debian slim** - Alpine's musl libc caused esbuild/Vite hangs
+- **Three.js moved to client** - Proper dependency location with Vite aliases
+- **README.md** - Comprehensive Docker documentation with Docker Desktop recommendation
+
+### Fixes
+
+- **Docker build hanging** - Fixed Tailwind CSS `@source` directive scanning invalid paths
+- **Health checks** - Use Node.js fetch instead of wget (not in slim image)
+- **Vite production build** - Disabled sourcemaps, optimized chunk settings
 
 ### Docker Quick Start
+
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) then:
 
 ```bash
 # Start with Docker Compose
@@ -48,12 +68,21 @@ docker-compose down
 NEO4J_PASSWORD=mypassword docker-compose up -d
 ```
 
-### Environment Variables (Docker)
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
+| `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | `voidserver` | Neo4j database password |
+| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
 | `LM_STUDIO_URL` | `http://host.docker.internal:1234/v1` | LM Studio API endpoint |
+
+### Deployment Options
+
+1. **Docker (Recommended)** - `docker-compose up -d` includes everything
+2. **Native** - Run `./setup.sh` for development with PM2
+3. **Hybrid** - Use Docker with external Neo4j via `NEO4J_URI`
 
 ---
 
