@@ -20,6 +20,10 @@ Simplified installation by embedding core plugins directly in the repository.
 - **Improved stash handling** - More robust auto-stash with fallback for edge cases
 - **Removed submodule step** - No longer runs `git submodule update`
 
+#### Windows Support
+- **setup.ps1** - PowerShell setup script for Windows users
+- **update.ps1** - PowerShell update script for Windows users
+
 ### Migration Notes
 
 For existing installations with submodule issues:
