@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.6.1] - 2025-12-15
+
+Post-release improvements to Docker deployment and Neo4j configuration.
+
+### New Features
+
+#### Neo4j Configuration UI
+- **Settings Panel** - New Neo4j section in Settings page to configure connection parameters
+  - URI, username, password, and database fields
+  - Password visibility toggle
+  - Test connection button
+  - Save configuration to `config/neo4j.json`
+
+#### Documentation
+- **Tailscale Remote Access Guide** - New documentation for accessing void-server remotely via Tailscale
+
+### Improvements
+
+- **Docker Runtime** - Changed from pm2-runtime to running node directly for better container stability
+- **Setup Scripts** - Now prefer Docker installation as the recommended deployment method
+- **Ports Documentation** - Settings page shows both Docker and native deployment ports
+
+### Fixes
+
+- **Password Toggle** - Fixed Neo4j password visibility toggle not working
+- **Neo4j Database Name** - Ensured default database is 'clawed' across all configurations
+
+---
+
 ## [0.6.0] - 2025-12-15
 
 Docker containerization and GitHub Container Registry support.

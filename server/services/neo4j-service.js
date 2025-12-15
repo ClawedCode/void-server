@@ -211,18 +211,19 @@ class Neo4jService {
       }
     );
 
-    await this.driver.verifyConnectivity();
-    this.connected = true;
-    this.connectionError = null;
-    this.lastErrorCode = null;
-    return true;
+    return this.driver.verifyConnectivity().then(() => {
+      this.connected = true;
+      this.connectionError = null;
+      this.lastErrorCode = null;
+      return true;
+    }).catch(() => false);
   }
 
   /**
    * Try to connect, capturing errors for status reporting
    */
   async tryConnect() {
-    if (this.connected) return { success: true };
+    if (this.connected) return { connected: true };
 
     this.driver = neo4j.driver(
       this.uri,
@@ -233,12 +234,22 @@ class Neo4jService {
       }
     );
 
-    await this.driver.verifyConnectivity();
-    this.connected = true;
-    this.connectionError = null;
-    this.lastErrorCode = null;
-    console.log('🧠 Connected to Neo4j');
-    return { success: true };
+    const result = await this.driver.verifyConnectivity().then(() => {
+      this.connected = true;
+      this.connectionError = null;
+      this.lastErrorCode = null;
+      console.log('🧠 Connected to Neo4j');
+      return { connected: true };
+    }).catch(err => {
+      const parsed = this.parseConnectionError(err);
+      this.connectionError = parsed;
+      this.lastErrorCode = parsed.code;
+      this.connected = false;
+      console.log(`⚠️ Neo4j: ${parsed.message} - ${parsed.details}`);
+      return { connected: false, error: parsed.message };
+    });
+
+    return result;
   }
 
   /**

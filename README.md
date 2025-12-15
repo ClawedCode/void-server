@@ -6,13 +6,14 @@ A modular, plugin-based creative platform for building and running your own sove
 
 ## Quick Start
 
-Choose your preferred installation method:
+### 1. Install Prerequisites
 
-### Option 1: Docker (Recommended)
+| Tool | Purpose | Install |
+|------|---------|---------|
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Run the app + Neo4j database | Required |
+| [Tailscale](https://tailscale.com/download) | Access from phone/anywhere | Optional |
 
-The easiest way to run Void Server with all dependencies included.
-
-**Prerequisites:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your platform (macOS, Windows, or Linux).
+### 2. Run
 
 ```bash
 git clone https://github.com/ClawedCode/void-server.git
@@ -20,9 +21,20 @@ cd void-server
 docker-compose up -d
 ```
 
-That's it! Access the app at **http://localhost:4420**
+### 3. Access
 
-Docker Compose starts both Void Server and Neo4j (for the memory system) with persistent storage. Docker uses different ports to avoid conflicts with native installations:
+- **Local:** http://localhost:4420
+- **Remote:** `http://<tailscale-ip>:4420` (if Tailscale installed)
+
+That's it! Docker Compose starts both Void Server and Neo4j with persistent storage.
+
+---
+
+## More Options
+
+### Docker Ports
+
+Docker uses different ports to avoid conflicts with native installations:
 
 | Service | Docker Port | Native Port |
 |---------|-------------|-------------|
