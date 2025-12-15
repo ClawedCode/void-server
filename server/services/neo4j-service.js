@@ -16,7 +16,7 @@ const DEFAULT_CONFIG = {
   uri: 'bolt://localhost:7687',
   user: 'neo4j',
   password: 'clawedcode',
-  database: 'neo4j'
+  database: 'clawed'
 };
 
 /**
@@ -154,7 +154,7 @@ class Neo4jService {
         details: `Database "${this.database}" does not exist.`,
         help: [
           'Create the database in Neo4j Browser',
-          'Or set NEO4J_DATABASE=neo4j in .env file'
+          'Or set NEO4J_DATABASE=clawed in .env file'
         ]
       };
     }

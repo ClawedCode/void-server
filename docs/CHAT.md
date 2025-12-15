@@ -122,7 +122,7 @@ Create a `.env` file in the project root:
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=clawedcode
-NEO4J_DATABASE=neo4j
+NEO4J_DATABASE=clawed
 
 # LM Studio (default: localhost:1234)
 LM_STUDIO_URL=http://localhost:1234/v1

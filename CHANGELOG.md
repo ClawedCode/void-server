@@ -37,6 +37,7 @@ Docker containerization and GitHub Container Registry support.
 
 ### Changes
 
+- **Default Neo4j database renamed** - Changed from `neo4j` to `clawed`
 - **ecosystem.config.js** - Production mode improvements
   - Disables file watching in production
   - Only runs server process (no Vite dev server)
@@ -75,7 +76,7 @@ NEO4J_PASSWORD=mypassword docker-compose up -d
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
 | `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | `voidserver` | Neo4j database password |
-| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
+| `NEO4J_DATABASE` | `clawed` | Neo4j database name |
 | `LM_STUDIO_URL` | `http://host.docker.internal:1234/v1` | LM Studio API endpoint |
 
 ### Deployment Options
@@ -401,7 +402,7 @@ PLAN.md                   # Development plan
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=your-password
-NEO4J_DATABASE=neo4j
+NEO4J_DATABASE=clawed
 ```
 
 ### Breaking Changes

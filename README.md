@@ -230,7 +230,7 @@ Environment variables (`.env` file supported):
 | `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection URI |
 | `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | `clawedcode` | Neo4j password |
-| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
+| `NEO4J_DATABASE` | `clawed` | Neo4j database name |
 | `LM_STUDIO_URL` | `http://localhost:1234/v1` | LM Studio API endpoint |
 
 Plugin configurations are stored in `config/plugins.json`.
