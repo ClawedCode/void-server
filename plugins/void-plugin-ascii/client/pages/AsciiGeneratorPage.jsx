@@ -355,6 +355,206 @@ const ASCII_FONT = {
     '  ▀▀══╝ ',
     '  ██╗   ',
     '  ╚═╝   '
+  ],
+  '@': [
+    ' ██████╗ ',
+    '██╔═══██╗',
+    '██║██╗██║',
+    '██║██║██║',
+    '╚█║████╔╝',
+    ' ╚╝╚═══╝ '
+  ],
+  '#': [
+    ' ██╗ ██╗ ',
+    '████████╗',
+    '╚██╔═██╔╝',
+    '████████╗',
+    '╚██╔═██╔╝',
+    ' ╚═╝ ╚═╝ '
+  ],
+  '$': [
+    '▄▄███▄▄·',
+    '██╔════╝',
+    '███████╗',
+    '╚════██║',
+    '███████║',
+    '╚═▀▀▀══╝'
+  ],
+  '%': [
+    '██╗ ██╗',
+    '╚═╝██╔╝',
+    '  ██╔╝ ',
+    ' ██╔╝  ',
+    '██╔╝██╗',
+    '╚═╝ ╚═╝'
+  ],
+  '^': [
+    ' ███╗ ',
+    '██╔██╗',
+    '╚═╝╚═╝',
+    '      ',
+    '      ',
+    '      '
+  ],
+  '&': [
+    ' █████╗ ',
+    '██╔══██╗',
+    '╚█████╔╝',
+    '██╔══██╗',
+    '╚█████╔╝',
+    ' ╚════╝ '
+  ],
+  '*': [
+    '      ',
+    '▄ ██╗▄',
+    ' ████╗',
+    '▀╚██╔▀',
+    '  ╚═╝ ',
+    '      '
+  ],
+  '(': [
+    '  ██╗',
+    ' ██╔╝',
+    '██╔╝ ',
+    '██║  ',
+    '╚██╗ ',
+    ' ╚═╝ '
+  ],
+  ')': [
+    '██╗  ',
+    '╚██╗ ',
+    ' ╚██╗',
+    '  ██║',
+    ' ██╔╝',
+    ' ╚═╝ '
+  ],
+  '+': [
+    '       ',
+    '  ██╗  ',
+    '██████╗',
+    '╚═██╔═╝',
+    '  ╚═╝  ',
+    '       '
+  ],
+  '=': [
+    '       ',
+    '██████╗',
+    '╚═════╝',
+    '██████╗',
+    '╚═════╝',
+    '       '
+  ],
+  '[': [
+    '███╗',
+    '██╔╝',
+    '██║ ',
+    '██║ ',
+    '███╗',
+    '╚══╝'
+  ],
+  ']': [
+    '███╗',
+    '╚██║',
+    ' ██║',
+    ' ██║',
+    '███║',
+    '╚══╝'
+  ],
+  '{': [
+    '  ██╗',
+    ' ██╔╝',
+    '██╔╝ ',
+    ' ██╗ ',
+    ' ╚██╗',
+    '  ╚═╝'
+  ],
+  '}': [
+    '██╗  ',
+    '╚██╗ ',
+    ' ╚██╗',
+    ' ██╔╝',
+    '██╔╝ ',
+    '╚═╝  '
+  ],
+  '|': [
+    '██╗',
+    '██║',
+    '██║',
+    '██║',
+    '██║',
+    '╚═╝'
+  ],
+  '\\': [
+    '██╗    ',
+    '╚██╗   ',
+    ' ╚██╗  ',
+    '  ╚██╗ ',
+    '   ╚██╗',
+    '    ╚═╝'
+  ],
+  '\'': [
+    '██╗',
+    '╚█╔╝',
+    ' ╚╝',
+    '   ',
+    '   ',
+    '   '
+  ],
+  '"': [
+    '██╗██╗',
+    '╚█╔╝█╔╝',
+    ' ╚╝ ╚╝',
+    '      ',
+    '      ',
+    '      '
+  ],
+  ',': [
+    '   ',
+    '   ',
+    '   ',
+    '   ',
+    '██╗',
+    '╚█╔╝'
+  ],
+  '<': [
+    '  ██╗',
+    ' ██╔╝',
+    '██╔╝ ',
+    '╚██╗ ',
+    ' ╚██╗',
+    '  ╚═╝'
+  ],
+  '>': [
+    '██╗  ',
+    '╚██╗ ',
+    ' ╚██╗',
+    ' ██╔╝',
+    '██╔╝ ',
+    '╚═╝  '
+  ],
+  '~': [
+    '       ',
+    ' ██╗██╗',
+    '██╔╝╚██╗',
+    '╚═╝  ╚═╝',
+    '       ',
+    '       '
+  ],
+  '`': [
+    '██╗',
+    '╚█╔╝',
+    ' ╚╝',
+    '   ',
+    '   ',
+    '   '
+  ],
+  ';': [
+    '   ',
+    '██╗',
+    '╚═╝',
+    '██╗',
+    '╚█╔╝',
+    ' ╚╝'
   ]
 };
 
@@ -373,17 +573,16 @@ const generateAsciiText = (text) => {
 };
 
 function AsciiGeneratorPage() {
-  const [inputText, setInputText] = useState('CLAWED');
+  const [inputText, setInputText] = useState('CLAWED!');
   const [boxWidth, setBoxWidth] = useState(63);
   const [useBox, setUseBox] = useState(true);
-  const [headerText, setHeaderText] = useState('VOID_PROTOCOL_v0.1.0');
-  const [catEmoji, setCatEmoji] = useState('=^._.^=');
+  const [headerText, setHeaderText] = useState('VOID_PROTOCOL_v0.1.1    =^._.^=');
   const [output, setOutput] = useState('');
   const outputRef = useRef(null);
 
   useEffect(() => {
     generateOutput();
-  }, [inputText, boxWidth, useBox, headerText, catEmoji]);
+  }, [inputText, boxWidth, useBox, headerText]);
 
   const generateOutput = () => {
     if (!inputText.trim()) {
@@ -396,8 +595,8 @@ function AsciiGeneratorPage() {
       const border = '#'.repeat(boxWidth);
       const emptyLine = '#' + ' '.repeat(boxWidth - 2) + '#';
 
-      // Header line with title and cat emoji
-      const headerContent = `           ${headerText}    ${catEmoji}`;
+      // Header line
+      const headerContent = `           ${headerText}`;
       const headerPadding = boxWidth - 2 - headerContent.length;
       const headerLine = '#' + headerContent + ' '.repeat(Math.max(0, headerPadding)) + '#';
 
@@ -472,7 +671,7 @@ function AsciiGeneratorPage() {
               data-testid="ascii-input"
             />
             <p className="text-xs text-secondary">
-              Supports A-Z, 0-9, space, and some punctuation
+              Supports A-Z, 0-9, and special characters
             </p>
           </div>
 
@@ -505,28 +704,16 @@ function AsciiGeneratorPage() {
         </div>
 
         {useBox && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border">
+          <div className="pt-2 border-border">
             <div className="space-y-2">
               <label className="form-label">Header Text</label>
               <input
                 type="text"
                 value={headerText}
                 onChange={(e) => setHeaderText(e.target.value)}
-                placeholder="VOID_RELAY_PROTOCOL_v0.1.0"
+                placeholder="VOID_PROTOCOL_v0.1.0    =^._.^="
                 className="form-input w-full"
                 data-testid="header-text-input"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="form-label">Cat Emoji</label>
-              <input
-                type="text"
-                value={catEmoji}
-                onChange={(e) => setCatEmoji(e.target.value)}
-                placeholder="=^._.^="
-                className="form-input w-full"
-                data-testid="cat-emoji-input"
               />
             </div>
           </div>
@@ -580,23 +767,6 @@ function AsciiGeneratorPage() {
           ) : (
             <p className="text-secondary">Enter text above to generate ASCII art</p>
           )}
-        </div>
-      </div>
-
-      {/* Character Reference */}
-      <div className="card space-y-3 sm:space-y-4">
-        <h2 className="text-base sm:text-lg font-semibold text-text-primary">Supported Characters</h2>
-        <div className="char-grid">
-          {Object.keys(ASCII_FONT).filter(c => c !== ' ').map(char => (
-            <button
-              key={char}
-              onClick={() => setInputText(prev => prev + char)}
-              className="px-2 py-1.5 sm:px-3 sm:py-2 bg-surface border border-border rounded hover:border-primary font-mono text-text-primary transition-colors text-sm sm:text-base"
-              data-testid={`char-btn-${char}`}
-            >
-              {char}
-            </button>
-          ))}
         </div>
       </div>
     </div>

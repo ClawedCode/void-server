@@ -354,7 +354,7 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
 
                     {/* Footer */}
                     <div className="p-4 border-t border-border text-sm text-secondary">
-                        <div className="flex items-center justify-between">
+                        <div className={`flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
                             {sidebarOpen && <span>v{appInfo.version || '...'}</span>}
                             <div className="flex items-center gap-1">
                                 {sidebarOpen && (
