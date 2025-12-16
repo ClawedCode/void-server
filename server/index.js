@@ -31,6 +31,9 @@ const { setIO } = require('./utils/broadcast');
 const browsersRoutes = require('./routes/browsers');
 const browserService = require('./services/browser-service');
 
+// Version management
+const versionRoutes = require('./routes/version');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -176,6 +179,9 @@ app.use('/api/backup', backupRoutes);
 
 // Browsers API
 app.use('/api/browsers', browsersRoutes);
+
+// Version API
+app.use('/api/version', versionRoutes);
 
 // Initialize Provider system
 aiProvider.initialize();

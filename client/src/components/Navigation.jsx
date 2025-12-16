@@ -9,18 +9,18 @@ import {
     Cat,
     Music,
     Video,
-    Palette,
     FileText,
     Settings,
     MessageSquare,
     FileCode,
     Braces,
     Brain,
-    Globe
+    Globe,
+    ArrowUpCircle,
+    RefreshCw
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useTheme } from '../contexts/ThemeContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
 // Convert kebab-case to PascalCase for lucide-react imports
@@ -41,19 +41,85 @@ const getIcon = (iconName) => {
 function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { themeName, cycleTheme, themes } = useTheme();
     const { appInfo } = useWebSocket();
     const [expandedSections, setExpandedSections] = useState({});
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const [prevTheme, setPrevTheme] = useState(themeName);
+    const [updateInfo, setUpdateInfo] = useState(null);
+    const [isUpdating, setIsUpdating] = useState(false);
 
-    // Show toast when theme changes
+    // Check for updates periodically
     useEffect(() => {
-        if (prevTheme !== themeName) {
-            toast.success(`Theme: ${themes[themeName]?.name || themeName}`, { duration: 1500 });
-            setPrevTheme(themeName);
+        const checkForUpdate = async () => {
+            try {
+                const res = await fetch('/api/version/check');
+                const data = await res.json();
+                if (data.success && data.updateAvailable) {
+                    setUpdateInfo(data);
+                    // Show persistent toast notification
+                    toast(
+                        (t) => (
+                            <div className="flex items-center gap-3">
+                                <ArrowUpCircle className="text-primary flex-shrink-0" size={20} />
+                                <div className="flex-1">
+                                    <div className="font-medium">Update Available</div>
+                                    <div className="text-sm text-secondary">v{data.currentVersion} → v{data.latestVersion}</div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        toast.dismiss(t.id);
+                                        handleUpdate(data);
+                                    }}
+                                    className="px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/80"
+                                >
+                                    Update
+                                </button>
+                                <button
+                                    onClick={() => toast.dismiss(t.id)}
+                                    className="text-secondary hover:text-text-primary"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ),
+                        { duration: Infinity, id: 'update-available' }
+                    );
+                }
+            } catch (err) {
+                // Silently fail - not critical
+            }
+        };
+
+        // Check on mount
+        checkForUpdate();
+
+        // Check every 30 minutes
+        const interval = setInterval(checkForUpdate, 30 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Handle update action
+    const handleUpdate = async () => {
+        if (isUpdating) return;
+        setIsUpdating(true);
+        toast.loading('Updating...', { id: 'update-progress' });
+        try {
+            await fetch('/api/version/update', { method: 'POST' });
+            toast.success('Update started. Reloading when ready...', { id: 'update-progress' });
+            // Poll for server to come back
+            const poll = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/health');
+                    if (res.ok) {
+                        clearInterval(poll);
+                        window.location.reload();
+                    }
+                } catch {}
+            }, 2000);
+        } catch (err) {
+            toast.error('Update failed', { id: 'update-progress' });
+            setIsUpdating(false);
         }
-    }, [themeName, prevTheme, themes]);
+    };
 
     // Build navigation sections dynamically from plugins
     const navigationSections = useMemo(() => {
@@ -363,29 +429,34 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
                     {/* Footer */}
                     <div className="p-4 border-t border-border text-sm text-secondary">
                         <div className={`flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-                            {sidebarOpen && <span>v{appInfo.version || '...'}</span>}
-                            <div className="flex items-center gap-1">
-                                {sidebarOpen && (
-                                    <button
-                                        data-testid="nav-theme-button"
-                                        onClick={() => {
-                                            cycleTheme();
-                                        }}
-                                        className="p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent text-text-primary"
-                                        title={`Theme: ${themeName} (click to cycle)`}
-                                    >
-                                        <Palette size={18} />
-                                    </button>
-                                )}
-                                <button
-                                    data-testid="nav-settings-button"
-                                    onClick={() => handleNavigation('/settings')}
-                                    className={`p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent ${isActive('/settings') ? 'text-primary' : 'text-text-primary'}`}
-                                    title="Settings"
-                                >
-                                    <Settings size={18} />
-                                </button>
-                            </div>
+                            {sidebarOpen && (
+                                <div className="flex items-center gap-2">
+                                    <span>v{appInfo.version || '...'}</span>
+                                    {updateInfo && (
+                                        <button
+                                            onClick={handleUpdate}
+                                            className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                                            title={`Update to v${updateInfo.latestVersion}`}
+                                            disabled={isUpdating}
+                                        >
+                                            {isUpdating ? (
+                                                <RefreshCw size={12} className="animate-spin" />
+                                            ) : (
+                                                <ArrowUpCircle size={12} />
+                                            )}
+                                            <span>v{updateInfo.latestVersion}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            <button
+                                data-testid="nav-settings-button"
+                                onClick={() => handleNavigation('/settings')}
+                                className={`p-2 rounded-lg transition-colors hover:bg-opacity-10 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent ${isActive('/settings') ? 'text-primary' : 'text-text-primary'}`}
+                                title="Settings"
+                            >
+                                <Settings size={18} />
+                            </button>
                         </div>
                     </div>
                 </div>

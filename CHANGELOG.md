@@ -2,7 +2,7 @@
 
 ## [0.8.0] - 2025-12-15
 
-Major data storage overhaul consolidating all user data into `./data` directory, plus chat debugging enhancements.
+Major data storage overhaul consolidating all user data into `./data` directory, plus chat debugging enhancements and automatic update checking.
 
 ### New Features
 
@@ -19,6 +19,26 @@ Major data storage overhaul consolidating all user data into `./data` directory,
   - Displays memory context and retrieved memories with scores
   - Lists template variables used in prompt building
   - Expandable "Debug Info" panel on each assistant message
+- **Chat Turn Logging** - Each conversation turn saves debug files to disk
+  - `data/chats/{chatId}/turns/{turnNumber}/request.json` - compiled prompt sent to AI
+  - `data/chats/{chatId}/turns/{turnNumber}/response.json` - raw AI response
+  - `data/chats/{chatId}/turns/{turnNumber}/memory.json` - memories retrieved/created
+  - Enables post-hoc debugging of prompt generation and memory usage
+- **Automatic Update Checking** - Sidebar shows when updates are available
+  - Checks GitHub releases every 30 minutes
+  - Shows update button: `v0.8.0 → [v0.8.1]` when newer version exists
+  - Click to update and restart automatically
+- **Default Data Templates** - New users get starter configs from `data_template/`
+  - Default prompt templates and variables for Clawed egregore
+  - Default known tokens for wallet plugin
+  - Default AI provider configurations
+  - Default Neo4j connection settings
+
+### UI Changes
+
+- **Removed Theme Palette from Sidebar** - Theme selection moved exclusively to Settings page
+  - Cleaner sidebar footer with just version and settings button
+  - Theme can still be changed via Settings → Appearance
 
 ### Breaking Changes
 
@@ -37,6 +57,33 @@ Major data storage overhaul consolidating all user data into `./data` directory,
   - **Automatic migration on server startup** - existing data will be moved
   - Manual migration: `node scripts/migrate-data.js`
   - Simplifies Docker volume mounting (single `./data` mount)
+- **Chat Storage Format** - Chats now stored in folders instead of single JSON files
+  - Old format: `data/chats/{chatId}.json`
+  - New format: `data/chats/{chatId}/chat.json` with `turns/` subfolder
+  - Automatic migration on first access
+
+### API Changes
+
+#### New Endpoints
+- `GET /api/version` - Get current version
+- `GET /api/version/check` - Check for updates against GitHub releases
+- `POST /api/version/update` - Trigger update process
+
+### New Files
+
+```
+data_template/
+├── ai-providers.json      # Default AI provider configs
+├── neo4j.json             # Default Neo4j connection
+├── prompts/
+│   ├── templates.json     # Default prompt templates
+│   └── variables.json     # Default prompt variables
+└── wallets/
+    └── known-tokens.json  # Default known tokens
+
+server/services/version-service.js  # GitHub release checking
+server/routes/version.js            # Version API endpoints
+```
 
 ---
 
