@@ -20,6 +20,11 @@ IPFS integration for decentralized content pinning and management.
   - Publish locally-pinned content to Pinata with one click
   - Visual indicators showing local vs. public pin status
   - Direct links to public gateway for Pinata-published content
+- **NAT Reachability Detection** - Automatic network connectivity analysis
+  - Detects if node is publicly reachable, behind NAT, or local-only
+  - Shows peer count and connection status
+  - Guidance banner for improving accessibility (port forwarding or Pinata)
+  - Color-coded status indicators (green=public, yellow=NAT, gray=unknown)
 
 ### Docker
 

@@ -292,32 +292,53 @@ const IPFSPage = () => {
       </div>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Daemon Status */}
         <div className={`card ${status?.daemonOnline ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {status?.daemonOnline ? (
-                <CheckCircle className="w-6 h-6 text-green-400" />
-              ) : (
-                <XCircle className="w-6 h-6 text-red-400" />
-              )}
-              <div>
-                <h3 className="font-semibold text-text-primary">
-                  Local IPFS {status?.daemonOnline ? 'Online' : 'Offline'}
-                </h3>
-                <p className="text-sm text-secondary">
-                  {status?.daemonOnline
-                    ? 'Local node running'
-                    : 'Start daemon to pin'}
-                </p>
-              </div>
-            </div>
-            {status?.peerId && (
-              <div className="text-xs text-secondary font-mono">
-                {status.peerId.substring(0, 8)}...
-              </div>
+          <div className="flex items-center gap-3">
+            {status?.daemonOnline ? (
+              <CheckCircle className="w-6 h-6 text-green-400" />
+            ) : (
+              <XCircle className="w-6 h-6 text-red-400" />
             )}
+            <div>
+              <h3 className="font-semibold text-text-primary">
+                IPFS {status?.daemonOnline ? 'Online' : 'Offline'}
+              </h3>
+              <p className="text-sm text-secondary">
+                {status?.nat?.peerCount ? `${status.nat.peerCount} peers` : 'Local node'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Network Reachability */}
+        <div className={`card ${
+          status?.nat?.status === 'public'
+            ? 'border-green-500/50 bg-green-500/5'
+            : status?.nat?.status === 'relay'
+              ? 'border-yellow-500/50 bg-yellow-500/5'
+              : 'border-border'
+        }`}>
+          <div className="flex items-center gap-3">
+            {status?.nat?.status === 'public' ? (
+              <Globe className="w-6 h-6 text-green-400" />
+            ) : status?.nat?.status === 'relay' ? (
+              <Globe className="w-6 h-6 text-yellow-400" />
+            ) : (
+              <Globe className="w-6 h-6 text-secondary" />
+            )}
+            <div>
+              <h3 className="font-semibold text-text-primary">
+                {status?.nat?.status === 'public' ? 'Publicly Reachable' :
+                 status?.nat?.status === 'relay' ? 'Behind NAT' :
+                 status?.nat?.status === 'local' ? 'Local Only' : 'Unknown'}
+              </h3>
+              <p className="text-sm text-secondary">
+                {status?.nat?.status === 'public' ? 'Content accessible globally' :
+                 status?.nat?.needsPortForward ? 'Port forward 4001 for best results' : 'Check connection'}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -325,29 +346,23 @@ const IPFSPage = () => {
         <div className={`card ${
           config?.pinata?.enabled && pinataStatus?.authenticated
             ? 'border-blue-500/50 bg-blue-500/5'
-            : config?.pinata?.enabled
-              ? 'border-yellow-500/50 bg-yellow-500/5'
-              : 'border-border'
+            : 'border-border'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {config?.pinata?.enabled && pinataStatus?.authenticated ? (
                 <Cloud className="w-6 h-6 text-blue-400" />
-              ) : config?.pinata?.enabled ? (
-                <CloudOff className="w-6 h-6 text-yellow-400" />
               ) : (
-                <CloudOff className="w-6 h-6 text-secondary" />
+                <Cloud className="w-6 h-6 text-secondary" />
               )}
               <div>
                 <h3 className="font-semibold text-text-primary">
-                  Pinata {config?.pinata?.enabled ? (pinataStatus?.authenticated ? 'Connected' : 'Not Authenticated') : 'Disabled'}
+                  Pinata {config?.pinata?.enabled && pinataStatus?.authenticated ? 'Ready' : 'Available'}
                 </h3>
                 <p className="text-sm text-secondary">
-                  {config?.pinata?.enabled
-                    ? pinataStatus?.authenticated
-                      ? 'Public pinning ready'
-                      : 'Check JWT token'
-                    : 'Enable for public access'}
+                  {config?.pinata?.enabled && pinataStatus?.authenticated
+                    ? 'Backup pinning service'
+                    : 'Optional cloud backup'}
                 </p>
               </div>
             </div>
@@ -361,6 +376,37 @@ const IPFSPage = () => {
           </div>
         </div>
       </div>
+
+      {/* NAT Warning/Guidance Banner */}
+      {status?.daemonOnline && status?.nat?.needsPortForward && !config?.pinata?.enabled && (
+        <div className="card border-yellow-500/50 bg-yellow-500/5">
+          <div className="flex items-start gap-3">
+            <Globe className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="font-medium text-text-primary">Improve Public Accessibility</h4>
+              <p className="text-sm text-secondary mt-1">
+                Your content is pinned locally but may not be reachable from public IPFS gateways.
+              </p>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 font-medium">Option 1:</span>
+                  <span className="text-text-primary">Port forward TCP/UDP 4001 on your router for direct connections</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-400 font-medium">Option 2:</span>
+                  <span className="text-text-primary">
+                    Enable Pinata in{' '}
+                    <button onClick={() => setShowSettings(true)} className="text-primary hover:underline">
+                      settings
+                    </button>
+                    {' '}for guaranteed public access (free tier: 1GB)
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Panel */}
       {showSettings && (

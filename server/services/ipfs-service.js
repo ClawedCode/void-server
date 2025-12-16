@@ -156,7 +156,78 @@ function ipfsRequest(endpoint, options = {}) {
  */
 async function checkDaemon() {
   const result = await ipfsRequest('id');
-  return { online: true, peerId: result.ID };
+  return { online: true, peerId: result.ID, addresses: result.Addresses };
+}
+
+/**
+ * Check NAT/network reachability status
+ * Analyzes node addresses to determine if publicly reachable
+ */
+async function checkNatStatus() {
+  const result = await ipfsRequest('id');
+  const addresses = result.Addresses || [];
+
+  // Categorize addresses
+  const publicAddrs = [];
+  const relayAddrs = [];
+  const localAddrs = [];
+
+  for (const addr of addresses) {
+    if (addr.includes('/p2p-circuit/')) {
+      relayAddrs.push(addr);
+    } else if (addr.includes('/ip4/127.') || addr.includes('/ip4/192.168.') ||
+               addr.includes('/ip4/10.') || addr.includes('/ip4/172.16.') ||
+               addr.includes('/ip6/::1') || addr.includes('/ip6/fe80')) {
+      localAddrs.push(addr);
+    } else if (addr.includes('/ip4/') || addr.includes('/ip6/')) {
+      // Check if it's a routable public IP
+      const ipMatch = addr.match(/\/ip4\/(\d+\.\d+\.\d+\.\d+)/);
+      if (ipMatch) {
+        const ip = ipMatch[1];
+        // Skip CGNAT range (100.64.0.0/10)
+        if (!ip.startsWith('100.64.') && !ip.startsWith('100.65.') &&
+            !ip.startsWith('100.66.') && !ip.startsWith('100.67.')) {
+          publicAddrs.push(addr);
+        }
+      } else {
+        publicAddrs.push(addr); // IPv6 public
+      }
+    }
+  }
+
+  // Determine reachability status
+  let status = 'unknown';
+  let message = '';
+
+  if (publicAddrs.length > 0) {
+    status = 'public';
+    message = 'Your node is publicly reachable. Content you pin will be accessible via public gateways.';
+  } else if (relayAddrs.length > 0) {
+    status = 'relay';
+    message = 'Your node is behind NAT and using relay circuits. Content may be slow or unreachable from public gateways. Consider port forwarding UDP/TCP 4001.';
+  } else if (localAddrs.length > 0) {
+    status = 'local';
+    message = 'Your node only has local addresses. It cannot serve content to the public network.';
+  } else {
+    status = 'offline';
+    message = 'No addresses found. IPFS daemon may not be fully initialized.';
+  }
+
+  // Get peer count for additional context
+  let peerCount = 0;
+  const peersResult = await ipfsRequest('swarm/peers');
+  peerCount = peersResult.Peers?.length || 0;
+
+  return {
+    status,
+    message,
+    publicAddrs,
+    relayAddrs,
+    localAddrs,
+    peerCount,
+    isPubliclyReachable: status === 'public',
+    needsPortForward: status === 'relay' || status === 'local'
+  };
 }
 
 /**
@@ -359,10 +430,16 @@ async function getStatus() {
 
   let daemonOnline = false;
   let peerId = null;
+  let natStatus = null;
 
   const status = await checkDaemon();
   daemonOnline = status.online;
   peerId = status.peerId;
+
+  // Get NAT status if daemon is online
+  if (daemonOnline) {
+    natStatus = await checkNatStatus();
+  }
 
   const pins = await listPins();
 
@@ -381,10 +458,12 @@ async function getStatus() {
     enabled: config.enabled,
     daemonOnline,
     peerId,
-    gateway: config.publicGateway,
+    gateway: config.gateway,
+    publicGateway: config.publicGateway,
     apiUrl: config.apiUrl,
     metrics,
-    config
+    config,
+    nat: natStatus
   };
 }
 
@@ -693,6 +772,7 @@ module.exports = {
   loadConfig,
   saveConfig,
   checkDaemon,
+  checkNatStatus,
   pinFile,
   pinUrl,
   pinDirectory,
