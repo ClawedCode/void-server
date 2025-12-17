@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.1] - 2025-12-16
+
+Patch release fixing the in-app update mechanism.
+
+### Fixes
+
+- **Update Script Detection** - Fixed "Update script not found" error
+  - Now detects Windows and uses `update.ps1` with PowerShell
+  - Detects Docker containers and shows manual update instructions instead of failing
+  - Shows full path in error message for easier debugging
+
+---
+
 ## [0.9.0] - 2025-12-16
 
 IPFS integration for decentralized content pinning and management, plus infrastructure improvements.

@@ -129,21 +129,57 @@ async function checkForUpdate() {
 }
 
 /**
+ * Check if running in Docker container
+ */
+function isDocker() {
+  // Check for Docker-specific files
+  if (fs.existsSync('/.dockerenv')) return true;
+  // Check cgroup for docker
+  if (fs.existsSync('/proc/1/cgroup')) {
+    const cgroup = fs.readFileSync('/proc/1/cgroup', 'utf8');
+    if (cgroup.includes('docker') || cgroup.includes('kubepods')) return true;
+  }
+  return false;
+}
+
+/**
  * Run the update script
  */
 function runUpdate() {
   return new Promise((resolve, reject) => {
-    const updateScript = path.resolve(__dirname, '../../update.sh');
-
-    if (!fs.existsSync(updateScript)) {
-      reject(new Error('Update script not found'));
+    // Docker containers should be updated externally
+    if (isDocker()) {
+      reject(new Error('Docker installation detected. Update from host: docker compose down && git pull && docker compose up -d --build'));
       return;
     }
 
-    console.log('🔄 Running update script...');
+    const projectRoot = path.resolve(__dirname, '../..');
+    const isWindows = process.platform === 'win32';
 
-    const child = spawn('bash', [updateScript], {
-      cwd: path.resolve(__dirname, '../..'),
+    // Try to find update script
+    let updateScript;
+    let command;
+    let args;
+
+    if (isWindows) {
+      updateScript = path.join(projectRoot, 'update.ps1');
+      command = 'powershell';
+      args = ['-ExecutionPolicy', 'Bypass', '-File', updateScript];
+    } else {
+      updateScript = path.join(projectRoot, 'update.sh');
+      command = 'bash';
+      args = [updateScript];
+    }
+
+    if (!fs.existsSync(updateScript)) {
+      reject(new Error(`Update script not found: ${updateScript}`));
+      return;
+    }
+
+    console.log(`🔄 Running update script: ${updateScript}`);
+
+    const child = spawn(command, args, {
+      cwd: projectRoot,
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
