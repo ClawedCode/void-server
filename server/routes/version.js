@@ -90,4 +90,15 @@ router.post('/update/docker', async (req, res) => {
   res.json(result);
 });
 
+/**
+ * POST /api/version/client/rebuild
+ * Rebuild the client bundle (for Docker plugin installations)
+ */
+router.post('/client/rebuild', async (req, res) => {
+  console.log('🔨 Client rebuild requested via API');
+
+  const result = await versionService.rebuildClient();
+  res.json(result);
+});
+
 module.exports = router;

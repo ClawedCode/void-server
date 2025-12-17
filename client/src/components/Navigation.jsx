@@ -390,16 +390,23 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
                             <span style={{ textShadow: 'none' }}>🐈‍⬛</span> @void:~
                         </h1>
                         {!sidebarOpen && !isMobile && (
-                            <div className="text-primary text-2xl" style={{ textShadow: 'none' }}>🐈‍⬛</div>
+                            <button
+                                onClick={toggleSidebar}
+                                className="text-primary text-2xl hover:scale-110 transition-transform cursor-pointer"
+                                style={{ textShadow: 'none' }}
+                                title="Expand sidebar"
+                            >
+                                🐈‍⬛
+                            </button>
                         )}
                         {/* Desktop toggle button */}
-                        {!isMobile && (
+                        {!isMobile && sidebarOpen && (
                             <button
                                 data-testid="nav-sidebar-toggle"
                                 onClick={toggleSidebar}
                                 className="p-2 rounded hover:bg-opacity-10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-text-primary"
                             >
-                                {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+                                <ChevronLeft size={20} />
                             </button>
                         )}
                     </div>

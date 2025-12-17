@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.10.2] - 2025-12-17
+
+Patch release with automatic client rebuild for Docker plugin installations.
+
+### New Features
+
+- **Auto-rebuild client in Docker** - Plugins installed in Docker now automatically trigger a client rebuild
+  - No more "Client Rebuild Required" message after installing plugins
+  - Dockerfile now includes client source and dependencies for rebuild capability
+  - New `POST /api/version/client/rebuild` endpoint for manual rebuilds
+  - WebSocket notifications (`plugin:rebuild:complete`, `plugin:rebuild:failed`) for real-time progress
+  - Plugin Manager shows rebuilding progress with animated banner
+  - Page auto-reloads when rebuild completes
+
+### Improvements
+
+- **Navigation cat icon clickable** - The cat emoji in the collapsed sidebar is now clickable to expand the drawer (not just the arrow)
+
+### Fixes
+
+- **Docker plugin installation UX** - Eliminated the need for manual container rebuilds after plugin installation
+
+---
+
 ## [0.10.1] - 2025-12-17
 
 Patch release with Docker auto-update support and plugin installation fix.

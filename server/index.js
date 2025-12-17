@@ -33,6 +33,7 @@ const browserService = require('./services/browser-service');
 
 // Version management
 const versionRoutes = require('./routes/version');
+const versionService = require('./services/version-service');
 
 // IPFS management
 const ipfsRoutes = require('./routes/ipfs');
@@ -393,6 +394,28 @@ app.post('/api/plugins/install', async (req, res) => {
 
   if (!result.success) {
     return res.status(400).json({ error: result.error });
+  }
+
+  // In Docker, auto-rebuild client to include new plugin
+  if (versionService.isDocker()) {
+    console.log('🐳 Docker detected - auto-rebuilding client bundle...');
+    result.rebuilding = true;
+
+    // Send response first, then rebuild in background
+    res.json(result);
+
+    // Rebuild client asynchronously
+    versionService.rebuildClient()
+      .then(() => {
+        console.log('✅ Client rebuild complete - plugin ready to use');
+        // Notify connected clients via WebSocket
+        io.emit('plugin:rebuild:complete', { plugin: result.plugin });
+      })
+      .catch(err => {
+        console.error('❌ Client rebuild failed:', err.message);
+        io.emit('plugin:rebuild:failed', { plugin: result.plugin, error: err.message });
+      });
+    return;
   }
 
   res.json(result);

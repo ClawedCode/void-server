@@ -26,17 +26,22 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build --prefix client
 
 # =============================================================================
-# Stage 2: Production - Minimal runtime image
+# Stage 2: Production - Runtime image with rebuild capability
 # =============================================================================
 FROM node:20-slim
 
 WORKDIR /app
 
-# Copy package files and install production deps only
+# Copy package files and install server production deps
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy built client from builder
+# Copy client source and dependencies for plugin rebuild capability
+# This allows rebuilding the client when plugins are installed at runtime
+COPY client/ ./client/
+COPY --from=builder /app/client/node_modules ./client/node_modules
+
+# Copy pre-built client dist from builder (initial build)
 COPY --from=builder /app/client/dist ./client/dist
 
 # Copy server, plugins, and data templates

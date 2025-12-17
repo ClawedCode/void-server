@@ -282,6 +282,63 @@ function triggerWatchtowerUpdate() {
   });
 }
 
+/**
+ * Rebuild the client bundle (for Docker plugin installations)
+ * This allows newly installed plugins to be included in the client bundle
+ */
+function rebuildClient() {
+  return new Promise((resolve, reject) => {
+    const projectRoot = path.resolve(__dirname, '../..');
+    const clientDir = path.join(projectRoot, 'client');
+
+    // Check if client source exists (only in Docker with rebuild capability)
+    const viteConfig = path.join(clientDir, 'vite.config.js');
+    if (!fs.existsSync(viteConfig)) {
+      reject(new Error('Client source not available. Rebuild only available in Docker.'));
+      return;
+    }
+
+    console.log('🔨 Rebuilding client bundle...');
+
+    const child = spawn('npm', ['run', 'build'], {
+      cwd: clientDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        NODE_OPTIONS: '--max-old-space-size=4096'
+      }
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+      console.log(data.toString());
+    });
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error(data.toString());
+    });
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        console.log('✅ Client rebuild completed successfully');
+        resolve({ success: true, output: stdout });
+      } else {
+        console.log(`❌ Client rebuild failed with code ${code}`);
+        reject(new Error(`Client rebuild failed: ${stderr || stdout}`));
+      }
+    });
+
+    child.on('error', (err) => {
+      reject(new Error(`Failed to run build: ${err.message}`));
+    });
+  });
+}
+
 module.exports = {
   getCurrentVersion,
   checkForUpdate,
@@ -289,5 +346,6 @@ module.exports = {
   clearCache,
   compareVersions,
   isDocker,
-  triggerWatchtowerUpdate
+  triggerWatchtowerUpdate,
+  rebuildClient
 };
