@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.10.1] - 2025-12-17
+
+Patch release with Docker auto-update support and plugin installation fix.
+
+### New Features
+
+- **Watchtower Auto-Updates** - Docker containers can now be updated automatically or on-demand from the UI
+  - Added Watchtower service to docker-compose.yml for automatic container updates
+  - New "Update" button in UI triggers Watchtower to pull and deploy latest image
+  - Falls back to manual command modal if Watchtower unavailable
+  - Configurable via `WATCHTOWER_TOKEN` and `WATCHTOWER_POLL_INTERVAL` env vars
+
+### Fixes
+
+- **Plugin installation in Docker** - Fixed "EXDEV: cross-device link not permitted" error
+  - Plugin temp directory now uses same volume as destination (`data/plugins/`)
+  - Uses copy+delete instead of rename for cross-filesystem compatibility
+
+### API Changes
+
+- `GET /api/version/environment` - Returns Docker detection and update method
+- `POST /api/version/update/docker` - Triggers Watchtower update (Docker only)
+
+---
+
 ## [0.10.0] - 2025-12-17
 
 Comprehensive end-to-end testing framework using Playwright with Gherkin/Cucumber BDD style.

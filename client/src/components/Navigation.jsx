@@ -51,48 +51,57 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [updateInfo, setUpdateInfo] = useState(null);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isDocker, setIsDocker] = useState(false);
     const [dockerModal, setDockerModal] = useState({ show: false, command: '' });
     const [copied, setCopied] = useState(false);
+
+    // Check environment on mount
+    useEffect(() => {
+        const checkEnvironment = async () => {
+            const res = await fetch('/api/version/environment');
+            const data = await res.json();
+            if (data.success) {
+                setIsDocker(data.isDocker);
+            }
+        };
+        checkEnvironment();
+    }, []);
 
     // Check for updates periodically
     useEffect(() => {
         const checkForUpdate = async () => {
-            try {
-                const res = await fetch('/api/version/check');
-                const data = await res.json();
-                if (data.success && data.updateAvailable) {
-                    setUpdateInfo(data);
-                    // Show persistent toast notification
-                    toast(
-                        (t) => (
-                            <div className="flex items-center gap-3">
-                                <ArrowUpCircle className="text-primary flex-shrink-0" size={20} />
-                                <div className="flex-1">
-                                    <div className="font-medium">Update Available</div>
-                                    <div className="text-sm text-secondary">v{data.currentVersion} → v{data.latestVersion}</div>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        toast.dismiss(t.id);
-                                        handleUpdate(data);
-                                    }}
-                                    className="px-3 py-1 bg-[var(--color-primary)] text-background rounded text-sm hover:bg-[var(--color-primary)]/80"
-                                >
-                                    Update
-                                </button>
-                                <button
-                                    onClick={() => toast.dismiss(t.id)}
-                                    className="text-secondary hover:text-text-primary"
-                                >
-                                    ✕
-                                </button>
+            const res = await fetch('/api/version/check');
+            const data = await res.json();
+            if (data.success && data.updateAvailable) {
+                setUpdateInfo(data);
+                // Show persistent toast notification
+                toast(
+                    (t) => (
+                        <div className="flex items-center gap-3">
+                            <ArrowUpCircle className="text-primary flex-shrink-0" size={20} />
+                            <div className="flex-1">
+                                <div className="font-medium">Update Available</div>
+                                <div className="text-sm text-secondary">v{data.currentVersion} → v{data.latestVersion}</div>
                             </div>
-                        ),
-                        { duration: Infinity, id: 'update-available' }
-                    );
-                }
-            } catch (err) {
-                // Silently fail - not critical
+                            <button
+                                onClick={() => {
+                                    toast.dismiss(t.id);
+                                    handleUpdate(data);
+                                }}
+                                className="px-3 py-1 bg-[var(--color-primary)] text-background rounded text-sm hover:bg-[var(--color-primary)]/80"
+                            >
+                                Update
+                            </button>
+                            <button
+                                onClick={() => toast.dismiss(t.id)}
+                                className="text-secondary hover:text-text-primary"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ),
+                    { duration: Infinity, id: 'update-available' }
+                );
             }
         };
 
@@ -104,47 +113,60 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
         return () => clearInterval(interval);
     }, []);
 
+    // Poll for server to come back after update
+    const pollForRestart = () => {
+        const poll = setInterval(async () => {
+            const healthRes = await fetch('/api/health');
+            if (healthRes.ok) {
+                clearInterval(poll);
+                window.location.reload();
+            }
+        }, 2000);
+    };
+
     // Handle update action
     const handleUpdate = async () => {
         if (isUpdating) return;
         setIsUpdating(true);
         setLogsExpanded(true); // Expand logs to show update progress
         toast.loading('Updating...', { id: 'update-progress' });
-        try {
-            const res = await fetch('/api/version/update', { method: 'POST' });
+
+        // For Docker, try Watchtower first
+        if (isDocker) {
+            const res = await fetch('/api/version/update/docker', { method: 'POST' });
             const data = await res.json();
 
-            if (!data.success) {
-                // Check if it's a Docker error
-                if (data.error && data.error.includes('Docker installation detected')) {
-                    toast.dismiss('update-progress');
-                    // Extract command from error message
-                    const commandMatch = data.error.match(/Update from host: (.+)$/);
-                    const command = commandMatch ? commandMatch[1] : 'docker compose down && git pull && docker compose up -d --build';
-                    setDockerModal({ show: true, command });
-                    setIsUpdating(false);
-                    return;
-                }
-                toast.error(data.error || 'Update failed', { id: 'update-progress' });
-                setIsUpdating(false);
+            if (data.success) {
+                toast.success('Update triggered! Container will restart if a new image is available.', { id: 'update-progress' });
+                // Poll for server to come back
+                pollForRestart();
                 return;
             }
 
-            toast.success('Update started. Reloading when ready...', { id: 'update-progress' });
-            // Poll for server to come back
-            const poll = setInterval(async () => {
-                try {
-                    const healthRes = await fetch('/api/health');
-                    if (healthRes.ok) {
-                        clearInterval(poll);
-                        window.location.reload();
-                    }
-                } catch {}
-            }, 2000);
-        } catch (err) {
-            toast.error('Update failed', { id: 'update-progress' });
+            // Watchtower failed - show manual command modal
+            toast.dismiss('update-progress');
+            const command = 'docker compose down && docker compose pull && docker compose up -d';
+            setDockerModal({
+                show: true,
+                command,
+                watchtowerError: data.error || 'Watchtower not available'
+            });
             setIsUpdating(false);
+            return;
         }
+
+        // Native installation - use update script
+        const res = await fetch('/api/version/update', { method: 'POST' });
+        const data = await res.json();
+
+        if (!data.success) {
+            toast.error(data.error || 'Update failed', { id: 'update-progress' });
+            setIsUpdating(false);
+            return;
+        }
+
+        toast.success('Update started. Reloading when ready...', { id: 'update-progress' });
+        pollForRestart();
     };
 
     // Copy Docker command to clipboard
@@ -550,9 +572,19 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
 
                         {/* Modal Content */}
                         <div className="p-4 space-y-4">
+                            {dockerModal.watchtowerError && (
+                                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                                    <p className="text-sm text-yellow-500">
+                                        <strong>Automatic update unavailable:</strong> {dockerModal.watchtowerError}
+                                    </p>
+                                    <p className="text-xs text-yellow-500/70 mt-1">
+                                        Tip: Enable Watchtower in docker-compose.yml for automatic updates.
+                                    </p>
+                                </div>
+                            )}
+
                             <p className="text-sm text-[var(--color-text-secondary)]">
-                                Since you&apos;re running in Docker, the update must be performed from the host machine.
-                                Copy and run the following command in your terminal:
+                                Run the following command on your host machine to update:
                             </p>
 
                             {/* Command Box */}
@@ -574,7 +606,7 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
                             </div>
 
                             <p className="text-xs text-[var(--color-text-tertiary)]">
-                                This will stop the container, pull the latest code, and rebuild with the new version.
+                                This will stop the container, pull the latest image, and restart with the new version.
                             </p>
                         </div>
 

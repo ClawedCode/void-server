@@ -15,6 +15,10 @@ services:
     restart: unless-stopped
     ports:
       - "4420:4401"
+    labels:
+      # Enable Watchtower auto-updates for this container
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.scope=void-server"
     environment:
       - NODE_ENV=production
       - PORT=4401
@@ -28,6 +32,9 @@ services:
       # IPFS connection (uses service name as hostname)
       - IPFS_API_URL=http://ipfs:5001
       - IPFS_GATEWAY_URL=http://ipfs:8080
+      # Watchtower API for triggering updates from UI
+      - WATCHTOWER_URL=http://watchtower:8080
+      - WATCHTOWER_TOKEN=${WATCHTOWER_TOKEN:-void-update-token}
     volumes:
       # Persistent data directories
       - ./config:/app/config
@@ -97,6 +104,34 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # ==========================================================================
+  # Watchtower - Automatic Container Updates
+  # ==========================================================================
+  # Monitors for new Docker images and automatically updates containers.
+  # Also exposes HTTP API for on-demand update checks from the UI.
+  watchtower:
+    image: containrrr/watchtower
+    container_name: void-watchtower
+    restart: unless-stopped
+    environment:
+      # Only watch void-server container (not neo4j, ipfs, etc.)
+      - WATCHTOWER_SCOPE=void-server
+      # Check for updates every 24 hours (86400 seconds)
+      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-86400}
+      # Clean up old images after update
+      - WATCHTOWER_CLEANUP=true
+      # Enable HTTP API for on-demand updates from UI
+      - WATCHTOWER_HTTP_API_UPDATE=true
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN:-void-update-token}
+      # Only update containers with this label
+      - WATCHTOWER_LABEL_ENABLE=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - void-network
+    labels:
+      - "com.centurylinklabs.watchtower.scope=void-server"
 
 networks:
   void-network:

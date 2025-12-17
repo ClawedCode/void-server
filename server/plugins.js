@@ -450,6 +450,18 @@ const extractZip = (zipPath, destDir) => {
 };
 
 /**
+ * Move directory across filesystems (copy + delete)
+ * fs.renameSync fails with EXDEV when moving across different filesystems (e.g., Docker volumes)
+ * @param {string} src - Source directory
+ * @param {string} dest - Destination directory
+ */
+const moveDirectory = (src, dest) => {
+  // Use cpSync with recursive option (Node 16.7+)
+  fs.cpSync(src, dest, { recursive: true });
+  fs.rmSync(src, { recursive: true, force: true });
+};
+
+/**
  * Install plugin from zip URL
  * @param {string} zipUrl - URL to zip file
  * @param {string} pluginName - Target plugin name
@@ -457,8 +469,14 @@ const extractZip = (zipPath, destDir) => {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 const installFromZip = async (zipUrl, pluginName, pluginPath) => {
-  const tempDir = path.join(PLUGINS_DIR, '.temp-install');
+  // Use temp directory on same volume as destination to avoid cross-device issues
+  const tempDir = path.join(USER_PLUGINS_DIR, '.temp-install');
   const zipFile = path.join(tempDir, 'plugin.zip');
+
+  // Ensure user plugins directory exists
+  if (!fs.existsSync(USER_PLUGINS_DIR)) {
+    fs.mkdirSync(USER_PLUGINS_DIR, { recursive: true });
+  }
 
   // Create temp directory
   if (fs.existsSync(tempDir)) {
@@ -484,7 +502,7 @@ const installFromZip = async (zipUrl, pluginName, pluginPath) => {
 
   // Move extracted directory to final location
   const extractedPath = path.join(tempDir, extractResult.extractedDir);
-  fs.renameSync(extractedPath, pluginPath);
+  moveDirectory(extractedPath, pluginPath);
 
   // Cleanup temp directory
   fs.rmSync(tempDir, { recursive: true, force: true });

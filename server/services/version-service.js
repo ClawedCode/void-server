@@ -220,10 +220,74 @@ function clearCache() {
   lastCheckTime = 0;
 }
 
+/**
+ * Trigger Watchtower to check for and apply updates (Docker only)
+ * Watchtower HTTP API: POST /v1/update with Authorization header
+ */
+function triggerWatchtowerUpdate() {
+  return new Promise((resolve, reject) => {
+    if (!isDocker()) {
+      reject(new Error('Watchtower updates are only available in Docker'));
+      return;
+    }
+
+    const watchtowerUrl = process.env.WATCHTOWER_URL || 'http://watchtower:8080';
+    const watchtowerToken = process.env.WATCHTOWER_TOKEN || 'void-update-token';
+
+    const url = new URL('/v1/update', watchtowerUrl);
+    const http = require('http');
+
+    const options = {
+      hostname: url.hostname,
+      port: url.port || 8080,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${watchtowerToken}`
+      },
+      timeout: 10000
+    };
+
+    console.log(`🔄 Triggering Watchtower update at ${watchtowerUrl}`);
+
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          console.log('✅ Watchtower update triggered successfully');
+          resolve({
+            success: true,
+            message: 'Update triggered. Container will restart if a new image is available.',
+            response: data
+          });
+        } else {
+          console.log(`⚠️ Watchtower returned ${res.statusCode}: ${data}`);
+          reject(new Error(`Watchtower returned ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.log(`❌ Watchtower connection failed: ${err.message}`);
+      reject(new Error(`Failed to connect to Watchtower: ${err.message}. Is Watchtower running?`));
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Watchtower request timed out'));
+    });
+
+    req.end();
+  });
+}
+
 module.exports = {
   getCurrentVersion,
   checkForUpdate,
   runUpdate,
   clearCache,
-  compareVersions
+  compareVersions,
+  isDocker,
+  triggerWatchtowerUpdate
 };
