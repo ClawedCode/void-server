@@ -14,6 +14,7 @@ Patch release with Docker improvements and documentation updates.
 - **ESLint cleanup** - Removed warning-level rules; all issues are now errors or disabled
   - Disabled `set-state-in-effect` (standard data fetching pattern)
   - Kept `exhaustive-deps` as error for catching real bugs
+- **Pre-push hook for version tags** - E2E tests run automatically when pushing v* tags
 
 ### Fixes
 

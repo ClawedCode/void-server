@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# pre-push hook for void-server
+# Runs e2e tests when pushing version tags (v*)
+
+# Read stdin for refs being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+  # Check if this is a version tag push
+  if [[ "$local_ref" =~ ^refs/tags/v ]]; then
+    tag_name=$(echo "$local_ref" | sed 's|refs/tags/||')
+    echo ""
+    echo "========================================"
+    echo "Version tag detected: $tag_name"
+    echo "Running e2e tests before push..."
+    echo "========================================"
+    echo ""
+
+    # Run e2e tests
+    npm test
+    test_exit_code=$?
+
+    if [ $test_exit_code -ne 0 ]; then
+      echo ""
+      echo "========================================"
+      echo "❌ E2E tests failed!"
+      echo "Push of $tag_name has been blocked."
+      echo ""
+      echo "To skip tests and push anyway, use:"
+      echo "  git push --no-verify origin $tag_name"
+      echo "========================================"
+      exit 1
+    fi
+
+    echo ""
+    echo "========================================"
+    echo "✅ E2E tests passed!"
+    echo "Proceeding with push of $tag_name"
+    echo "========================================"
+  fi
+done
+
+exit 0
