@@ -1,5 +1,97 @@
 # Changelog
 
+## [0.10.0] - 2025-12-17
+
+Comprehensive end-to-end testing framework using Playwright with Gherkin/Cucumber BDD style.
+
+### New Features
+
+- **E2E Testing Framework** - Complete testing infrastructure for both native and Docker modes
+  - Playwright integration with Gherkin/Cucumber BDD syntax
+  - 10 feature files covering all major application areas
+  - Page Object Models for maintainable UI tests
+  - Step definitions for common operations
+  - Test fixtures and mock services
+
+- **Mock Services** - Containerized mocks for isolated testing
+  - LM Studio mock server (OpenAI-compatible API)
+  - Neo4j mock for unit tests when container unavailable
+  - IPFS mock for offline testing
+
+- **Test Environment Scripts** - Easy test environment management
+  - `npm run test:env:start` - Start native or Docker test environment
+  - `npm run test:env:stop` - Stop test environment
+  - `npm run test:seed` - Seed test data to Neo4j
+  - `npm run test:install` - Install Playwright browsers
+
+- **CI/CD Pipeline** - GitHub Actions workflow for automated testing
+  - Matrix testing for native and Docker modes
+  - Service containers for Neo4j and IPFS
+  - Test artifact collection (reports, screenshots)
+  - Parallel test execution with sharding
+
+- **Persistent User Plugins** - User-installed plugins now survive Docker rebuilds
+  - User plugins installed to `data/plugins/` (persisted volume)
+  - Core plugins remain in `plugins/` (shipped with app)
+  - Both directories scanned by server and Vite build
+  - Plugins no longer lost when running `docker compose up --build`
+
+### Fixes
+
+- **Docker build warnings** - Fixed misleading error/warning messages during Docker builds
+  - postinstall hook script now checks if file exists before running (skips in Docker)
+  - Removed duplicate static/dynamic imports in plugin client entries to fix Vite warnings
+
+### Test Coverage
+
+Feature files for:
+- Dashboard and health checks
+- Settings and theme configuration
+- Chat system with AI providers
+- Prompt templates and variables
+- Memory system (Neo4j integration)
+- Plugin management
+- Wallet plugin
+- IPFS integration
+- Version and update checks
+
+### New Files
+
+```
+tests/e2e/
+├── features/           # Gherkin feature files
+│   ├── core/          # Dashboard, settings
+│   ├── chat/          # Chat system
+│   ├── prompts/       # Templates, variables
+│   ├── memories/      # Memory CRUD, graph
+│   ├── plugins/       # Plugin management
+│   ├── wallet/        # Wallet plugin
+│   ├── ipfs/          # IPFS integration
+│   └── version/       # Update checks
+├── steps/             # Step definitions
+├── pages/             # Page Object Models
+├── mocks/             # Mock services
+├── fixtures/          # Test data
+└── support/           # Test utilities
+
+playwright.config.ts    # Playwright configuration
+cucumber.js            # Cucumber profiles
+docker-compose.test.yml # Test services
+.github/workflows/e2e-tests.yml  # CI pipeline
+```
+
+### Test Commands
+
+```bash
+npm run test           # Run tests in native mode
+npm run test:native    # Run Cucumber tests (native)
+npm run test:docker    # Run Cucumber tests (Docker)
+npm run test:e2e       # Run Playwright tests
+npm run test:e2e:ui    # Open Playwright UI
+```
+
+---
+
 ## [0.9.5] - 2025-12-16
 
 Patch release with IPFS dashboard status and plugin/PM2 fixes.

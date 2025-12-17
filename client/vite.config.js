@@ -8,7 +8,11 @@ import discoverPlugins from './vite-plugin-discover-plugins.js'
 export default defineConfig({
   plugins: [
     discoverPlugins({
-      pluginsDir: path.resolve(__dirname, '../plugins')
+      // Core plugins (shipped with app) and user plugins (persisted in data/)
+      pluginsDirs: [
+        path.resolve(__dirname, '../plugins'),
+        path.resolve(__dirname, '../data/plugins')
+      ]
     }),
     react(),
     tailwindcss()

@@ -14,9 +14,11 @@ const AdmZip = require('adm-zip');
 // Paths
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const CONFIG_DIR = path.join(PROJECT_ROOT, 'config');
-const PLUGINS_DIR = path.join(PROJECT_ROOT, 'plugins');
+const CORE_PLUGINS_DIR = path.join(PROJECT_ROOT, 'plugins');
+const USER_PLUGINS_DIR = path.join(PROJECT_ROOT, 'data', 'plugins');
+const PLUGINS_DIR = CORE_PLUGINS_DIR; // Backward compatibility alias
 const PLUGINS_CONFIG_PATH = path.join(CONFIG_DIR, 'plugins.json');
-const PLUGINS_MANIFEST_PATH = path.join(PLUGINS_DIR, 'manifest.json');
+const PLUGINS_MANIFEST_PATH = path.join(CORE_PLUGINS_DIR, 'manifest.json');
 
 // Built-in plugins that ship with void-server and cannot be uninstalled
 const BUILT_IN_PLUGINS = [
@@ -104,13 +106,40 @@ const isSubmodule = (pluginName) => {
 };
 
 /**
+ * Get the directory where a plugin is installed
+ * @param {string} pluginName - Plugin name
+ * @returns {string|null} Full path to plugin directory, or null if not found
+ */
+const getPluginPath = (pluginName) => {
+  // Check core plugins first
+  const corePath = path.join(CORE_PLUGINS_DIR, pluginName);
+  if (fs.existsSync(corePath)) return corePath;
+
+  // Check user plugins
+  const userPath = path.join(USER_PLUGINS_DIR, pluginName);
+  if (fs.existsSync(userPath)) return userPath;
+
+  return null;
+};
+
+/**
+ * Check if a plugin is a user-installed plugin (in data/plugins)
+ * @param {string} pluginName - Plugin name
+ * @returns {boolean}
+ */
+const isUserPlugin = (pluginName) => {
+  const userPath = path.join(USER_PLUGINS_DIR, pluginName);
+  return fs.existsSync(userPath);
+};
+
+/**
  * Get the installation type of a plugin
  * @param {string} pluginName - Plugin name
  * @returns {'symlink'|'submodule'|'directory'|null}
  */
 const getInstallationType = (pluginName) => {
-  const pluginPath = path.join(PLUGINS_DIR, pluginName);
-  if (!fs.existsSync(pluginPath)) return null;
+  const pluginPath = getPluginPath(pluginName);
+  if (!pluginPath) return null;
   if (isSymlink(pluginPath)) return 'symlink';
   if (isSubmodule(pluginName)) return 'submodule';
   return 'directory';
@@ -186,26 +215,26 @@ const extractPluginName = (url) => {
 // ============================================================================
 
 /**
- * List all installed plugins with their status
- * @returns {Array} Array of installed plugin objects
+ * Scan a directory for plugins and return their info
+ * @param {string} dir - Directory to scan
+ * @param {Object} config - Plugin config object
+ * @param {Object} manifest - Plugin manifest object
+ * @param {boolean} isUserDir - Whether this is the user plugins directory
+ * @returns {Array} Array of plugin objects
  */
-const listInstalledPlugins = () => {
-  if (!fs.existsSync(PLUGINS_DIR)) return [];
+const scanPluginsDir = (dir, config, manifest, isUserDir = false) => {
+  if (!fs.existsSync(dir)) return [];
 
-  const config = loadConfig();
-  const manifest = loadManifest();
-
-  return fs.readdirSync(PLUGINS_DIR, { withFileTypes: true })
+  return fs.readdirSync(dir, { withFileTypes: true })
     .filter(entry => entry.name.startsWith('void-plugin-'))
     .map(entry => {
       const name = entry.name;
-      const pluginPath = path.join(PLUGINS_DIR, name);
+      const pluginPath = path.join(dir, name);
 
       // Skip if not a real directory (broken symlink, etc.)
-      let realPath;
       const lstat = fs.lstatSync(pluginPath);
       if (lstat.isSymbolicLink()) {
-        realPath = fs.realpathSync(pluginPath);
+        const realPath = fs.realpathSync(pluginPath);
         if (!fs.existsSync(realPath)) return null;
       } else if (!lstat.isDirectory()) {
         return null;
@@ -220,11 +249,12 @@ const listInstalledPlugins = () => {
         installed: true,
         enabled: pluginConfig.enabled !== false, // default true
         builtIn: BUILT_IN_PLUGINS.includes(name),
+        userInstalled: isUserDir,
         installationType: getInstallationType(name),
         version: pluginManifest?.version || 'unknown',
         description: pluginManifest?.description || catalogEntry?.description || '',
         installedAt: pluginConfig.installedAt,
-        installedFrom: pluginConfig.installedFrom || 'unknown',
+        installedFrom: pluginConfig.installedFrom || (isUserDir ? 'user' : 'core'),
         mountPath: pluginConfig.mountPath || pluginManifest?.defaultMountPath,
         navConfig: pluginConfig.navConfig || {
           navSection: pluginManifest?.nav?.section ?? null,
@@ -233,7 +263,26 @@ const listInstalledPlugins = () => {
         }
       };
     })
-    .filter(Boolean); // Remove nulls
+    .filter(Boolean);
+};
+
+/**
+ * List all installed plugins with their status
+ * @returns {Array} Array of installed plugin objects
+ */
+const listInstalledPlugins = () => {
+  const config = loadConfig();
+  const manifest = loadManifest();
+
+  // Scan both core and user plugin directories
+  const corePlugins = scanPluginsDir(CORE_PLUGINS_DIR, config, manifest, false);
+  const userPlugins = scanPluginsDir(USER_PLUGINS_DIR, config, manifest, true);
+
+  // Merge, with core plugins taking precedence if somehow duplicated
+  const seen = new Set(corePlugins.map(p => p.name));
+  const filteredUserPlugins = userPlugins.filter(p => !seen.has(p.name));
+
+  return [...corePlugins, ...filteredUserPlugins];
 };
 
 /**
@@ -444,20 +493,19 @@ const installFromZip = async (zipUrl, pluginName, pluginPath) => {
 };
 
 /**
- * Install plugin from git repository
+ * Install plugin from git repository to a specific path
  * @param {string} gitUrl - Git repository URL
  * @param {string} pluginName - Target plugin name
  * @param {string} branch - Git branch
+ * @param {string} pluginPath - Target installation path
  * @returns {{success: boolean, error?: string}}
  */
-const installFromGit = (gitUrl, pluginName, branch) => {
-  const pluginPath = path.join(PLUGINS_DIR, pluginName);
-
+const installFromGitToPath = (gitUrl, pluginName, branch, pluginPath) => {
   // Clone repository (not as submodule for simpler management)
   console.log(`📥 Cloning plugin from ${gitUrl}`);
   const cloneResult = spawnSync('git', ['clone', '--depth', '1', '-b', branch, gitUrl, pluginPath], {
     encoding: 'utf8',
-    cwd: PLUGINS_DIR
+    cwd: path.dirname(pluginPath)
   });
 
   if (cloneResult.status !== 0) {
@@ -532,16 +580,18 @@ const installPlugin = async (source, options = {}) => {
     return { success: false, error: nameValidation.error };
   }
 
-  const pluginPath = path.join(PLUGINS_DIR, pluginName);
-
-  // Check if already installed
-  if (fs.existsSync(pluginPath)) {
+  // Check if already installed in either directory
+  const existingPath = getPluginPath(pluginName);
+  if (existingPath) {
     return { success: false, error: `Plugin "${pluginName}" is already installed` };
   }
 
-  // Ensure plugins directory exists
-  if (!fs.existsSync(PLUGINS_DIR)) {
-    fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+  // Install to user plugins directory (data/plugins/)
+  const pluginPath = path.join(USER_PLUGINS_DIR, pluginName);
+
+  // Ensure user plugins directory exists
+  if (!fs.existsSync(USER_PLUGINS_DIR)) {
+    fs.mkdirSync(USER_PLUGINS_DIR, { recursive: true });
   }
 
   // Install based on source type
@@ -549,7 +599,7 @@ const installPlugin = async (source, options = {}) => {
   if (installSource.type === 'zip') {
     installResult = await installFromZip(installSource.url, pluginName, pluginPath);
   } else {
-    installResult = installFromGit(installSource.url, pluginName, installSource.branch);
+    installResult = installFromGitToPath(installSource.url, pluginName, installSource.branch, pluginPath);
   }
 
   if (!installResult.success) {
@@ -606,9 +656,10 @@ const uninstallPlugin = (pluginName) => {
     return { success: false, error: `Cannot uninstall built-in plugin "${pluginName}"` };
   }
 
-  const pluginPath = path.join(PLUGINS_DIR, pluginName);
+  // Find plugin in either directory
+  const pluginPath = getPluginPath(pluginName);
 
-  if (!fs.existsSync(pluginPath)) {
+  if (!pluginPath) {
     return { success: false, error: `Plugin "${pluginName}" is not installed` };
   }
 
@@ -654,9 +705,10 @@ const setPluginEnabled = (pluginName, enabled) => {
     return { success: false, error: nameValidation.error };
   }
 
-  const pluginPath = path.join(PLUGINS_DIR, pluginName);
+  // Find plugin in either directory
+  const pluginPath = getPluginPath(pluginName);
 
-  if (!fs.existsSync(pluginPath)) {
+  if (!pluginPath) {
     return { success: false, error: `Plugin "${pluginName}" is not installed` };
   }
 
@@ -683,6 +735,8 @@ module.exports = {
   PROJECT_ROOT,
   CONFIG_DIR,
   PLUGINS_DIR,
+  CORE_PLUGINS_DIR,
+  USER_PLUGINS_DIR,
   PLUGINS_CONFIG_PATH,
   PLUGINS_MANIFEST_PATH,
 
@@ -695,6 +749,8 @@ module.exports = {
   // Detection
   isSymlink,
   isSubmodule,
+  getPluginPath,
+  isUserPlugin,
   getInstallationType,
   isDevMode,
 

@@ -234,26 +234,33 @@ function loadPlugins() {
   console.log('🔌 Loading plugins...');
   const savedConfig = loadPluginConfig();
 
-  // Load plugins from plugins/ directory (symlinks or submodules)
-  const pluginsDir = path.resolve(__dirname, '../plugins');
+  // Plugin directories: core (plugins/) and user-installed (data/plugins/)
+  const corePluginsDir = path.resolve(__dirname, '../plugins');
+  const userPluginsDir = path.resolve(__dirname, '../data/plugins');
   let pluginPaths = [];
 
-  // Scan plugins directory for plugin folders
-  if (fs.existsSync(pluginsDir)) {
-    const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
+  // Helper to scan a directory for plugins
+  const scanDir = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
-      // Follow symlinks and check if it's a directory
       if (entry.name.startsWith('void-plugin-')) {
-        const pluginPath = path.join(pluginsDir, entry.name);
+        const pluginPath = path.join(dir, entry.name);
         const realPath = fs.realpathSync(pluginPath);
         if (fs.statSync(realPath).isDirectory()) {
           pluginPaths.push(pluginPath);
         }
       }
     }
-  }
+  };
 
-  // Fallback: check sibling directories if no plugins found
+  // Scan core plugins directory
+  scanDir(corePluginsDir);
+
+  // Scan user plugins directory (data/plugins/)
+  scanDir(userPluginsDir);
+
+  // Fallback: check sibling directories if no plugins found (dev mode)
   if (pluginPaths.length === 0) {
     const parentDir = path.resolve(__dirname, '../..');
     if (fs.existsSync(parentDir)) {

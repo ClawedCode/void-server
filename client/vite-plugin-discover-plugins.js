@@ -1,7 +1,7 @@
 /**
  * Vite Plugin: Discover Plugins
  *
- * Scans the plugins directory at build time and generates a virtual module
+ * Scans plugin directories at build time and generates a virtual module
  * that exports all plugin client components for dynamic loading.
  *
  * Usage in code:
@@ -16,7 +16,12 @@ const VIRTUAL_MODULE_ID = 'virtual:plugins';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;
 
 export default function discoverPlugins(options = {}) {
-  const pluginsDir = options.pluginsDir || path.resolve(process.cwd(), '../plugins');
+  // Support both single dir (legacy) and array of dirs
+  const pluginsDirs = options.pluginsDirs || (
+    options.pluginsDir
+      ? [options.pluginsDir]
+      : [path.resolve(process.cwd(), '../plugins')]
+  );
 
   return {
     name: 'discover-plugins',
@@ -30,14 +35,19 @@ export default function discoverPlugins(options = {}) {
     load(id) {
       if (id !== RESOLVED_VIRTUAL_MODULE_ID) return null;
 
-      // Scan plugins directory
+      // Scan all plugin directories
       const plugins = [];
+      const seenNames = new Set();
 
-      if (fs.existsSync(pluginsDir)) {
+      for (const pluginsDir of pluginsDirs) {
+        if (!fs.existsSync(pluginsDir)) continue;
+
         const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
 
         for (const entry of entries) {
           if (!entry.name.startsWith('void-plugin-')) continue;
+          // Skip duplicates (core plugins take precedence)
+          if (seenNames.has(entry.name)) continue;
 
           const pluginPath = path.join(pluginsDir, entry.name);
           let realPath = pluginPath;
@@ -64,6 +74,7 @@ export default function discoverPlugins(options = {}) {
             clientEntry: clientEntryPath,
             manifest
           });
+          seenNames.add(entry.name);
         }
       }
 
@@ -102,7 +113,13 @@ export const pluginNames = ${JSON.stringify(plugins.map(p => p.name))};
 
     // Trigger rebuild when plugins directory changes (dev mode)
     configureServer(server) {
-      server.watcher.add(pluginsDir);
+      // Watch all plugin directories
+      for (const dir of pluginsDirs) {
+        if (fs.existsSync(dir)) {
+          server.watcher.add(dir);
+        }
+      }
+
       server.watcher.on('all', (event, filePath) => {
         // Only reload on source file changes, not data files
         const isSourceFile = filePath.endsWith('.js') ||
@@ -111,11 +128,14 @@ export const pluginNames = ${JSON.stringify(plugins.map(p => p.name))};
                             filePath.endsWith('.tsx') ||
                             filePath.endsWith('.css') ||
                             filePath.endsWith('manifest.json');
-        const isDataFile = filePath.includes('/data/') ||
-                          filePath.includes('\\data\\') ||
+        // Exclude plugin data directories and node_modules
+        const isDataFile = filePath.includes('/data/') && !pluginsDirs.some(d => filePath.startsWith(d)) ||
+                          filePath.includes('\\data\\') && !pluginsDirs.some(d => filePath.startsWith(d)) ||
                           filePath.includes('node_modules');
 
-        if (filePath.includes(pluginsDir) && isSourceFile && !isDataFile) {
+        const isInPluginDir = pluginsDirs.some(dir => filePath.includes(dir));
+
+        if (isInPluginDir && isSourceFile && !isDataFile) {
           // Invalidate the virtual module to trigger re-generation
           const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
           if (mod) {
