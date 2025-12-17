@@ -95,8 +95,36 @@ fi
 print_step "Pulling latest code..."
 git pull --rebase
 
+# Configure Docker GID for browser sidecar support
+configure_docker_gid() {
+  if [[ -S /var/run/docker.sock ]]; then
+    local docker_gid
+    # Linux: use stat -c, macOS: use stat -f
+    if stat --version &>/dev/null 2>&1; then
+      docker_gid=$(stat -c '%g' /var/run/docker.sock)
+    else
+      docker_gid=$(stat -f '%g' /var/run/docker.sock)
+    fi
+
+    # Update .env file with DOCKER_GID
+    if [[ -f .env ]]; then
+      if grep -q "^DOCKER_GID=" .env; then
+        sed -i.bak "s/^DOCKER_GID=.*/DOCKER_GID=$docker_gid/" .env && rm -f .env.bak
+      else
+        echo "DOCKER_GID=$docker_gid" >> .env
+      fi
+    else
+      echo "DOCKER_GID=$docker_gid" > .env
+    fi
+    print_step "Docker socket GID: $docker_gid (browser sidecar enabled)"
+  fi
+}
+
 # Update dependencies and restart based on installation type
 if [[ "$IS_DOCKER" == true ]]; then
+  # Configure Docker GID for browser management
+  configure_docker_gid
+
   # Docker: pull new images and rebuild
   print_step "Pulling latest Docker images..."
   docker compose pull

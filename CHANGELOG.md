@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.11.1] - 2025-12-17
+
+Patch release with Docker browser setup automation and bug fixes.
+
+### Script Improvements
+
+- **Automatic Docker GID detection** - Setup/run/update scripts automatically detect and configure Docker socket group ID
+  - Linux/macOS: Reads GID from `/var/run/docker.sock` and writes to `.env`
+  - Windows: Docker Desktop handles socket access automatically (no GID needed)
+- Updated scripts: `setup.sh`, `run.sh`, `update.sh`, `docker-start.sh`, `setup.ps1`, `run.ps1`, `update.ps1`
+
+### Bug Fixes
+
+- Fixed server crash when Docker socket not accessible (now returns graceful error)
+- Added `BROWSER_MODE` env var to override Docker detection (`native` or `docker`)
+- Fixed browser profiles info text showing old `config/browsers/` path instead of `data/browsers/`
+
+### Configuration
+
+- `DOCKER_GID` - Docker group ID for socket access (auto-detected by scripts)
+
+---
+
 ## [0.11.0] - 2025-12-17
 
 Docker browser authentication support using NoVNC sidecar containers.
@@ -7,7 +30,8 @@ Docker browser authentication support using NoVNC sidecar containers.
 ### New Features
 
 - **Docker Browser Support** - Launch and authenticate browsers from within Docker
-  - NoVNC-based web viewer opens in a new browser tab
+  - Embedded NoVNC viewer on the browser management page for inline login and debugging
+  - Viewer controls: expand/minimize, open in new tab, close
   - Uses kasmweb/chromium container for cross-platform compatibility
   - Browser profiles persist in shared `./data/browsers/` volume
   - Auto-timeout after 15 minutes of idle time
@@ -40,6 +64,10 @@ New environment variables in docker-compose.yml:
 - Added browser automation tests for file downloads (`tests/e2e/features/browsers/browser-automation.feature`)
 - Added `scripts/test-browser-download.js` for standalone download automation testing
 - Added `@requires-docker` tag support in test hooks
+
+### Bug Fixes
+
+- Added ffmpeg to Docker image for video processing (fixes "ffmpeg not installed" error)
 
 ---
 

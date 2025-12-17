@@ -8,6 +8,36 @@
 set -e
 
 APP_URL="http://localhost:4420"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Configure Docker GID for browser sidecar support
+configure_docker_gid() {
+  if [[ -S /var/run/docker.sock ]]; then
+    local docker_gid
+    # Linux: use stat -c, macOS: use stat -f
+    if stat --version &>/dev/null 2>&1; then
+      docker_gid=$(stat -c '%g' /var/run/docker.sock)
+    else
+      docker_gid=$(stat -f '%g' /var/run/docker.sock)
+    fi
+
+    # Update .env file with DOCKER_GID
+    if [[ -f .env ]]; then
+      if grep -q "^DOCKER_GID=" .env; then
+        sed -i.bak "s/^DOCKER_GID=.*/DOCKER_GID=$docker_gid/" .env && rm -f .env.bak
+      else
+        echo "DOCKER_GID=$docker_gid" >> .env
+      fi
+    else
+      echo "DOCKER_GID=$docker_gid" > .env
+    fi
+    echo "🔧 Docker socket GID: $docker_gid (browser sidecar enabled)"
+  fi
+}
+
+# Configure Docker GID
+configure_docker_gid
 
 if [[ "$1" == "--build" ]]; then
     echo "🔨 Building from local source..."

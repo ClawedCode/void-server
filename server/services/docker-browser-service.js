@@ -33,6 +33,15 @@ async function getDocker() {
 }
 
 /**
+ * Check if Docker is accessible
+ */
+async function isDockerAvailable() {
+  const dockerClient = await getDocker();
+  const info = await dockerClient.ping();
+  return info.toString() === 'OK';
+}
+
+/**
  * Check if a port is available on the host
  */
 async function isPortAvailable(port) {
@@ -284,5 +293,6 @@ module.exports = {
   stopBrowserContainer,
   getBrowserContainerStatus,
   getNoVNCUrl,
-  cleanupStaleContainers
+  cleanupStaleContainers,
+  isDockerAvailable
 };

@@ -111,6 +111,9 @@ if ($LASTEXITCODE -ne 0) {
 
 # Update dependencies and restart based on installation type
 if ($isDocker) {
+    # On Windows, Docker Desktop handles socket access automatically
+    Write-Step "Browser sidecar support enabled (Docker Desktop)"
+
     # Docker: pull new images and rebuild
     Write-Step "Pulling latest Docker images..."
     docker compose pull

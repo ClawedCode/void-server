@@ -12,7 +12,8 @@ module.exports = {
       watch_delay: 1000,
       env: {
         NODE_ENV: 'development',
-        PORT: 4401
+        PORT: 4401,
+        // BROWSER_MODE: 'native' // Uncomment to force native Playwright (bypass Docker detection)
       },
       env_production: {
         NODE_ENV: 'production',

@@ -68,9 +68,37 @@ check_docker() {
   return 1  # Docker not available
 }
 
+# Configure Docker GID for browser sidecar support
+configure_docker_gid() {
+  if [[ -S /var/run/docker.sock ]]; then
+    local docker_gid
+    # Linux: use stat -c, macOS: use stat -f
+    if stat --version &>/dev/null 2>&1; then
+      docker_gid=$(stat -c '%g' /var/run/docker.sock)
+    else
+      docker_gid=$(stat -f '%g' /var/run/docker.sock)
+    fi
+
+    # Update .env file with DOCKER_GID
+    if [[ -f .env ]]; then
+      if grep -q "^DOCKER_GID=" .env; then
+        sed -i.bak "s/^DOCKER_GID=.*/DOCKER_GID=$docker_gid/" .env && rm -f .env.bak
+      else
+        echo "DOCKER_GID=$docker_gid" >> .env
+      fi
+    else
+      echo "DOCKER_GID=$docker_gid" > .env
+    fi
+    print_step "Docker socket GID: $docker_gid (browser sidecar enabled)"
+  fi
+}
+
 # Run with Docker Compose
 run_docker_setup() {
   print_header "Starting with Docker Compose"
+
+  # Configure Docker GID for browser management
+  configure_docker_gid
 
   print_step "Pulling latest images and starting containers..."
   docker compose pull

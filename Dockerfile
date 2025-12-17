@@ -30,6 +30,10 @@ RUN npm run build --prefix client
 # =============================================================================
 FROM node:20-slim
 
+# Install ffmpeg for video processing (used by video-download plugin)
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy package files and install server production deps

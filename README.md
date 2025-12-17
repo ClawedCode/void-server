@@ -108,6 +108,7 @@ docker-compose up -d
 | `NEO4J_PASSWORD` | `voidserver` | Neo4j database password |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
 | `LM_STUDIO_URL` | `http://host.docker.internal:1234/v1` | LM Studio API endpoint |
+| `DOCKER_GID` | `999` | Docker group ID for socket access (run `stat -c '%g' /var/run/docker.sock`) |
 
 ### Using External Services
 

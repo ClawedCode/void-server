@@ -11,6 +11,9 @@ import {
   ExternalLink,
   Edit2,
   Save,
+  Maximize2,
+  Minimize2,
+  Monitor,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -24,6 +27,9 @@ export default function BrowsersPage() {
   const [portRange, setPortRange] = useState({ start: 9111, end: 9199 });
   const [editingBrowser, setEditingBrowser] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', description: '', port: '' });
+  // Browser viewer state for embedded noVNC
+  const [activeViewer, setActiveViewer] = useState(null); // { id, name, novncUrl }
+  const [viewerExpanded, setViewerExpanded] = useState(true);
 
   const loadBrowsers = async () => {
     setLoading(true);
@@ -133,13 +139,19 @@ export default function BrowsersPage() {
     const data = await response.json();
 
     if (data.success) {
-      // If noVNC URL returned (Docker mode), open in new tab
+      // If noVNC URL returned (Docker mode), show embedded viewer
       if (data.novncUrl) {
         setIsDockerEnv(true);
-        window.open(data.novncUrl, '_blank');
-        toast.success('Browser opened in new tab. Log in, then close the tab.', {
+        const browser = browsers.find(b => b.id === id);
+        setActiveViewer({
+          id,
+          name: browser?.name || id,
+          novncUrl: data.novncUrl,
+        });
+        setViewerExpanded(true);
+        toast.success('Browser launched. Log in below, then close the viewer.', {
           id: `launch-${id}`,
-          duration: 10000,
+          duration: 5000,
         });
       } else {
         toast.success('Browser launched. Log in, then close the window.', {
@@ -179,11 +191,22 @@ export default function BrowsersPage() {
 
     if (data.success) {
       toast.success('Browser closed');
+      // Close viewer if this browser was being viewed
+      if (activeViewer?.id === id) {
+        setActiveViewer(null);
+      }
     } else {
       toast.error(data.error || 'Failed to close browser');
     }
 
     loadBrowsers();
+  };
+
+  const closeViewer = async () => {
+    if (activeViewer) {
+      await handleClose(activeViewer.id);
+    }
+    setActiveViewer(null);
   };
 
   const handleDelete = async id => {
@@ -512,6 +535,55 @@ export default function BrowsersPage() {
         </div>
       )}
 
+      {/* Embedded Browser Viewer */}
+      {activeViewer && (
+        <div className={`card border-primary ${viewerExpanded ? '' : 'pb-0'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <Monitor className="w-5 h-5 text-primary" />
+              <div>
+                <h3 className="font-semibold text-text-primary">{activeViewer.name}</h3>
+                <p className="text-xs text-tertiary">Browser Viewer - Log in, then close when done</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.open(activeViewer.novncUrl, '_blank')}
+                className="btn btn-ghost btn-sm"
+                title="Open in new tab"
+              >
+                <ExternalLink size={16} />
+              </button>
+              <button
+                onClick={() => setViewerExpanded(!viewerExpanded)}
+                className="btn btn-ghost btn-sm"
+                title={viewerExpanded ? 'Minimize' : 'Expand'}
+              >
+                {viewerExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+              <button
+                onClick={closeViewer}
+                className="btn btn-ghost btn-sm text-error"
+                title="Close browser"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          {viewerExpanded && (
+            <div className="relative w-full rounded-lg overflow-hidden border border-surface-border bg-black">
+              <iframe
+                src={activeViewer.novncUrl}
+                className="w-full border-0"
+                style={{ height: '600px' }}
+                title={`Browser: ${activeViewer.name}`}
+                allow="clipboard-read; clipboard-write"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Usage Info */}
       <div className="card bg-surface-alt">
         <h3 className="text-lg font-semibold text-text-primary mb-3">How Browser Profiles Work</h3>
@@ -529,7 +601,7 @@ export default function BrowsersPage() {
           </p>
           <p>
             <strong>Docker:</strong> Profiles are stored in{' '}
-            <code className="bg-surface px-1 rounded">config/browsers/</code> and persist across
+            <code className="bg-surface px-1 rounded">data/browsers/</code> and persist across
             container restarts.
           </p>
         </div>

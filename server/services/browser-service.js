@@ -24,7 +24,10 @@ const DEFAULT_PORT_START = 9111;
 const DEFAULT_PORT_END = 9199;
 
 // Detect if running in Docker
+// Override with BROWSER_MODE=native to force Playwright even in Docker
 const isDocker = () => {
+  if (process.env.BROWSER_MODE === 'native') return false;
+  if (process.env.BROWSER_MODE === 'docker') return true;
   try {
     require('fs').accessSync('/.dockerenv');
     return true;
@@ -300,8 +303,11 @@ async function getBrowserStatus(id) {
   let running = activeBrowsers.has(id);
   if (isDocker()) {
     const dockerBrowserService = require('./docker-browser-service');
-    const containerStatus = await dockerBrowserService.getBrowserContainerStatus(id);
-    running = containerStatus.running;
+    const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+    if (dockerAvailable) {
+      const containerStatus = await dockerBrowserService.getBrowserContainerStatus(id).catch(() => ({ running: false }));
+      running = containerStatus.running;
+    }
   }
 
   return {
@@ -322,6 +328,14 @@ async function launchBrowser(id, options = {}) {
   // In Docker, use sidecar container with noVNC
   if (isDocker()) {
     const dockerBrowserService = require('./docker-browser-service');
+    // Check if Docker is accessible
+    const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+    if (!dockerAvailable) {
+      return {
+        success: false,
+        error: 'Docker socket not accessible. Ensure /var/run/docker.sock is mounted and has correct permissions.'
+      };
+    }
     return dockerBrowserService.startBrowserContainer(id, { url });
   }
 
@@ -388,6 +402,10 @@ async function closeBrowser(id) {
   // In Docker, close the sidecar container
   if (isDocker()) {
     const dockerBrowserService = require('./docker-browser-service');
+    const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+    if (!dockerAvailable) {
+      return { success: false, error: 'Docker socket not accessible' };
+    }
     return dockerBrowserService.stopBrowserContainer(id);
   }
 
@@ -507,6 +525,10 @@ async function getNoVNCUrl(id) {
     return { success: false, error: 'NoVNC only available in Docker mode' };
   }
   const dockerBrowserService = require('./docker-browser-service');
+  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+  if (!dockerAvailable) {
+    return { success: false, error: 'Docker socket not accessible' };
+  }
   return dockerBrowserService.getNoVNCUrl(id);
 }
 
@@ -518,6 +540,10 @@ async function getBrowserContainerStatus(id) {
     return { running: false };
   }
   const dockerBrowserService = require('./docker-browser-service');
+  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+  if (!dockerAvailable) {
+    return { running: false };
+  }
   return dockerBrowserService.getBrowserContainerStatus(id);
 }
 

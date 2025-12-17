@@ -21,6 +21,11 @@ function Test-DockerAvailable {
 }
 
 function Start-Docker {
+    # On Windows, Docker Desktop uses named pipes - no GID configuration needed
+    # Browser sidecar support works automatically
+    Write-Host "▶ " -ForegroundColor Green -NoNewline
+    Write-Host "Browser sidecar support enabled (Docker Desktop)"
+
     Write-Host "▶ " -ForegroundColor Green -NoNewline
     Write-Host "Building latest Docker image..."
     docker compose build
