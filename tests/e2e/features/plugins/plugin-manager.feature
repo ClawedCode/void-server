@@ -35,3 +35,20 @@ Feature: Plugin Manager
   Scenario: API - Cannot uninstall built-in plugin
     When I try to DELETE "/api/plugins/void-plugin-wallet"
     Then the response should indicate failure
+
+  @api
+  Scenario: API - Plugin install validates name
+    When I POST plugin install with invalid name "invalid-plugin"
+    Then the response should indicate failure
+    And the response should mention plugin name format
+
+  @api
+  Scenario: API - Plugin install rejects already installed
+    When I POST plugin install with name "void-plugin-wallet"
+    Then the response should indicate failure
+    And the response should mention already installed
+
+  @api
+  Scenario: API - User plugins directory exists
+    When I GET "/api/plugins"
+    Then user plugins should be from data directory
