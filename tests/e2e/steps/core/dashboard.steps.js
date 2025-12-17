@@ -8,13 +8,17 @@ Then('the health check should return ok', async function () {
 });
 
 Then('I should see the {string} service indicator', async function (service) {
-  await expect(this.page.locator(`text=${service}`)).toBeVisible();
+  // Use a more specific selector to find service cards
+  await expect(
+    this.page.locator(`.card:has-text("${service}"), [data-testid="${service.toLowerCase()}"]`).first()
+  ).toBeVisible();
 });
 
 Then(
   'the {string} service should show {string} status',
   async function (service, status) {
-    const serviceCard = this.page.locator(`text=${service}`).locator('..').locator('..');
+    // Find the service card more specifically
+    const serviceCard = this.page.locator(`.card:has-text("${service}")`).first();
     await expect(serviceCard).toContainText(status, { ignoreCase: true });
   }
 );

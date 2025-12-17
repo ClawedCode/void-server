@@ -71,7 +71,7 @@ Given('I am on the IPFS page', async function () {
 });
 
 Given('I am on the {string} settings tab', async function (tabName) {
-  await this.page.click(`text=${tabName}`);
+  await this.page.click(`button:has-text("${tabName}")`);
   await this.page.waitForLoadState('networkidle');
 });
 
@@ -80,16 +80,22 @@ When('I click the {string} button', async function (buttonText) {
 });
 
 When('I click on the {string} tab', async function (tabName) {
-  await this.page.click(`text=${tabName}`);
+  await this.page.click(`button:has-text("${tabName}")`);
   await this.page.waitForLoadState('networkidle');
 });
 
 Then('I should see the {string} tab', async function (tabName) {
-  await expect(this.page.locator(`text=${tabName}`)).toBeVisible();
+  // Use button role or first match to avoid multiple element issues
+  await expect(
+    this.page.locator(`button:has-text("${tabName}"), [role="tab"]:has-text("${tabName}")`).first()
+  ).toBeVisible();
 });
 
 Then('I should see the page heading', async function () {
-  await expect(this.page.locator('h1').first()).toBeVisible();
+  // Check for any visible heading in the main content area
+  await expect(
+    this.page.locator('main h1, main h2, [data-testid="page-heading"], .page-title').first()
+  ).toBeVisible();
 });
 
 Then('I should see the {string} heading', async function (heading) {
