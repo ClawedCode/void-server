@@ -84,10 +84,9 @@ const PluginManager = () => {
       attempts++;
       const response = await fetch('/api/plugins').catch(() => null);
       if (response?.ok) {
-        toast.success('Server restarted successfully', { id: 'restart' });
-        setPendingChanges([]);
-        setRestarting(false);
-        fetchPlugins();
+        toast.success('Server restarted. Reloading...', { id: 'restart' });
+        // Full page reload to reinitialize plugins and navigation
+        setTimeout(() => window.location.reload(), 500);
       } else if (attempts < maxAttempts) {
         setTimeout(checkServer, 1000);
       } else {

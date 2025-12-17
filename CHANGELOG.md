@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.2] - 2025-12-16
+
+Patch release fixing plugin installation UX.
+
+### Fixes
+
+- **Auto-reload after plugin restart** - Page now automatically reloads after server restart
+  - Previously only fetched plugin list without reloading, so navigation didn't update
+  - Now triggers full page reload to reinitialize plugins and navigation
+
+---
+
 ## [0.9.1] - 2025-12-16
 
 Patch release fixing the in-app update mechanism.
