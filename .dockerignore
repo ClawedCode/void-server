@@ -1,4 +1,4 @@
-# Dependencies
+# Dependencies (rebuilt in container)
 node_modules/
 client/node_modules/
 plugins/*/node_modules/
@@ -38,19 +38,41 @@ docs/
 *.md
 !README.md
 
-# Scripts (not needed in container)
+# Scripts (dev/test scripts not needed in container)
+scripts/
 setup.sh
 setup.ps1
 update.sh
 update.ps1
 run.sh
 run.ps1
+docker-start.sh
 
 # Test/CI files
 .github/
+tests/
 *.test.js
 *.spec.js
 coverage/
+cucumber.js
+playwright.config.ts
+tsconfig.test.json
 
 # Playwright
 .playwright-mcp/
+
+# Docker compose files (not needed inside container)
+docker-compose*.yml
+Dockerfile
+
+# PM2 config (not used in Docker - we run node directly)
+ecosystem.config.js
+
+# Large assets not needed in container
+screenshot.png
+*.png
+*.jpg
+*.gif
+!client/**/*.png
+!client/**/*.jpg
+!client/**/*.gif
