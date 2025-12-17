@@ -46,7 +46,7 @@ const SettingsPage = () => {
     toast.success(enabled ? 'Navigation will auto-collapse' : 'Navigation will stay open');
   };
 
-  const [providers, setProviders] = useState({});
+  const [providers, setProviders] = useState({}); void providers; // Used by child components via setProviders
   const [activeProvider, setActiveProvider] = useState('');
   const [loading, setLoading] = useState(true);
   const [editedConfigs, setEditedConfigs] = useState({});

@@ -48,6 +48,9 @@ function LogsPage() {
     fetchProcesses();
   }, [fetchProcesses]);
 
+  // Ref to hold connect function for self-referencing in reconnection
+  const connectRef = useRef(null);
+
   // Connect to log stream
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -89,9 +92,14 @@ function LogsPage() {
       setIsConnected(false);
       eventSource.close();
       // Reconnect after 3 seconds
-      setTimeout(connect, 3000);
+      setTimeout(() => connectRef.current?.(), 3000);
     };
   }, [selectedProcess, initialLines, isPaused, maxDomLines]);
+
+  // Keep ref in sync with latest connect function
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Connect on mount and when process changes
   useEffect(() => {
@@ -298,7 +306,7 @@ function LogsPage() {
           </span>
           {isPaused && (
             <span style={{ color: 'var(--color-warning)' }}>
-              Paused ({pausedLogsRef.current.length} buffered)
+              Paused (logs buffered)
             </span>
           )}
         </div>

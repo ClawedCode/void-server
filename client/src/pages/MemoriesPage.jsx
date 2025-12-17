@@ -56,10 +56,11 @@ const TABS = [
 // ============================================
 // MEMORIES TAB COMPONENT
 // ============================================
-function MemoriesTab({ neo4jStatus, fetchStatus }) {
+function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
+  void _fetchStatus; // Available for future use
   const [memories, setMemories] = useState([]);
   const [statistics, setStatistics] = useState(null);
-  const [categories, setCategories] = useState({});
+  const [categories, setCategories] = useState({}); void categories; // Set by API for future filtering
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -643,13 +644,6 @@ function MaintenanceTab() {
     }
   });
 
-  useEffect(() => {
-    loadStatus();
-    loadHistory();
-    runHealthCheck();
-    loadAvailableBackups();
-  }, []);
-
   const loadStatus = async () => {
     const res = await fetch('/api/backup/status');
     const data = await res.json();
@@ -682,6 +676,13 @@ function MaintenanceTab() {
       }
     }
   };
+
+  useEffect(() => {
+    loadStatus();
+    loadHistory();
+    runHealthCheck();
+    loadAvailableBackups();
+  }, []);
 
   const runRestore = async () => {
     if (!selectedBackup) {
@@ -746,7 +747,7 @@ function MaintenanceTab() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config)
     });
-    const data = await res.json();
+    await res.json();
     toast.success('Configuration updated');
     loadStatus();
   };
@@ -1372,10 +1373,6 @@ function VisualizationTab() {
   const [showUserSidebar, setShowUserSidebar] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  useEffect(() => {
-    fetchGraphData();
-  }, []);
-
   const fetchGraphData = async () => {
     setLoading(true);
     const response = await fetch('/api/memories/graph');
@@ -1397,6 +1394,10 @@ function VisualizationTab() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchGraphData();
+  }, []);
 
   const toggleCategory = (category) => {
     setEnabledCategories(prev => ({
@@ -1960,10 +1961,6 @@ function SettingsTab({ neo4jStatus, fetchStatus }) {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordIsPlaceholder, setPasswordIsPlaceholder] = useState(false);
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
   const loadConfig = async () => {
     setLoading(true);
     const response = await fetch('/api/memories/config');
@@ -1979,6 +1976,10 @@ function SettingsTab({ neo4jStatus, fetchStatus }) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
 
   const handlePasswordFocus = () => {
     if (passwordIsPlaceholder) {

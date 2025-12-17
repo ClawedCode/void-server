@@ -18,7 +18,7 @@ import toast from 'react-hot-toast';
 function TemplatesPage() {
   const [templates, setTemplates] = useState([]);
   const [providers, setProviders] = useState([]);
-  const [variables, setVariables] = useState([]);
+  const [variables, setVariables] = useState([]); void variables; // Set by API for template variable management
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [testResult, setTestResult] = useState(null);

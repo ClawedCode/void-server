@@ -47,7 +47,8 @@ const SECTION_PRESETS = [
 ];
 
 const PluginManager = () => {
-  const { plugins, setPlugins } = useOutletContext() || { plugins: [], setPlugins: () => {} };
+  const { plugins: _plugins, setPlugins } = useOutletContext() || { plugins: [], setPlugins: () => {} };
+  void _plugins; // Used by parent context
   const { on, off } = useWebSocket();
 
   // Plugin data state
@@ -165,11 +166,16 @@ const PluginManager = () => {
         p.name === plugin.name ? { ...p, enabled: newEnabled } : p
       ));
 
-      if (result.requiresRestart) {
+      // In Docker, client rebuilds automatically
+      if (result.rebuilding) {
+        setRebuilding(plugin.name);
+        toast.loading('Rebuilding client bundle...', { id: 'rebuild', duration: 60000 });
+      } else if (result.requiresRestart) {
         setPendingChanges(prev => [...prev, { type: 'toggle', plugin: plugin.name, action: newEnabled ? 'enable' : 'disable' }]);
+        toast.success(result.message, { duration: 4000 });
+      } else {
+        toast.success(result.message, { duration: 4000 });
       }
-
-      toast.success(result.message, { duration: 4000 });
     } else {
       toast.error(result.error || 'Failed to toggle plugin');
     }

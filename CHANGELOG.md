@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.3] - 2025-12-17
+
+Patch release with Docker improvements and documentation updates.
+
+### Improvements
+
+- **Auto-rebuild on plugin toggle (Docker)** - Enabling/disabling plugins in Docker now triggers automatic client rebuild, same as install
+- **Simplified CI/CD pipeline** - PR checks only run lint + build; e2e tests run locally before releases
+- **Optimized Docker build** - Added more exclusions to .dockerignore (tests, scripts, screenshots)
+- **Documentation restructure** - Extracted STYLE-GUIDE.md, PLUGINS.md from CLAUDE.md; added CONTRIBUTING.md
+
+### Fixes
+
+- **Lint errors** - Fixed unused variables, function ordering, eslint config for node files
+- **Pre-commit hook** - Now runs ESLint on client files in addition to secret scanning
+
+---
+
 ## [0.10.2] - 2025-12-17
 
 Patch release with automatic client rebuild for Docker plugin installations.

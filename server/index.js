@@ -455,6 +455,27 @@ app.put('/api/plugins/:name/enable', (req, res) => {
     return res.status(404).json({ error: result.error });
   }
 
+  // In Docker, auto-rebuild client to include/exclude plugin
+  if (versionService.isDocker()) {
+    console.log(`🐳 Docker detected - auto-rebuilding client after ${enabled ? 'enabling' : 'disabling'} plugin...`);
+    result.rebuilding = true;
+
+    // Send response first, then rebuild in background
+    res.json(result);
+
+    // Rebuild client asynchronously
+    versionService.rebuildClient()
+      .then(() => {
+        console.log('✅ Client rebuild complete - plugin change ready');
+        io.emit('plugin:rebuild:complete', { plugin: name });
+      })
+      .catch(err => {
+        console.error('❌ Client rebuild failed:', err.message);
+        io.emit('plugin:rebuild:failed', { plugin: name, error: err.message });
+      });
+    return;
+  }
+
   res.json(result);
 });
 
