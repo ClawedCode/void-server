@@ -28,9 +28,13 @@ IPFS integration for decentralized content pinning and management, plus infrastr
 - **LM Studio Model Detection** - Intelligent model validation on Settings page
   - Auto-fetch available models from LM Studio API when provider is enabled
   - Model validation with visual indicators (green check = available, yellow warning = not found)
-  - Autocomplete dropdown with suggestions from available models
+  - Clickable dropdown to select from available models
   - Shows list of available models in provider configuration modal
   - Helpful error messages when configured model is not loaded
+- **Chat Header Improvements** - Streamlined chat controls on desktop
+  - Template, Provider, and Model dropdowns inline in chat header (desktop only)
+  - Settings panel moved to mobile-only for cleaner desktop experience
+  - Shows actual selections instead of "Template default" labels
 
 ### Docker
 
@@ -82,6 +86,14 @@ Default IPFS configuration (`data/ipfs.json`):
   }
 }
 ```
+
+### Fixes
+
+- **Prompt Service Empty Config** - Fixed templates/variables not loading on fresh install
+  - Now detects empty config files (not just missing files) and copies from `data_template`
+  - Ensures users always get starter templates even if empty JSON files exist
+- **Windows Postinstall Hook** - Fixed `install-hooks.sh` failing on Windows
+  - Uses `bash` explicitly for cross-platform compatibility (Git Bash on Windows)
 
 ### Infrastructure
 
