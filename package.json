@@ -14,8 +14,8 @@
     "plugin:remove": "./scripts/plugin-remove.sh",
     "plugin:update": "./scripts/plugin-update.sh",
     "plugin:status": "./scripts/plugin-status.sh",
-    "hooks:install": "./.githooks/install-hooks.sh",
-    "postinstall": "npm run hooks:install || true"
+    "hooks:install": "bash ./.githooks/install-hooks.sh",
+    "postinstall": "bash ./.githooks/install-hooks.sh || true"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.0",
