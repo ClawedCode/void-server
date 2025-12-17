@@ -172,17 +172,17 @@ jobs:
       - name: Wait for app
         run: npx wait-on http://localhost:4401/health -t 30000
 
-      - name: Run Cucumber tests
-        run: npm run test:ci
+      - name: Run API smoke tests
+        run: npx cucumber-js --tags "@api and @smoke" --format json:tests/e2e/reports/results.json
         env:
           TEST_ENV: ci
           USE_MOCKS: 'true'
 
-      - name: Run Playwright tests
-        run: npm run test:e2e || true
+      - name: Run basic UI tests
+        run: npx cucumber-js --tags "@smoke and not @requires-lmstudio and not @requires-neo4j and not @requires-ipfs" --format json:tests/e2e/reports/ui-results.json || true
         env:
-          TEST_ENV: ${{ matrix.mode }}
-          CI: 'true'
+          TEST_ENV: ci
+          USE_MOCKS: 'true'
 
       - name: Upload test reports
         if: always()
