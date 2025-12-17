@@ -158,10 +158,13 @@ See [docs/REMOTE-ACCESS.md](docs/REMOTE-ACCESS.md) for detailed setup instructio
 
 | Guide | Description |
 |-------|-------------|
-| [Data Directory](docs/DATA.md) | User data storage, plugin data conventions, migration |
+| [Contributing](CONTRIBUTING.md) | How to contribute, PR process |
+| [Style Guide](docs/STYLE-GUIDE.md) | Code conventions, logging format, icons |
+| [Plugin Development](docs/PLUGINS.md) | Plugin structure, manifest, data storage |
+| [Theme System](docs/THEME.md) | CSS variables, Tailwind classes, styling |
+| [Data Directory](docs/DATA.md) | User data storage, plugin data conventions |
 | [Chat System](docs/CHAT.md) | AI chat configuration and usage |
 | [Memories](docs/MEMORIES.md) | Neo4j memory system and knowledge graph |
-| [Theme System](docs/THEME.md) | CSS variables, Tailwind classes, styling |
 | [Remote Access](docs/REMOTE-ACCESS.md) | Tailscale setup for mobile/remote access |
 | [HTTP Client](docs/HTTP-CLIENT.md) | Server-side HTTP request utilities |
 
@@ -201,44 +204,13 @@ npm run plugin:update -- --all     # Update all plugins
 
 **Zero-config plugin system** - add a plugin and restart, no core code changes needed.
 
-See [docs/THEME.md](docs/THEME.md) for theme system documentation (CSS variables, Tailwind classes, styling guidelines).
-
 ```bash
 # Add plugin, restart, done
 git submodule add https://github.com/org/void-plugin-example.git plugins/void-plugin-example
 npm run restart
 ```
 
-Plugins are loaded from `plugins/` and must export a function:
-
-```javascript
-// plugins/void-plugin-example/server/index.js
-module.exports = (app, config = {}) => {
-  const { mountPath = '/example' } = config;
-  app.get(`${mountPath}/hello`, (req, res) => {
-    res.json({ message: 'Hello from plugin!' });
-  });
-};
-```
-
-Plugins should include a `manifest.json`:
-
-```json
-{
-  "name": "void-plugin-example",
-  "version": "1.0.0",
-  "minServerVersion": "0.7.0",
-  "description": "Example plugin",
-  "defaultMountPath": "/example",
-  "nav": {
-    "section": "Plugins",
-    "title": "Example",
-    "icon": "box"
-  }
-}
-```
-
-See [plugins/README.md](plugins/README.md) for full manifest documentation and [docs/DATA.md](docs/DATA.md) for plugin data storage guidelines.
+See [docs/PLUGINS.md](docs/PLUGINS.md) for complete plugin development guide including manifest format, client/server structure, and data storage.
 
 ### Development Mode (Symlinks)
 
