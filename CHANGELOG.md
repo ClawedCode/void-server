@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.12.0] - 2025-12-17
+
+Major release making Docker the only supported deployment method.
+
+### Breaking Changes
+
+- **Docker-only deployment** - Native (PM2/bare-metal) installation is no longer supported
+  - `setup.sh` and `setup.ps1` now require Docker and abort with instructions if not available
+  - Removed native test configurations and profiles
+  - Browser service always uses Docker sidecars with noVNC
+  - Update flow always uses Docker/Watchtower
+
+### New Features
+
+- **docker-compose.dev.yml** - Development configuration with volume mounts for live code changes
+  - Mount server/ and client/src/ as read-only volumes
+  - Restart container to apply server changes
+
+### Improvements
+
+- **Docker cleanup on setup/update** - Added `docker system prune -y` to `setup.sh` and `update.sh` to clean up unused Docker resources before pulling new images
+- **IPFS telemetry disabled** - Set `IPFS_TELEMETRY=off` in docker-compose.yml for privacy
+- **Simplified browser service** - Removed native Playwright fallback, always uses Docker browser sidecars
+- **Simplified version service** - Updates always handled via Docker (Watchtower or manual)
+
+### Removed
+
+- Native PM2/Node.js installation support in setup scripts
+- `BROWSER_MODE` environment variable (always Docker mode)
+- Native test profiles (`test:native`, cucumber native profile)
+- Native update script execution path
+
+---
+
 ## [0.11.2] - 2025-12-17
 
 Patch release with automatic plugin rebuild on upgrade.
@@ -124,7 +158,7 @@ Patch release with Docker improvements, documentation updates, and comprehensive
 - **Auto-rebuild on plugin toggle (Docker)** - Enabling/disabling plugins in Docker now triggers automatic client rebuild, same as install
 - **Simplified CI/CD pipeline** - PR checks only run lint + build; e2e tests run locally before releases
 - **Optimized Docker build** - Added more exclusions to .dockerignore (tests, scripts, screenshots)
-- **Documentation restructure** - Extracted STYLE-GUIDE.md, PLUGINS.md from CLAUDE.md; added CONTRIBUTING.md
+- **Documentation restructure** - Extracted STYLE-GUIDE.md, PLUGINS.md; added CONTRIBUTING.md
 - **Code formatter** - Added Prettier for consistent code style; runs automatically in pre-commit hook
 - **ESLint cleanup** - Removed warning-level rules; all issues are now errors or disabled
   - Disabled `set-state-in-effect` (standard data fetching pattern)

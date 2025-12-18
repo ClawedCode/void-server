@@ -11,14 +11,6 @@ Given('an update is available', async function (this: VoidWorld) {
   }
 });
 
-Given('I am running native installation', async function (this: VoidWorld) {
-  const response = await this.request.get(`${this.config.appUrl}/api/version/environment`);
-  const data = await response.json();
-  if (data.isDocker) {
-    this.skip();
-  }
-});
-
 Given('I am running in Docker', async function (this: VoidWorld) {
   const response = await this.request.get(`${this.config.appUrl}/api/version/environment`);
   const data = await response.json();

@@ -1,6 +1,5 @@
 const { World, setWorldConstructor } = require('@cucumber/cucumber');
 const { request } = require('@playwright/test');
-const { nativeConfig } = require('./config/native.config');
 const { dockerConfig } = require('./config/docker.config');
 const { ciConfig } = require('./config/ci.config');
 
@@ -9,14 +8,11 @@ class VoidWorld extends World {
     super(options);
 
     switch (options.parameters.environment) {
-      case 'docker':
-        this.config = dockerConfig;
-        break;
       case 'ci':
         this.config = ciConfig;
         break;
       default:
-        this.config = nativeConfig;
+        this.config = dockerConfig;
     }
 
     this.testData = {};

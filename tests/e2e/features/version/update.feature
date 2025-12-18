@@ -20,24 +20,6 @@ Feature: Version and Updates
     Then the response should contain environment info
     And the response should indicate update method
 
-  @api @docker
-  Scenario: Docker update endpoint rejects non-Docker
-    Given I am running native installation
-    When I POST to "/api/version/update/docker"
-    Then the response should indicate failure
-
-  @api @native
-  Scenario: Native update endpoint rejects Docker
-    Given I am running in Docker
-    When I POST to "/api/version/update"
-    Then the response should indicate Docker error
-
-  @native
-  Scenario: Native update available notification
-    Given an update is available
-    And I am running native installation
-    Then I should see the update notification
-
   @docker
   Scenario: Docker update notification
     Given an update is available

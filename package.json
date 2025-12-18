@@ -1,6 +1,6 @@
 {
   "name": "void-server",
-  "version": "0.11.2",
+  "version": "0.12.0",
   "description": "Void Server",
   "main": "server/index.js",
   "scripts": {
@@ -16,12 +16,11 @@
     "plugin:status": "./scripts/plugin-status.sh",
     "hooks:install": "bash ./.githooks/install-hooks.sh",
     "postinstall": "[ -f ./.githooks/install-hooks.sh ] && bash ./.githooks/install-hooks.sh || true",
-    "test": "npm run test:native",
-    "test:native": "cross-env TEST_ENV=native npx cucumber-js",
+    "test": "npm run test:docker",
     "test:docker": "cross-env TEST_ENV=docker npx cucumber-js",
     "test:ci": "cross-env TEST_ENV=ci npx cucumber-js --format json:tests/e2e/reports/results.json",
-    "test:e2e": "cross-env TEST_ENV=native npx cucumber-js",
-    "test:e2e:smoke": "cross-env TEST_ENV=native npx cucumber-js --tags @smoke",
+    "test:e2e": "cross-env TEST_ENV=docker npx cucumber-js",
+    "test:e2e:smoke": "cross-env TEST_ENV=docker npx cucumber-js --tags @smoke",
     "test:env:start": "bash ./scripts/test-env.sh start",
     "test:env:stop": "bash ./scripts/test-env.sh stop",
     "test:env:status": "bash ./scripts/test-env.sh status",

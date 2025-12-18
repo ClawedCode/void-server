@@ -51,7 +51,6 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isDocker, setIsDocker] = useState(false);
   const [dockerModal, setDockerModal] = useState({ show: false, command: '' });
   const [copied, setCopied] = useState(false);
 
@@ -66,64 +65,36 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
     }, 2000);
   };
 
-  // Handle update action
+  // Handle update action (Docker via Watchtower)
   const handleUpdate = useCallback(async () => {
     if (isUpdating) return;
     setIsUpdating(true);
     setLogsExpanded(true); // Expand logs to show update progress
     toast.loading('Updating...', { id: 'update-progress' });
 
-    // For Docker, try Watchtower first
-    if (isDocker) {
-      const res = await fetch('/api/version/update/docker', { method: 'POST' });
-      const data = await res.json();
-
-      if (data.success) {
-        toast.success('Update triggered! Container will restart if a new image is available.', {
-          id: 'update-progress',
-        });
-        // Poll for server to come back
-        pollForRestart();
-        return;
-      }
-
-      // Watchtower failed - show manual command modal
-      toast.dismiss('update-progress');
-      const command = 'docker compose down && docker compose pull && docker compose up -d';
-      setDockerModal({
-        show: true,
-        command,
-        watchtowerError: data.error || 'Watchtower not available',
-      });
-      setIsUpdating(false);
-      return;
-    }
-
-    // Native installation - use update script
-    const res = await fetch('/api/version/update', { method: 'POST' });
+    // Try Watchtower first
+    const res = await fetch('/api/version/update/docker', { method: 'POST' });
     const data = await res.json();
 
-    if (!data.success) {
-      toast.error(data.error || 'Update failed', { id: 'update-progress' });
-      setIsUpdating(false);
+    if (data.success) {
+      toast.success('Update triggered! Container will restart if a new image is available.', {
+        id: 'update-progress',
+      });
+      // Poll for server to come back
+      pollForRestart();
       return;
     }
 
-    toast.success('Update started. Reloading when ready...', { id: 'update-progress' });
-    pollForRestart();
-  }, [isUpdating, isDocker, setLogsExpanded]);
-
-  // Check environment on mount
-  useEffect(() => {
-    const checkEnvironment = async () => {
-      const res = await fetch('/api/version/environment');
-      const data = await res.json();
-      if (data.success) {
-        setIsDocker(data.isDocker);
-      }
-    };
-    checkEnvironment();
-  }, []);
+    // Watchtower failed - show manual command modal
+    toast.dismiss('update-progress');
+    const command = 'docker compose down && docker compose pull && docker compose up -d';
+    setDockerModal({
+      show: true,
+      command,
+      watchtowerError: data.error || 'Watchtower not available',
+    });
+    setIsUpdating(false);
+  }, [isUpdating, setLogsExpanded]);
 
   // Check for updates periodically
   useEffect(() => {

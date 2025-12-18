@@ -173,5 +173,3 @@ className="btn btn-primary"     // Primary button
 className="card"                // Card container
 className="form-input"          // Input fields
 ```
-
-See `CLAUDE.md` for complete theme documentation.

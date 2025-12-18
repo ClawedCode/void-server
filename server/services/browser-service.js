@@ -23,34 +23,9 @@ const LEGACY_CONFIG_FILE = path.join(LEGACY_DATA_DIR, 'browsers.json');
 const DEFAULT_PORT_START = 9111;
 const DEFAULT_PORT_END = 9199;
 
-// Determine browser mode: 'docker' (container with noVNC) or 'native' (Playwright)
-// BROWSER_MODE env var overrides auto-detection
-// Default: use Docker containers if Docker is available, otherwise Playwright
-let browserModeCache = null;
-
-const useDockerBrowser = () => {
-  // Check env override first
-  if (process.env.BROWSER_MODE === 'native') return false;
-  if (process.env.BROWSER_MODE === 'docker') return true;
-
-  // Auto-detect: prefer Docker if available (enables noVNC iframe)
-  // Cache the result to avoid repeated checks
-  if (browserModeCache !== null) return browserModeCache;
-
-  // Check if Docker socket is accessible
-  const socketPath = process.platform === 'win32'
-    ? '//./pipe/docker_engine'
-    : '/var/run/docker.sock';
-
-  try {
-    require('fs').accessSync(socketPath);
-    browserModeCache = true;
-    return true;
-  } catch {
-    browserModeCache = false;
-    return false;
-  }
-};
+// Browser mode: always use Docker containers with noVNC
+// Docker is the only supported deployment method
+const useDockerBrowser = () => true;
 
 // Legacy alias for compatibility
 const isDocker = useDockerBrowser;
@@ -340,109 +315,37 @@ async function getBrowserStatus(id) {
 
 /**
  * Launch browser for authentication
+ * Uses Docker sidecar container with noVNC
  */
 async function launchBrowser(id, options = {}) {
   const { url = 'about:blank' } = options;
 
-  // In Docker, use sidecar container with noVNC
-  if (isDocker()) {
-    const dockerBrowserService = require('./docker-browser-service');
-    // Check if Docker is accessible
-    const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-    if (!dockerAvailable) {
-      const socketInfo = process.platform === 'win32'
-        ? 'Ensure Docker Desktop is running.'
-        : 'Ensure /var/run/docker.sock is mounted and has correct permissions.';
-      return {
-        success: false,
-        error: `Docker not accessible. ${socketInfo}`
-      };
-    }
-    return dockerBrowserService.startBrowserContainer(id, { url });
+  const dockerBrowserService = require('./docker-browser-service');
+  // Check if Docker is accessible
+  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+  if (!dockerAvailable) {
+    const socketInfo = process.platform === 'win32'
+      ? 'Ensure Docker Desktop is running.'
+      : 'Ensure /var/run/docker.sock is mounted and has correct permissions.';
+    return {
+      success: false,
+      error: `Docker not accessible. ${socketInfo}`
+    };
   }
-
-  const chromium = await getPlaywright();
-  if (!chromium) {
-    return { success: false, error: 'Playwright not installed. Run: npm install playwright' };
-  }
-
-  if (activeBrowsers.has(id)) {
-    return { success: false, error: 'Browser is already running' };
-  }
-
-  const config = await loadConfig();
-  const browser = config.browsers[id];
-
-  if (!browser) {
-    return { success: false, error: 'Browser profile not found' };
-  }
-
-  const profileDir = path.join(DATA_DIR, id);
-  await fs.mkdir(profileDir, { recursive: true });
-
-  // Build launch args
-  const args = [
-    '--disable-blink-features=AutomationControlled',
-    '--disable-features=IsolateOrigins,site-per-process'
-  ];
-
-  // Add CDP debugging port if configured
-  if (browser.port) {
-    args.push(`--remote-debugging-port=${browser.port}`);
-  }
-
-  console.log(`🌐 Launching browser: ${id}${browser.port ? ` (CDP port ${browser.port})` : ''}`);
-
-  const context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
-    viewport: { width: 1280, height: 800 },
-    args
-  });
-
-  // Navigate to URL
-  const page = context.pages()[0] || await context.newPage();
-  if (url !== 'about:blank') {
-    await page.goto(url);
-  }
-
-  // Store reference with port info
-  activeBrowsers.set(id, { context, page, port: browser.port });
-
-  // Set up close handler
-  context.on('close', () => {
-    console.log(`🌐 Browser closed: ${id}`);
-    activeBrowsers.delete(id);
-  });
-
-  return { success: true, message: 'Browser launched', port: browser.port };
+  return dockerBrowserService.startBrowserContainer(id, { url });
 }
 
 /**
  * Close a running browser
+ * Stops the Docker sidecar container
  */
 async function closeBrowser(id) {
-  // In Docker, close the sidecar container
-  if (isDocker()) {
-    const dockerBrowserService = require('./docker-browser-service');
-    const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-    if (!dockerAvailable) {
-      return { success: false, error: 'Docker not accessible' };
-    }
-    return dockerBrowserService.stopBrowserContainer(id);
+  const dockerBrowserService = require('./docker-browser-service');
+  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
+  if (!dockerAvailable) {
+    return { success: false, error: 'Docker not accessible' };
   }
-
-  const instance = activeBrowsers.get(id);
-
-  if (!instance) {
-    return { success: false, error: 'Browser is not running' };
-  }
-
-  console.log(`🌐 Closing browser: ${id}`);
-
-  await instance.context.close();
-  activeBrowsers.delete(id);
-
-  return { success: true };
+  return dockerBrowserService.stopBrowserContainer(id);
 }
 
 /**
@@ -543,9 +446,6 @@ function getPortRange() {
  * Get noVNC URL for Docker browser (proxy to docker-browser-service)
  */
 async function getNoVNCUrl(id) {
-  if (!isDocker()) {
-    return { success: false, error: 'NoVNC only available in Docker mode' };
-  }
   const dockerBrowserService = require('./docker-browser-service');
   const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
   if (!dockerAvailable) {
@@ -558,9 +458,6 @@ async function getNoVNCUrl(id) {
  * Get Docker browser container status (proxy to docker-browser-service)
  */
 async function getBrowserContainerStatus(id) {
-  if (!isDocker()) {
-    return { running: false };
-  }
   const dockerBrowserService = require('./docker-browser-service');
   const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
   if (!dockerAvailable) {

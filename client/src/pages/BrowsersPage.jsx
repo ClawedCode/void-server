@@ -23,7 +23,6 @@ export default function BrowsersPage() {
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newBrowser, setNewBrowser] = useState({ id: '', name: '', description: '', port: '' });
-  const [isDockerEnv, setIsDockerEnv] = useState(false);
   const [portRange, setPortRange] = useState({ start: 9111, end: 9199 });
   const [editingBrowser, setEditingBrowser] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', description: '', port: '' });
@@ -38,8 +37,6 @@ export default function BrowsersPage() {
 
     if (data.success) {
       setBrowsers(data.browsers);
-      // Check if any launch attempt returned isDocker
-      setIsDockerEnv(data.isDocker || false);
     }
     setLoading(false);
   };
@@ -139,9 +136,8 @@ export default function BrowsersPage() {
     const data = await response.json();
 
     if (data.success) {
-      // If noVNC port returned (Docker mode), show embedded viewer
+      // Show embedded noVNC viewer for Docker browser
       if (data.novncPort) {
-        setIsDockerEnv(true);
         const browser = browsers.find(b => b.id === id);
         // Construct URL using current hostname (works with localhost, Tailscale IPs, etc.)
         // Uses HTTP - the vnc-browser image serves noVNC over HTTP (no SSL cert issues)
@@ -158,9 +154,9 @@ export default function BrowsersPage() {
           duration: 5000,
         });
       } else {
-        toast.success('Browser launched. Log in, then close the window.', {
+        toast.success('Browser launched.', {
           id: `launch-${id}`,
-          duration: 10000,
+          duration: 5000,
         });
       }
       // Poll for status
@@ -280,20 +276,18 @@ export default function BrowsersPage() {
         </div>
       </div>
 
-      {/* Docker Info */}
-      {isDockerEnv && (
-        <div className="card border-info bg-info/10">
-          <div className="flex items-start gap-3">
-            <Globe className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-text-primary">Docker Browser Mode</h3>
-              <p className="text-secondary text-sm mt-1">
-                Browser opens in a web-based viewer (new tab). Auto-closes after 15 minutes idle.
-              </p>
-            </div>
+      {/* Docker Browser Info */}
+      <div className="card border-info bg-info/10">
+        <div className="flex items-start gap-3">
+          <Globe className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-text-primary">Docker Browser Mode</h3>
+            <p className="text-secondary text-sm mt-1">
+              Browser opens in a web-based viewer below. Auto-closes after 15 minutes idle.
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Create Form */}
       {showCreateForm && (
@@ -475,11 +469,6 @@ export default function BrowsersPage() {
                       )}
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-tertiary">ID: {browser.id}</span>
-                        {!isDockerEnv && browser.port && (
-                          <span className="text-xs text-tertiary">
-                            CDP Port: {browser.port}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>

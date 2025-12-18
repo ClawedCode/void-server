@@ -10,14 +10,6 @@ Given('an update is available', async function () {
   }
 });
 
-Given('I am running native installation', async function () {
-  const response = await this.request.get(`${this.config.appUrl}/api/version/environment`);
-  const data = await response.json();
-  if (data.isDocker) {
-    return 'skipped';
-  }
-});
-
 Given('I am running in Docker', async function () {
   const response = await this.request.get(`${this.config.appUrl}/api/version/environment`);
   const data = await response.json();
