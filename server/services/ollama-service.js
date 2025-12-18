@@ -6,7 +6,11 @@
  * use the OpenAI-compatible endpoint (/v1/*).
  */
 
+const fs = require('fs');
+const path = require('path');
+
 const OLLAMA_API_URL = (process.env.OLLAMA_URL || 'http://localhost:11434/v1').replace('/v1', '');
+const LM_STUDIO_MODELS_PATH = process.env.LM_STUDIO_MODELS_PATH || '/lm-studio-models';
 
 /**
  * List available models from Ollama
@@ -123,6 +127,114 @@ async function deleteModel(modelName) {
   return { success: true };
 }
 
+/**
+ * Recursively find all GGUF files in a directory
+ * @param {string} dir - Directory to search
+ * @param {string} baseDir - Base directory for relative paths
+ */
+function findGgufFiles(dir, baseDir = dir) {
+  const results = [];
+
+  if (!fs.existsSync(dir)) return results;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...findGgufFiles(fullPath, baseDir));
+    } else if (entry.name.endsWith('.gguf')) {
+      const stats = fs.statSync(fullPath);
+      const relativePath = path.relative(baseDir, fullPath);
+      // Extract model name from path (e.g., "author/model-name/file.gguf" -> "model-name")
+      const parts = relativePath.split(path.sep);
+      const modelName = parts.length >= 2 ? parts[parts.length - 2] : entry.name.replace('.gguf', '');
+
+      results.push({
+        name: entry.name,
+        path: fullPath,
+        relativePath,
+        modelName,
+        size: stats.size,
+        sizeFormatted: formatBytes(stats.size)
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Format bytes to human readable string
+ */
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/**
+ * List available GGUF models from LM Studio directory
+ */
+function listLmStudioModels() {
+  const models = findGgufFiles(LM_STUDIO_MODELS_PATH);
+  return {
+    success: true,
+    models,
+    path: LM_STUDIO_MODELS_PATH,
+    available: fs.existsSync(LM_STUDIO_MODELS_PATH)
+  };
+}
+
+/**
+ * Import a GGUF model from LM Studio into Ollama
+ * @param {string} ggufPath - Path to the GGUF file
+ * @param {string} modelName - Name for the imported model
+ * @param {Function} onProgress - Callback for progress updates
+ */
+async function importFromLmStudio(ggufPath, modelName, onProgress) {
+  // Verify the GGUF file exists
+  if (!fs.existsSync(ggufPath)) {
+    return { success: false, error: 'GGUF file not found' };
+  }
+
+  // Create a Modelfile for the import
+  const modelfile = `FROM ${ggufPath}`;
+
+  // Use Ollama's create API
+  const response = await fetch(`${OLLAMA_API_URL}/api/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: modelName,
+      modelfile,
+      stream: true
+    })
+  });
+
+  if (!response.ok) {
+    return { success: false, error: response.statusText };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const lines = decoder.decode(value).split('\n').filter(Boolean);
+    for (const line of lines) {
+      const progress = JSON.parse(line);
+      if (onProgress) onProgress(progress);
+    }
+  }
+
+  return { success: true };
+}
+
 module.exports = {
   listModels,
   pullModel,
@@ -130,5 +242,8 @@ module.exports = {
   getStatus,
   pullConfiguredModels,
   deleteModel,
-  OLLAMA_API_URL
+  listLmStudioModels,
+  importFromLmStudio,
+  OLLAMA_API_URL,
+  LM_STUDIO_MODELS_PATH
 };

@@ -49,6 +49,8 @@ services:
       - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434/v1}
       - OLLAMA_MODELS=${OLLAMA_MODELS:-}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-auto}
+      # LM Studio models path for importing into Ollama
+      - LM_STUDIO_MODELS_PATH=/lm-studio-models
     volumes:
       # Persistent data directories
       - ./config:/app/config
@@ -57,6 +59,8 @@ services:
       - ./data:/app/data
       # Docker socket for browser sidecar management
       - /var/run/docker.sock:/var/run/docker.sock
+      # LM Studio models directory for importing
+      - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
     depends_on:
       neo4j:
         condition: service_healthy
@@ -134,7 +138,9 @@ services:
     environment:
       - OLLAMA_HOST=0.0.0.0
     volumes:
-      - ollama_data:/root/.ollama
+      - ./data/models:/root/.ollama
+      # Mount LM Studio models directory for importing (empty path = no mount)
+      - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
     networks:
       - void-network
     healthcheck:
@@ -184,6 +190,4 @@ volumes:
   neo4j_logs:
     driver: local
   ipfs_data:
-    driver: local
-  ollama_data:
     driver: local

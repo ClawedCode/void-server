@@ -27,6 +27,10 @@ services:
       - NEO4J_DATABASE=neo4j
       # Optional: LM Studio running on host machine
       - LM_STUDIO_URL=${LM_STUDIO_URL:-http://host.docker.internal:1234/v1}
+      # LM Studio models path for importing into Ollama
+      - LM_STUDIO_MODELS_PATH=/lm-studio-models
+      # Ollama connection
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/v1}
       # IPFS connection
       - IPFS_API_URL=http://ipfs:5001
       - IPFS_GATEWAY_URL=http://ipfs:8080
@@ -51,6 +55,8 @@ services:
       - ./data:/app/data
       # Docker socket for browser sidecar management
       - /var/run/docker.sock:/var/run/docker.sock
+      # LM Studio models directory for importing
+      - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
     depends_on:
       neo4j:
         condition: service_healthy

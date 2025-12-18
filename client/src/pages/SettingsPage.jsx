@@ -21,6 +21,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   Download,
+  FolderOpen,
+  HardDrive,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../contexts/ThemeContext';
@@ -65,6 +67,12 @@ const SettingsPage = () => {
   // Ollama model pull state
   const [ollamaModelToPull, setOllamaModelToPull] = useState('');
   const [pullingOllamaModel, setPullingOllamaModel] = useState(false);
+
+  // LM Studio import state
+  const [showLmStudioImport, setShowLmStudioImport] = useState(false);
+  const [lmStudioModels, setLmStudioModels] = useState([]);
+  const [loadingLmStudioModels, setLoadingLmStudioModels] = useState(false);
+  const [importingModel, setImportingModel] = useState(null);
 
   // Navigation state initialized from URL param
   const [activeTab, setActiveTab] = useState(tab === 'providers' ? 'providers' : 'general');
@@ -321,6 +329,61 @@ const SettingsPage = () => {
 
     setPullingOllamaModel(false);
     eventSource.close();
+  };
+
+  // Fetch LM Studio models
+  const fetchLmStudioModels = async () => {
+    setLoadingLmStudioModels(true);
+    const response = await fetch('/api/ollama/lm-studio/models');
+    const data = await response.json();
+    setLmStudioModels(data.models || []);
+    setLoadingLmStudioModels(false);
+    return data;
+  };
+
+  // Import model from LM Studio
+  const importLmStudioModel = async (model) => {
+    setImportingModel(model.path);
+    const toastId = toast.loading(`Importing ${model.name}...`);
+
+    const response = await fetch('/api/ollama/lm-studio/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: model.path, name: model.modelName.toLowerCase() }),
+    });
+
+    if (!response.ok) {
+      toast.error(`Failed to import ${model.name}`, { id: toastId });
+      setImportingModel(null);
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let lastStatus = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value);
+      const lines = text.split('\n').filter(line => line.startsWith('data: '));
+
+      for (const line of lines) {
+        const data = JSON.parse(line.slice(6));
+        if (data.done) {
+          toast.success(`Imported ${model.name} as "${data.name}"`, { id: toastId });
+          fetchModelsForProvider('ollama');
+        } else if (data.error) {
+          toast.error(`Error: ${data.error}`, { id: toastId });
+        } else if (data.status && data.status !== lastStatus) {
+          lastStatus = data.status;
+          toast.loading(`${model.name}: ${data.status}`, { id: toastId });
+        }
+      }
+    }
+
+    setImportingModel(null);
   };
 
   // Get list of providers
@@ -789,9 +852,21 @@ const SettingsPage = () => {
                         Pull
                       </button>
                     </div>
-                    <p className="text-[10px] text-[var(--color-text-secondary)] mt-1.5">
-                      Download models from ollama.ai/library
-                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-[10px] text-[var(--color-text-secondary)]">
+                        Download models from ollama.ai/library
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowLmStudioImport(true);
+                          fetchLmStudioModels();
+                        }}
+                        className="text-[10px] text-[var(--color-primary)] hover:underline flex items-center gap-1"
+                      >
+                        <FolderOpen className="w-3 h-3" />
+                        Import from LM Studio
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -947,6 +1022,103 @@ const SettingsPage = () => {
                   Save
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LM Studio Import Modal */}
+      {showLmStudioImport && (
+        <div
+          className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"
+          onClick={() => setShowLmStudioImport(false)}
+        >
+          <div
+            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-[var(--color-primary)]" />
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  Import from LM Studio
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowLmStudioImport(false)}
+                className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingLmStudioModels ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-5 h-5 animate-spin text-[var(--color-primary)]" />
+                </div>
+              ) : lmStudioModels.length === 0 ? (
+                <div className="text-center py-8">
+                  <HardDrive className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-secondary)]" />
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    No GGUF models found
+                  </p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                    Set LM_STUDIO_MODELS_PATH in .env to your LM Studio models directory
+                  </p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-mono">
+                    ~/.cache/lm-studio/models
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+                    Found {lmStudioModels.length} GGUF model{lmStudioModels.length !== 1 ? 's' : ''}
+                  </p>
+                  {lmStudioModels.map((model, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)]/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                          {model.modelName}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-secondary)] truncate font-mono">
+                          {model.name}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">
+                          {model.sizeFormatted}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => importLmStudioModel(model)}
+                        disabled={importingModel === model.path}
+                        className="ml-3 px-3 py-1.5 rounded text-xs font-medium bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        {importingModel === model.path ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Download className="w-3 h-3" />
+                        )}
+                        Import
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-[var(--color-border)]">
+              <button
+                onClick={() => setShowLmStudioImport(false)}
+                className="btn btn-secondary text-xs"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

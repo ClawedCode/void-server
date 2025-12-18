@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.12.1] - 2025-12-18
+
+### New Features
+
+- **Import LM Studio models into Ollama** - Reuse GGUF models already downloaded in LM Studio
+  - New "Import from LM Studio" button in Ollama settings card
+  - Modal displays available GGUF files with size and import button
+  - Set `LM_STUDIO_MODELS_PATH=~/.cache/lm-studio/models` in `.env` to enable
+  - Backend endpoints: `GET /api/ollama/lm-studio/models`, `POST /api/ollama/lm-studio/import`
+
+- **Persistent Ollama models** - Models now stored in `./data/models/` instead of Docker volume
+  - Survives container recreation and is visible in file system
+  - Consistent with project's `./data/` directory convention
+
+### Fixes
+
+- **Docker prune flag compatibility** - Changed `docker system prune -y` to `--force` for broader Docker version support
+
+---
+
 ## [0.12.0] - 2025-12-17
 
 Major release making Docker the only supported deployment method.
