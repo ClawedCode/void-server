@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
   console.log('🌐 GET /api/browsers');
   const browsers = await browserService.listBrowsers();
   console.log(`✅ Listed ${browsers.length} browser profiles`);
-  res.json({ success: true, browsers });
+  res.json({ success: true, browsers, isDocker: browserService.isDocker() });
 });
 
 // Get port range info (must be before /:id to avoid matching "config" as id)

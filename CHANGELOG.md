@@ -33,6 +33,17 @@ Patch release with automatic plugin rebuild on upgrade.
   - Serves noVNC over HTTP (no SSL cert issues in iframe embedding)
   - Auto-built and published to ghcr.io on version releases
   - Build locally with `docker build -t void-browser:latest ./docker/browser`
+- **Chrome warning banner** - Suppressed "unsupported command-line flag" warning in VNC browser
+  - Added `--test-type` flag to Chromium launch in browser container
+- **Browser status polling logs** - Removed noisy `/api/browsers/:id/status` log spam
+- **Docker network name** - Fixed "network not found" error in Docker Compose
+  - Uses `void-server_void-network` (Compose prefixes network names with project name)
+- **Port allocation** - Fixed "port already allocated" error for multiple browser containers
+  - Now checks Docker container port bindings instead of local socket bind
+- **macOS Docker GID** - Fixed Docker socket permissions on macOS Docker Desktop
+  - Uses GID 0 (root) since Docker Desktop maps socket as root:root inside containers
+- **Browser UI clarity** - Hide CDP port in Docker mode since noVNC port is dynamically allocated
+  - Added `isDocker` flag to browsers API for mode detection on page load
 
 ---
 

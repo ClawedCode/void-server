@@ -475,9 +475,11 @@ export default function BrowsersPage() {
                       )}
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-tertiary">ID: {browser.id}</span>
-                        <span className="text-xs text-tertiary">
-                          Port: {browser.port || 'none'}
-                        </span>
+                        {!isDockerEnv && browser.port && (
+                          <span className="text-xs text-tertiary">
+                            CDP Port: {browser.port}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
