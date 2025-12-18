@@ -72,11 +72,14 @@ check_docker() {
 configure_docker_gid() {
   if [[ -S /var/run/docker.sock ]]; then
     local docker_gid
-    # Linux: use stat -c, macOS: use stat -f
-    if stat --version &>/dev/null 2>&1; then
-      docker_gid=$(stat -c '%g' /var/run/docker.sock)
+    # macOS Docker Desktop: Socket appears as root:root inside container, use GID 0
+    # Linux: Get actual GID from docker.sock
+    if [[ "$(uname)" == "Darwin" ]]; then
+      docker_gid=0
+      print_step "Docker socket GID: 0 (macOS Docker Desktop)"
     else
-      docker_gid=$(stat -f '%g' /var/run/docker.sock)
+      docker_gid=$(stat -c '%g' /var/run/docker.sock)
+      print_step "Docker socket GID: $docker_gid (browser sidecar enabled)"
     fi
 
     # Update .env file with DOCKER_GID
@@ -89,7 +92,6 @@ configure_docker_gid() {
     else
       echo "DOCKER_GID=$docker_gid" > .env
     fi
-    print_step "Docker socket GID: $docker_gid (browser sidecar enabled)"
   fi
 }
 

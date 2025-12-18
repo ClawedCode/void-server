@@ -13,9 +13,11 @@ services:
     image: ghcr.io/clawedcode/void-server:latest
     container_name: void-server
     restart: unless-stopped
-    # Add docker group for socket access (get GID with: stat -c '%g' /var/run/docker.sock)
+    # Add docker group for socket access
+    # Linux: Use DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+    # macOS Docker Desktop: Socket is root:root inside container, use DOCKER_GID=0
     group_add:
-      - ${DOCKER_GID:-999}
+      - ${DOCKER_GID:-0}
     ports:
       - "4420:4401"
     labels:
