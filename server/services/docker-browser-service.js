@@ -7,7 +7,6 @@
  */
 
 const path = require('path');
-const net = require('net');
 
 // Dockerode for Docker API (lazy loaded)
 let Docker = null;
@@ -54,27 +53,33 @@ async function isDockerAvailable() {
 }
 
 /**
- * Check if a port is available on the host
+ * Get ports currently used by browser containers
  */
-async function isPortAvailable(port) {
-  return new Promise(resolve => {
-    const server = net.createServer();
-    server.once('error', () => resolve(false));
-    server.once('listening', () => {
-      server.close();
-      resolve(true);
-    });
-    server.listen(port, '0.0.0.0');
+async function getUsedPorts() {
+  const dockerClient = await getDocker();
+  const containers = await dockerClient.listContainers({
+    all: false, // only running containers
+    filters: { label: ['void-server=browser-sidecar'] }
   });
+
+  const usedPorts = new Set();
+  for (const container of containers) {
+    const ports = container.Ports || [];
+    for (const p of ports) {
+      if (p.PublicPort) usedPorts.add(p.PublicPort);
+    }
+  }
+  return usedPorts;
 }
 
 /**
  * Find an available port starting from the base port
  */
 async function findAvailablePort(startPort) {
+  const usedPorts = await getUsedPorts();
   let port = startPort;
   while (port < startPort + 100) {
-    if (await isPortAvailable(port)) return port;
+    if (!usedPorts.has(port)) return port;
     port++;
   }
   throw new Error('No available ports found');
