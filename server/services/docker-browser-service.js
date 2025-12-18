@@ -90,12 +90,36 @@ async function getContainerByName(name) {
 }
 
 /**
+ * Detect if void-server is running inside Docker
+ */
+function isRunningInDocker() {
+  try {
+    require('fs').accessSync('/.dockerenv');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get the data directory path (for volume mounting)
+ * When running natively, use the actual host path
+ * When running in Docker, use BROWSER_DATA_PATH env var (set to host path)
  */
 function getDataDir() {
-  // When running in Docker, we need the host path for the volume mount
-  // The container sees /app/data, but we need to mount the host's ./data directory
-  return process.env.BROWSER_DATA_PATH || '/app/data/browsers';
+  // Explicit override always wins
+  if (process.env.BROWSER_DATA_PATH) {
+    return process.env.BROWSER_DATA_PATH;
+  }
+
+  // When running natively, use the actual path on disk
+  if (!isRunningInDocker()) {
+    return path.resolve(__dirname, '../../data/browsers');
+  }
+
+  // When running in Docker, default to container path
+  // (user should set BROWSER_DATA_PATH to host path for volume mounts to work)
+  return '/app/data/browsers';
 }
 
 /**
