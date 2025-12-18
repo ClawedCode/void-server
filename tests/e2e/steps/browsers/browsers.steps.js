@@ -47,13 +47,6 @@ Then('I should not see {string} in the browser list', async function (text) {
   ).not.toBeVisible({ timeout: 5000 });
 });
 
-// Docker mode
-Then('I should see the Docker browser mode info banner', async function () {
-  await expect(this.page.locator('.card').filter({ hasText: 'Docker Browser Mode' })).toBeVisible({
-    timeout: 5000,
-  });
-});
-
 // Profile management
 Given('a browser profile {string} exists', async function (profileId) {
   // Create via API

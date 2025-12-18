@@ -276,19 +276,6 @@ export default function BrowsersPage() {
         </div>
       </div>
 
-      {/* Docker Browser Info */}
-      <div className="card border-info bg-info/10">
-        <div className="flex items-start gap-3">
-          <Globe className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-          <div>
-            <h3 className="font-semibold text-text-primary">Docker Browser Mode</h3>
-            <p className="text-secondary text-sm mt-1">
-              Browser opens in a web-based viewer below. Auto-closes after 15 minutes idle.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Create Form */}
       {showCreateForm && (
         <div className="card space-y-4">

@@ -28,10 +28,6 @@ Feature: Browser Profile Management
     Then I should see a success toast
     And I should not see "delete-me-profile" in the browser list
 
-  @requires-docker
-  Scenario: Docker browser info banner shows in Docker mode
-    Then I should see the Docker browser mode info banner
-
   @api
   Scenario: Browser profiles API returns list
     When I GET "/api/browsers"
