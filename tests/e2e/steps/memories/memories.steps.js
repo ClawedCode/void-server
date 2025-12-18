@@ -48,9 +48,10 @@ Then('the memory should appear in the list', async function () {
 });
 
 When('I search for {string}', async function (query) {
-  await this.page.fill('input[placeholder*="Search"], [data-testid="search"]', query);
+  await this.page.fill('input[placeholder*="Search"], [data-testid="search"]', query, { timeout: 5000 });
   await this.page.keyboard.press('Enter');
-  await this.page.waitForLoadState('networkidle');
+  // Wait a moment for search results
+  await this.page.waitForTimeout(500);
 });
 
 Then('I should see matching memories', async function () {

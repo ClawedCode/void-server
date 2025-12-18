@@ -11,8 +11,8 @@ After(async function () {
 
 // Navigation - browser-specific route
 Given('I am on the browsers page', async function () {
-  await this.page.goto(`${this.config.appUrl}/browsers`);
-  await this.page.waitForLoadState('networkidle', { timeout: 10000 });
+  await this.page.goto(`${this.config.appUrl}/browsers`, { timeout: 10000 });
+  await this.page.waitForLoadState('load', { timeout: 10000 });
 });
 
 // Create profile form

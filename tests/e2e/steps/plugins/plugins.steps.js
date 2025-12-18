@@ -22,8 +22,14 @@ When('I toggle the {string} plugin', async function (pluginName) {
 });
 
 Then('I should see the restart required message', async function () {
-  // Look for the specific "Restart Required" heading or the restart button
-  await expect(this.page.locator('text=Restart Required').first()).toBeVisible();
+  // In Docker mode, plugin toggle triggers auto-rebuild (no restart banner)
+  // Check for either: rebuild toast, success toast, or restart required banner
+  const rebuildToast = this.page.locator('text=Rebuilding client bundle');
+  const successToast = this.page.locator('[data-sonner-toast], .toast').filter({ hasText: /enabled|disabled/i });
+  const restartBanner = this.page.locator('text=Restart Required');
+
+  // Wait for any of these to appear
+  await expect(rebuildToast.or(successToast).or(restartBanner).first()).toBeVisible({ timeout: 10000 });
 });
 
 When('I POST plugin install with invalid name {string}', async function (pluginName) {

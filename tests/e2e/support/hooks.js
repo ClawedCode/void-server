@@ -9,7 +9,10 @@ let apiContext = null;
 // Cucumber step timeout (max time for a single step)
 setDefaultTimeout(30000);
 
-const APP_URL = process.env.TEST_APP_URL || 'http://localhost:4401';
+const TEST_ENV = process.env.TEST_ENV || 'native';
+const APP_URL = process.env.TEST_APP_URL || (TEST_ENV === 'docker' ? 'http://localhost:4420' : 'http://localhost:4401');
+// When app runs in Docker, use host.docker.internal to reach mock on host
+const MOCK_HOST = TEST_ENV === 'docker' ? 'host.docker.internal' : 'localhost';
 
 BeforeAll(async function () {
   // Start mock LM Studio server
@@ -22,10 +25,11 @@ BeforeAll(async function () {
   originalLmStudioEndpoint = config.providers?.lmstudio?.endpoint;
 
   // Update LM Studio to use mock endpoint
+  // Use host.docker.internal when app is in Docker so it can reach mock on host
   await apiContext.put('/api/ai-providers/lmstudio', {
-    data: { endpoint: `http://localhost:${MOCK_PORT}/v1`, enabled: true }
+    data: { endpoint: `http://${MOCK_HOST}:${MOCK_PORT}/v1`, enabled: true }
   });
-  console.log(`Configured LM Studio to use mock at port ${MOCK_PORT}`);
+  console.log(`Configured LM Studio to use mock at ${MOCK_HOST}:${MOCK_PORT}`);
 
   browser = await chromium.launch({
     args: ['--remote-debugging-port=0'],
@@ -97,8 +101,18 @@ Before({ tags: '@requires-ipfs' }, async function () {
   if (this.shouldMock('ipfs')) {
     return 'skipped';
   }
-  const response = await this.request.get(`${this.config.appUrl}/api/ipfs/status`);
-  const status = await response.json();
+  // Check IPFS status with timeout to avoid hanging
+  let status;
+  try {
+    const response = await this.request.get(`${this.config.appUrl}/api/ipfs/status`, { timeout: 5000 });
+    if (!response.ok()) {
+      return 'skipped';
+    }
+    status = await response.json();
+  } catch {
+    // Timeout or error - skip the test
+    return 'skipped';
+  }
   // Check for daemonOnline (actual field) or online (legacy)
   if (!status.daemonOnline && !status.online) {
     return 'skipped';

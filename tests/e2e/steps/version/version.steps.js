@@ -19,13 +19,31 @@ Given('I am running in Docker', async function () {
 });
 
 Given('Watchtower is available', async function () {
-  // This would need to check if Watchtower is running
-  // For now, we'll skip in environments where we can't verify
+  // Actually verify Watchtower is available via the API
+  try {
+    const response = await this.request.get(`${this.config.appUrl}/api/version/environment`, { timeout: 5000 });
+    const data = await response.json();
+    if (data.updateMethod !== 'watchtower') {
+      return 'skipped';
+    }
+  } catch {
+    return 'skipped';
+  }
   this.testData.expectWatchtower = true;
 });
 
 Given('Watchtower is not available', async function () {
-  // Mock or expect Watchtower to be unavailable
+  // Verify Watchtower is actually not available - skip if it IS available
+  try {
+    const response = await this.request.get(`${this.config.appUrl}/api/version/environment`, { timeout: 5000 });
+    const data = await response.json();
+    if (data.updateMethod === 'watchtower') {
+      // Watchtower is available - can't test "unavailable" scenario
+      return 'skipped';
+    }
+  } catch {
+    // Error checking - assume unavailable
+  }
   this.testData.expectWatchtower = false;
 });
 
@@ -36,11 +54,20 @@ When('I POST to {string}', async function (endpoint) {
 });
 
 When('I click the update button', async function () {
-  // Find and click the update button in the navigation
-  const updateButton = this.page.locator('button:has-text("Update"), button:has([class*="ArrowUpCircle"])');
-  if (await updateButton.isVisible()) {
-    await updateButton.click();
+  // Navigate to dashboard to see update notification in nav
+  await this.page.goto(`${this.config.appUrl}/`, { timeout: 10000 });
+  await this.page.waitForLoadState('load', { timeout: 10000 });
+
+  // Look for update notification (only appears when update is available)
+  const updateNotification = this.page.locator('text=Update Available');
+  const isVisible = await updateNotification.isVisible({ timeout: 3000 }).catch(() => false);
+
+  if (!isVisible) {
+    // No update available - skip this test
+    return 'skipped';
   }
+
+  await updateNotification.click();
 });
 
 Then('I should see the update notification', async function () {
