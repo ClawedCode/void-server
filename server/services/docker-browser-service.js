@@ -196,11 +196,12 @@ async function startBrowserContainer(profileId, options = {}) {
       `LAUNCH_URL=${url || 'about:blank'}`
     ],
     HostConfig: {
-      Binds: [
-        // Mount browsers data for profile persistence
-        // Note: kasmweb stores profile in /home/kasm-user
+      // Mount browsers data for profile persistence when running in Docker
+      // Note: kasmweb stores profile in /home/kasm-user/.config/chromium
+      // Skip mount in native mode - kasmweb conflicts with existing Playwright profiles
+      Binds: isRunningInDocker() ? [
         `${getDataDir()}/${profileId}:/home/kasm-user/.config/chromium`
-      ],
+      ] : [],
       PortBindings: {
         '6901/tcp': [{ HostPort: String(port) }]
       },
