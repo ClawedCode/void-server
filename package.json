@@ -18,7 +18,6 @@
     "plugin:update": "./scripts/plugin-update.sh",
     "plugin:status": "./scripts/plugin-status.sh",
     "hooks:install": "bash ./.githooks/install-hooks.sh",
-    "postinstall": "[ -f ./.githooks/install-hooks.sh ] && bash ./.githooks/install-hooks.sh || true",
     "test": "npm run test:native",
     "test:native": "cross-env TEST_ENV=native npx cucumber-js",
     "test:docker": "cross-env TEST_ENV=docker npx cucumber-js",

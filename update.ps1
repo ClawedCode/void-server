@@ -71,8 +71,9 @@ Write-Step "Stopping services..."
 pm2 delete void-server void-client 2>$null
 
 # Stop old Docker containers (migration from Docker-only to hybrid)
+# Use --remove-orphans to stop containers not in current compose file (e.g., old void-server)
 Write-Step "Stopping old Docker containers..."
-docker compose down 2>$null
+docker compose down --remove-orphans 2>$null
 
 # Pull latest code
 Write-Step "Pulling latest code..."

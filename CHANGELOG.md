@@ -10,6 +10,10 @@
 - **Update scripts use fresh PM2 config** - `pm2 delete` then `pm2 start` instead of `pm2 restart`
   - Ensures updated ecosystem.config.js settings are used (including PORT)
   - Fixes issue where PM2 cached old port 4480 instead of 4420
+- **Update scripts remove orphan containers** - Added `--remove-orphans` to `docker compose down`
+  - Stops old void-server container even when not defined in new docker-compose.yml
+- **Removed postinstall hook** - Git hooks install was failing on Windows
+  - Developers can run `npm run hooks:install` manually
 
 ---
 
