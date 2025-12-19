@@ -399,6 +399,8 @@ const buildReleaseUrl = (repoUrl, version) => {
   const match = repoUrl.match(/github\.com[/:]([^/]+\/[^/.]+)/);
   const repoPath = match ? match[1] : null;
 
+  console.log(`🔧 buildReleaseUrl: repoUrl="${repoUrl}", repoPath="${repoPath}", version="${version}"`);
+
   if (!repoPath) {
     // Fallback: try to clean up URL directly
     let baseUrl = repoUrl
