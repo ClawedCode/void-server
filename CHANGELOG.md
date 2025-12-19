@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.13.6] - 2025-12-19
+
+### Fixed
+
+- **Native mode update support** - Update button now runs update.sh/update.ps1 in native mode
+  - Auto-detects Docker vs native environment (checks `/.dockerenv` and `/proc/1/cgroup`)
+  - Native mode spawns update script detached, allowing PM2 restart
+  - Docker mode falls back to Watchtower with manual command modal if unavailable
+- **Duplicate update toast** - Fixed "Update Available" toast appearing while already updating
+  - Dismisses update-available toast immediately when clicking Update
+  - Skips update check if update is in progress
+  - Uses `id: 'update-available'` to prevent duplicate toasts
+- **Unified update endpoint** - `POST /api/version/update` now handles both Docker and native modes
+  - No longer requires separate `/api/version/update/docker` endpoint for Docker mode
+  - Returns appropriate error message based on environment
+
+---
+
 ## [0.13.5] - 2025-12-19
 
 ### Fixed

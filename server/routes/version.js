@@ -44,32 +44,34 @@ router.get('/environment', (req, res) => {
 
 /**
  * POST /api/version/update
- * Trigger the update process (native installations)
+ * Trigger the update process - auto-detects Docker vs native
  */
 router.post('/update', async (req, res) => {
   console.log('🔄 Update requested via API');
 
-  // For Docker, redirect to watchtower endpoint
-  if (versionService.isDocker()) {
-    return res.status(400).json({
+  const inDocker = versionService.isDocker();
+
+  if (inDocker) {
+    // Docker mode - try Watchtower
+    console.log('🐳 Docker detected, trying Watchtower...');
+    const result = await versionService.triggerWatchtowerUpdate().catch(err => ({
       success: false,
-      error: 'Docker installation detected. Use /api/version/update/docker endpoint instead.'
-    });
+      error: err.message
+    }));
+    return res.json(result);
   }
 
-  // Send initial response
+  // Native mode - run update script
+  console.log('📦 Native mode, running update script...');
+  const result = await versionService.runUpdate().catch(err => ({
+    success: false,
+    error: err.message
+  }));
+
   res.json({
-    success: true,
-    message: 'Update started. Server will restart shortly.',
+    ...result,
     note: 'Poll /api/health to detect when server is back online'
   });
-
-  // Run update after response is sent
-  setTimeout(async () => {
-    await versionService.runUpdate().catch(err => {
-      console.error('❌ Update failed:', err.message);
-    });
-  }, 100);
 });
 
 /**

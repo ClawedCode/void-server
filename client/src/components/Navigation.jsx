@@ -65,19 +65,22 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
     }, 2000);
   };
 
-  // Handle update action (Docker via Watchtower)
+  // Handle update action (auto-detects Docker vs native)
   const handleUpdate = useCallback(async () => {
     if (isUpdating) return;
     setIsUpdating(true);
     setLogsExpanded(true); // Expand logs to show update progress
+
+    // Dismiss update available toast first
+    toast.dismiss('update-available');
     toast.loading('Updating...', { id: 'update-progress' });
 
-    // Try Watchtower first
-    const res = await fetch('/api/version/update/docker', { method: 'POST' });
+    // Use unified update endpoint (auto-detects Docker vs native)
+    const res = await fetch('/api/version/update', { method: 'POST' });
     const data = await res.json();
 
     if (data.success) {
-      toast.success('Update triggered! Container will restart if a new image is available.', {
+      toast.success('Update started! Server will restart shortly.', {
         id: 'update-progress',
       });
       // Poll for server to come back
@@ -85,25 +88,35 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
       return;
     }
 
-    // Watchtower failed - show manual command modal
+    // Update failed - check if it's a Docker issue
     toast.dismiss('update-progress');
-    const command = 'docker compose down && docker compose pull && docker compose up -d';
-    setDockerModal({
-      show: true,
-      command,
-      watchtowerError: data.error || 'Watchtower not available',
-    });
+
+    if (data.error && data.error.includes('Watchtower')) {
+      // Docker mode but Watchtower unavailable - show manual command modal
+      const command = 'docker compose down && docker compose pull && docker compose up -d';
+      setDockerModal({
+        show: true,
+        command,
+        watchtowerError: data.error,
+      });
+    } else {
+      // Other error
+      toast.error(`Update failed: ${data.error || 'Unknown error'}`);
+    }
     setIsUpdating(false);
   }, [isUpdating, setLogsExpanded]);
 
   // Check for updates periodically
   useEffect(() => {
     const checkForUpdate = async () => {
+      // Skip if already updating
+      if (isUpdating) return;
+
       const res = await fetch('/api/version/check');
       const data = await res.json();
       if (data.success && data.updateAvailable) {
         setUpdateInfo(data);
-        // Show persistent toast notification
+        // Show persistent toast notification (only if not already shown)
         toast(
           t => (
             <div className="flex items-center gap-3">
@@ -136,13 +149,15 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
       }
     };
 
-    // Check on mount
-    checkForUpdate();
+    // Check on mount (unless already updating)
+    if (!isUpdating) {
+      checkForUpdate();
+    }
 
     // Check every 30 minutes
     const interval = setInterval(checkForUpdate, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [handleUpdate]);
+  }, [handleUpdate, isUpdating]);
 
   // Copy Docker command to clipboard
   const copyDockerCommand = async () => {

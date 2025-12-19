@@ -146,18 +146,72 @@ async function checkForUpdate() {
 
 /**
  * Check if running in Docker container
- * Always returns true since Docker is the only supported deployment method
+ * Detects Docker by checking for /.dockerenv file or cgroup
  */
 function isDocker() {
-  return true;
+  // Check for Docker-specific files
+  if (fs.existsSync('/.dockerenv')) return true;
+
+  // Check cgroup for docker/lxc
+  const cgroupPath = '/proc/1/cgroup';
+  if (fs.existsSync(cgroupPath)) {
+    const cgroup = fs.readFileSync(cgroupPath, 'utf8');
+    if (cgroup.includes('docker') || cgroup.includes('lxc')) return true;
+  }
+
+  return false;
 }
 
 /**
- * Run the update script
- * Docker containers should be updated via Watchtower or host commands
+ * Run the update script (native installations only)
+ * Returns a promise that resolves when the update script starts
  */
 function runUpdate() {
-  return Promise.reject(new Error('Docker installation. Update from host: docker compose down && git pull && docker compose up -d --build'));
+  return new Promise((resolve, reject) => {
+    if (isDocker()) {
+      reject(new Error('Docker installation. Use Watchtower or run: docker compose down && git pull && docker compose up -d'));
+      return;
+    }
+
+    const projectRoot = path.resolve(__dirname, '../..');
+    const isWindows = process.platform === 'win32';
+
+    let scriptPath, command, args;
+
+    if (isWindows) {
+      scriptPath = path.join(projectRoot, 'update.ps1');
+      command = 'powershell.exe';
+      args = ['-ExecutionPolicy', 'Bypass', '-File', scriptPath];
+    } else {
+      scriptPath = path.join(projectRoot, 'update.sh');
+      command = 'bash';
+      args = [scriptPath];
+    }
+
+    if (!fs.existsSync(scriptPath)) {
+      reject(new Error(`Update script not found: ${scriptPath}`));
+      return;
+    }
+
+    console.log(`🔄 Running update script: ${scriptPath}`);
+
+    const child = spawn(command, args, {
+      cwd: projectRoot,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+
+    // Unref to allow parent to exit while child continues
+    child.unref();
+
+    // Resolve immediately - the script will restart PM2
+    resolve({
+      success: true,
+      message: 'Update started. Server will restart shortly.',
+      scriptPath
+    });
+  });
 }
 
 /**
