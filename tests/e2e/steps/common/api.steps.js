@@ -123,7 +123,10 @@ Then('the response should contain available plugins', async function () {
 
 Then('the response should contain a chat id', async function () {
   const response = this.testData.lastResponse;
-  expect(response.id || response.chat?.id).toBeDefined();
+  const chatId = response.id || response.chat?.id;
+  expect(chatId).toBeDefined();
+  // Store chatId for cleanup in After hook
+  this.testData.chatId = chatId;
 });
 
 Then('the response should contain derived addresses', async function () {

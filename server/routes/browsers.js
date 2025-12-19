@@ -14,8 +14,9 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   console.log('🌐 GET /api/browsers');
   const browsers = await browserService.listBrowsers();
-  console.log(`✅ Listed ${browsers.length} browser profiles`);
-  res.json({ success: true, browsers, isDocker: browserService.isDocker() });
+  const isDocker = browserService.isRunningInDocker();
+  console.log(`✅ Listed ${browsers.length} browser profiles (docker: ${isDocker})`);
+  res.json({ success: true, browsers, isDocker });
 });
 
 // Get port range info (must be before /:id to avoid matching "config" as id)
@@ -49,16 +50,25 @@ router.get('/:id/status', async (req, res) => {
   res.json(result);
 });
 
-// Get noVNC URL for Docker browser
-router.get('/:id/novnc', async (req, res) => {
-  console.log(`🌐 GET /api/browsers/${req.params.id}/novnc`);
-  const result = await browserService.getNoVNCUrl(req.params.id);
+// Get Chrome/Chromium status (must be before /:id to avoid matching "chrome" as id)
+router.get('/config/chrome', async (req, res) => {
+  console.log('🌐 GET /api/browsers/config/chrome');
+  const chromeInfo = browserService.getChromeStatus();
+  res.json({ success: true, chrome: chromeInfo });
+});
 
-  if (!result.success) {
-    return res.status(400).json(result);
+// Get authentication command for running Chrome on host (Docker mode)
+router.get('/:id/auth-command', async (req, res) => {
+  const { url } = req.query;
+  console.log(`🌐 GET /api/browsers/${req.params.id}/auth-command`);
+
+  const commands = await browserService.getAuthCommand(req.params.id, url);
+
+  if (!commands) {
+    return res.status(404).json({ success: false, error: 'Browser profile not found' });
   }
 
-  res.json(result);
+  res.json({ success: true, commands });
 });
 
 // Create new browser profile

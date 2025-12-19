@@ -11,9 +11,8 @@ import {
   ExternalLink,
   Edit2,
   Save,
-  Maximize2,
-  Minimize2,
-  Monitor,
+  Copy,
+  Terminal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -26,9 +25,9 @@ export default function BrowsersPage() {
   const [portRange, setPortRange] = useState({ start: 9111, end: 9199 });
   const [editingBrowser, setEditingBrowser] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', description: '', port: '' });
-  // Browser viewer state for embedded noVNC
-  const [activeViewer, setActiveViewer] = useState(null); // { id, name, novncUrl }
-  const [viewerExpanded, setViewerExpanded] = useState(true);
+  const [isDocker, setIsDocker] = useState(false);
+  const [authModal, setAuthModal] = useState(null); // { id, commands }
+  const [selectedPlatform, setSelectedPlatform] = useState('darwin');
 
   const loadBrowsers = async () => {
     setLoading(true);
@@ -37,6 +36,7 @@ export default function BrowsersPage() {
 
     if (data.success) {
       setBrowsers(data.browsers);
+      setIsDocker(data.isDocker || false);
     }
     setLoading(false);
   };
@@ -125,7 +125,7 @@ export default function BrowsersPage() {
   };
 
   const handleLaunch = async (id, url) => {
-    toast.loading('Launching browser...', { id: `launch-${id}` });
+    toast.loading('Opening browser...', { id: `launch-${id}` });
 
     const response = await fetch(`/api/browsers/${id}/launch`, {
       method: 'POST',
@@ -136,33 +136,14 @@ export default function BrowsersPage() {
     const data = await response.json();
 
     if (data.success) {
-      // Show embedded noVNC viewer for Docker browser
-      if (data.novncPort) {
-        const browser = browsers.find(b => b.id === id);
-        // Construct URL using current hostname (works with localhost, Tailscale IPs, etc.)
-        // Uses HTTP - the vnc-browser image serves noVNC over HTTP (no SSL cert issues)
-        // Auto-connect with credentials to skip the connect button and password prompt
-        const novncUrl = `http://${window.location.hostname}:${data.novncPort}/vnc.html?autoconnect=true&password=voidserver`;
-        setActiveViewer({
-          id,
-          name: browser?.name || id,
-          novncUrl,
-        });
-        setViewerExpanded(true);
-        toast.success('Browser launched. Log in below, then close the viewer.', {
-          id: `launch-${id}`,
-          duration: 5000,
-        });
-      } else {
-        toast.success('Browser launched.', {
-          id: `launch-${id}`,
-          duration: 5000,
-        });
-      }
-      // Poll for status
+      toast.success('Browser opened. Log in, then close when done.', {
+        id: `launch-${id}`,
+        duration: 5000,
+      });
+      // Poll for status to detect when browser closes
       pollBrowserStatus(id);
     } else {
-      toast.error(data.error || 'Failed to launch browser', { id: `launch-${id}` });
+      toast.error(data.error || 'Failed to open browser', { id: `launch-${id}` });
     }
 
     loadBrowsers();
@@ -185,28 +166,36 @@ export default function BrowsersPage() {
     setTimeout(() => clearInterval(interval), 300000);
   };
 
+  const fetchAuthCommand = async (id, url = 'https://x.com/login') => {
+    const response = await fetch(`/api/browsers/${id}/auth-command?url=${encodeURIComponent(url)}`);
+    const data = await response.json();
+
+    if (data.success) {
+      setAuthModal({ id, commands: data.commands, url });
+    } else {
+      toast.error(data.error || 'Failed to get auth command');
+    }
+  };
+
+  const copyCommand = () => {
+    const command = authModal?.commands?.[selectedPlatform];
+    if (command) {
+      navigator.clipboard.writeText(command);
+      toast.success('Command copied to clipboard');
+    }
+  };
+
   const handleClose = async id => {
     const response = await fetch(`/api/browsers/${id}/close`, { method: 'POST' });
     const data = await response.json();
 
     if (data.success) {
       toast.success('Browser closed');
-      // Close viewer if this browser was being viewed
-      if (activeViewer?.id === id) {
-        setActiveViewer(null);
-      }
     } else {
       toast.error(data.error || 'Failed to close browser');
     }
 
     loadBrowsers();
-  };
-
-  const closeViewer = async () => {
-    if (activeViewer) {
-      await handleClose(activeViewer.id);
-    }
-    setActiveViewer(null);
   };
 
   const handleDelete = async id => {
@@ -473,6 +462,15 @@ export default function BrowsersPage() {
                           <X size={16} />
                           Close
                         </button>
+                      ) : isDocker ? (
+                        <button
+                          onClick={() => fetchAuthCommand(browser.id, 'https://x.com/login')}
+                          className="btn btn-primary btn-sm flex items-center gap-1"
+                          title="Get authentication command"
+                        >
+                          <Terminal size={16} />
+                          Authenticate
+                        </button>
                       ) : (
                         <>
                           <button
@@ -517,52 +515,63 @@ export default function BrowsersPage() {
         </div>
       )}
 
-      {/* Embedded Browser Viewer */}
-      {activeViewer && (
-        <div className={`card border-primary ${viewerExpanded ? '' : 'pb-0'}`}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <Monitor className="w-5 h-5 text-primary" />
-              <div>
-                <h3 className="font-semibold text-text-primary">{activeViewer.name}</h3>
-                <p className="text-xs text-tertiary">Browser Viewer - Log in, then close when done</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+      {/* Auth Command Modal */}
+      {authModal && (
+        <div className="card border-2 border-primary">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+              <Terminal size={20} />
+              Run this command to authenticate
+            </h3>
+            <button
+              onClick={() => setAuthModal(null)}
+              className="btn btn-ghost btn-sm"
+              title="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex gap-2 mb-3">
+            {[
+              { key: 'darwin', label: 'macOS' },
+              { key: 'win32', label: 'Windows' },
+              { key: 'linux', label: 'Linux' },
+            ].map(({ key, label }) => (
               <button
-                onClick={() => window.open(activeViewer.novncUrl, '_blank')}
-                className="btn btn-ghost btn-sm"
-                title="Open in new tab"
+                key={key}
+                onClick={() => setSelectedPlatform(key)}
+                className={`px-3 py-1 rounded text-sm ${
+                  selectedPlatform === key
+                    ? 'bg-primary text-white'
+                    : 'bg-surface text-secondary hover:text-text-primary'
+                }`}
               >
-                <ExternalLink size={16} />
+                {label}
               </button>
-              <button
-                onClick={() => setViewerExpanded(!viewerExpanded)}
-                className="btn btn-ghost btn-sm"
-                title={viewerExpanded ? 'Minimize' : 'Expand'}
-              >
-                {viewerExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-              </button>
-              <button
-                onClick={closeViewer}
-                className="btn btn-ghost btn-sm text-error"
-                title="Close browser"
-              >
-                <X size={16} />
-              </button>
+            ))}
+          </div>
+
+          <pre className="bg-surface p-4 rounded text-sm overflow-x-auto whitespace-pre-wrap break-all">
+            {authModal.commands?.[selectedPlatform]}
+          </pre>
+
+          <div className="flex items-center justify-between mt-4">
+            <button
+              onClick={copyCommand}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Copy size={16} />
+              Copy Command
+            </button>
+            <div className="text-sm text-secondary">
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Paste and run in Terminal{selectedPlatform === 'win32' ? '/PowerShell' : ''}</li>
+                <li>Log into the website</li>
+                <li>Close the browser window</li>
+              </ol>
             </div>
           </div>
-          {viewerExpanded && (
-            <div className="relative w-full rounded-lg overflow-hidden border border-surface-border bg-black">
-              <iframe
-                src={activeViewer.novncUrl}
-                className="w-full border-0"
-                style={{ height: '600px' }}
-                title={`Browser: ${activeViewer.name}`}
-                allow="clipboard-read; clipboard-write"
-              />
-            </div>
-          )}
         </div>
       )}
 
@@ -573,18 +582,30 @@ export default function BrowsersPage() {
           <p>
             Browser profiles store authentication cookies/sessions for plugins that need web access.
           </p>
-          <p>
-            <strong>Setup:</strong> Create a profile, launch the browser, log into the website,
-            close the browser.
-          </p>
+          {isDocker ? (
+            <>
+              <p>
+                <strong>Setup:</strong> Click &quot;Authenticate&quot;, copy the command, and run it in your
+                terminal. Log into the website, then close the browser.
+              </p>
+              <p>
+                <strong>Why:</strong> Docker cannot open browser windows on your desktop, so you run
+                Chrome locally with a command that saves the session to the shared data folder.
+              </p>
+            </>
+          ) : (
+            <p>
+              <strong>Setup:</strong> Click Launch to open a browser window. Log into your account,
+              then close the browser when done.
+            </p>
+          )}
           <p>
             <strong>Usage:</strong> Plugins can use authenticated profiles for headless operations
             (e.g., video downloads).
           </p>
           <p>
-            <strong>Docker:</strong> Profiles are stored in{' '}
-            <code className="bg-surface px-1 rounded">data/browsers/</code> and persist across
-            container restarts.
+            <strong>Storage:</strong> Profiles are saved in{' '}
+            <code className="bg-surface px-1 rounded">data/browsers/</code>
           </p>
         </div>
       </div>

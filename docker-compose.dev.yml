@@ -12,8 +12,6 @@ services:
       dockerfile: Dockerfile
     container_name: void-server-dev
     restart: unless-stopped
-    group_add:
-      - ${DOCKER_GID:-0}
     ports:
       - "4420:4401"  # Main application
       - "4480:4480"  # Vite dev server (if needed)
@@ -37,11 +35,6 @@ services:
       # Watchtower API
       - WATCHTOWER_URL=http://watchtower:8080
       - WATCHTOWER_TOKEN=${WATCHTOWER_TOKEN:-void-update-token}
-      # Browser sidecar configuration
-      - BROWSER_CONTAINER_IMAGE=${BROWSER_CONTAINER_IMAGE:-ghcr.io/clawedcode/void-server/void-browser:latest}
-      - BROWSER_NOVNC_PORT=${BROWSER_NOVNC_PORT:-6080}
-      - BROWSER_IDLE_TIMEOUT=${BROWSER_IDLE_TIMEOUT:-900000}
-      - BROWSER_DATA_PATH=${PWD}/data/browsers
     volumes:
       # Source code mounts for development (read-only to prevent accidental writes)
       - ./server:/app/server:ro
@@ -53,8 +46,6 @@ services:
       - ./backups:/app/backups
       - ./logs:/app/logs
       - ./data:/app/data
-      # Docker socket for browser sidecar management
-      - /var/run/docker.sock:/var/run/docker.sock
       # LM Studio models directory for importing
       - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
     depends_on:

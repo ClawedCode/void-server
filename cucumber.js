@@ -17,7 +17,15 @@ module.exports = {
     paths: ['tests/e2e/features/**/*.feature'],
     worldParameters: {
       appUrl: 'http://localhost:4420',
-      environment: 'docker',
+      environment: 'native',
+    },
+  },
+  native: {
+    ...common,
+    paths: ['tests/e2e/features/**/*.feature'],
+    worldParameters: {
+      appUrl: 'http://localhost:4420',
+      environment: 'native',
     },
   },
   docker: {

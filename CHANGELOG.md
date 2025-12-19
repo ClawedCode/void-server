@@ -1,8 +1,26 @@
 # Changelog
 
-## [0.12.1] - 2025-12-18
+## [0.13.0] - 2025-12-19
+
+Major architecture change: void-server now runs natively with PM2 while infrastructure (Neo4j, IPFS) runs in Docker. This enables proper browser authentication and Playwright automation.
+
+### Breaking Changes
+
+- **Hybrid native + Docker architecture** - void-server runs natively, infrastructure in Docker
+  - Added `docker-compose.infra.yml` for Neo4j and IPFS only
+  - void-server runs with PM2 for direct browser launching
+  - Eliminates copy/paste workaround for browser authentication
+  - Docker can't open desktop windows; native mode solves this cleanly
+  - Updated `setup.sh`, `update.sh`, `run.sh` and PowerShell equivalents
+  - **Migration**: Run `./update.sh` to switch to hybrid architecture
 
 ### New Features
+
+- **CDP Browser Connection** - Playwright connects to running browsers via Chrome DevTools Protocol
+  - `getBrowserContext()` connects via `chromium.connectOverCDP()` instead of launching new browser
+  - Plugins (e.g., video downloader) use authenticated browser sessions
+  - Browser status detects externally-launched browsers via CDP port
+  - New `isCdpActive()` function checks if browser is listening on CDP port
 
 - **Import LM Studio models into Ollama** - Reuse GGUF models already downloaded in LM Studio
   - New "Import from LM Studio" button in Ollama settings card
@@ -14,9 +32,13 @@
   - Survives container recreation and is visible in file system
   - Consistent with project's `./data/` directory convention
 
-### Fixes
+### Changed
 
+- **Browser launch simplified** - Chrome launched with only `--user-data-dir` and `--remote-debugging-port`
+  - Removed unnecessary flags that caused warning banners
+  - CDP port enables Playwright to connect to running browsers
 - **Docker prune flag compatibility** - Changed `docker system prune -y` to `--force` for broader Docker version support
+- **Native test configuration** - Added `tests/e2e/support/config/native.config.ts` for hybrid mode testing
 
 ---
 

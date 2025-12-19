@@ -13,11 +13,6 @@ services:
     image: ghcr.io/clawedcode/void-server:latest
     container_name: void-server
     restart: unless-stopped
-    # Add docker group for socket access
-    # Linux: Use DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
-    # macOS Docker Desktop: Socket is root:root inside container, use DOCKER_GID=0
-    group_add:
-      - ${DOCKER_GID:-0}
     ports:
       - "4420:4401"
     labels:
@@ -40,11 +35,6 @@ services:
       # Watchtower API for triggering updates from UI
       - WATCHTOWER_URL=http://watchtower:8080
       - WATCHTOWER_TOKEN=${WATCHTOWER_TOKEN:-void-update-token}
-      # Browser sidecar configuration
-      # Build locally: docker build -t ghcr.io/clawedcode/void-server/void-browser:latest ./docker/browser
-      - BROWSER_CONTAINER_IMAGE=${BROWSER_CONTAINER_IMAGE:-ghcr.io/clawedcode/void-server/void-browser:latest}
-      - BROWSER_NOVNC_PORT=${BROWSER_NOVNC_PORT:-6080}
-      - BROWSER_DATA_PATH=${PWD}/data/browsers
       # Ollama AI provider (uses service name as hostname)
       - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434/v1}
       - OLLAMA_MODELS=${OLLAMA_MODELS:-}
@@ -57,8 +47,6 @@ services:
       - ./backups:/app/backups
       - ./logs:/app/logs
       - ./data:/app/data
-      # Docker socket for browser sidecar management
-      - /var/run/docker.sock:/var/run/docker.sock
       # LM Studio models directory for importing
       - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
     depends_on:

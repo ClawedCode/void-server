@@ -40,6 +40,21 @@ After(async function (this: VoidWorld, { result }) {
     const screenshot = await this.page.screenshot();
     this.attach(screenshot, 'image/png');
   }
+
+  // Clean up any chat sessions created during the test
+  if (this.testData.chatId && this.request) {
+    await this.request.delete(`${this.config.appUrl}/api/chat/${this.testData.chatId}`);
+    console.log(`🧹 Cleaned up test chat: ${this.testData.chatId}`);
+  }
+
+  // Clean up multiple chats if stored as array
+  if (Array.isArray(this.testData.chatIds) && this.request) {
+    for (const chatId of this.testData.chatIds) {
+      await this.request.delete(`${this.config.appUrl}/api/chat/${chatId}`);
+      console.log(`🧹 Cleaned up test chat: ${chatId}`);
+    }
+  }
+
   await this.page?.close();
   await this.context?.close();
   await this.request?.dispose();

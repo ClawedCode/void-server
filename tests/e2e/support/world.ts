@@ -2,10 +2,11 @@ import { World, IWorldOptions, setWorldConstructor } from '@cucumber/cucumber';
 import { Page, BrowserContext, APIRequestContext } from '@playwright/test';
 import { dockerConfig } from './config/docker.config';
 import { ciConfig } from './config/ci.config';
+import { nativeConfig } from './config/native.config';
 
 export interface VoidWorldParameters {
   appUrl: string;
-  environment: 'docker' | 'ci';
+  environment: 'docker' | 'ci' | 'native';
   useMocks?: boolean;
 }
 
@@ -24,6 +25,9 @@ export class VoidWorld extends World<VoidWorldParameters> {
     switch (options.parameters.environment) {
       case 'ci':
         this.config = ciConfig;
+        break;
+      case 'native':
+        this.config = nativeConfig;
         break;
       default:
         this.config = dockerConfig;

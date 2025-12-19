@@ -1,6 +1,8 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+const { findChrome, getChromeInfo } = require('./chrome-finder');
 
 /**
  * Browser Management Service
@@ -8,9 +10,8 @@ const path = require('path');
  * Manages persistent browser profiles with authentication states.
  * Each profile stores cookies/sessions for reuse by plugins.
  *
- * Browser profiles are stored in data/browsers/ which is:
- * - Mounted as a volume in Docker (persistent across container restarts)
- * - Accessible from host for native browser authentication
+ * Browser profiles are stored in data/browsers/ which is the user data directory.
+ * Native Chrome/Chromium browsers are launched with profile directories for authentication.
  */
 
 // Use data directory for persistence
@@ -23,15 +24,8 @@ const LEGACY_CONFIG_FILE = path.join(LEGACY_DATA_DIR, 'browsers.json');
 const DEFAULT_PORT_START = 9111;
 const DEFAULT_PORT_END = 9199;
 
-// Browser mode: always use Docker containers with noVNC
-// Docker is the only supported deployment method
-const useDockerBrowser = () => true;
-
-// Legacy alias for compatibility
-const isDocker = useDockerBrowser;
-
-// Track active browser instances
-const activeBrowsers = new Map();
+// Track running browser processes: Map<profileId, { pid, cdpPort, startedAt, process }>
+const runningBrowsers = new Map();
 
 // Playwright instance (lazy loaded)
 let chromium = null;
@@ -108,7 +102,7 @@ async function saveConfig(config) {
 }
 
 /**
- * Check if a port is available
+ * Check if a port is available (not in use)
  */
 async function isPortAvailable(port) {
   const net = require('net');
@@ -120,6 +114,23 @@ async function isPortAvailable(port) {
       resolve(true);
     });
     server.listen(port, '127.0.0.1');
+  });
+}
+
+/**
+ * Check if a CDP endpoint is active on a port
+ */
+async function isCdpActive(port) {
+  const http = require('http');
+  return new Promise((resolve) => {
+    const req = http.get(`http://127.0.0.1:${port}/json/version`, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.setTimeout(1000, () => {
+      req.destroy();
+      resolve(false);
+    });
   });
 }
 
@@ -159,7 +170,7 @@ async function listBrowsers() {
   const browsers = Object.entries(config.browsers).map(([id, browser]) => ({
     id,
     ...browser,
-    running: activeBrowsers.has(id)
+    running: runningBrowsers.has(id)
   }));
 
   // Check authentication status for each
@@ -181,7 +192,7 @@ async function getBrowser(id) {
   return {
     id,
     ...browser,
-    running: activeBrowsers.has(id),
+    running: runningBrowsers.has(id),
     authenticated: await checkAuthentication(id)
   };
 }
@@ -246,7 +257,7 @@ async function createBrowser(id, options = {}) {
  */
 async function deleteBrowser(id) {
   // Close if running
-  if (activeBrowsers.has(id)) {
+  if (runningBrowsers.has(id)) {
     await closeBrowser(id);
   }
 
@@ -283,6 +294,18 @@ async function checkAuthentication(id) {
 }
 
 /**
+ * Check if a process is still running by PID
+ */
+function isProcessRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get browser status
  */
 async function getBrowserStatus(id) {
@@ -293,14 +316,24 @@ async function getBrowserStatus(id) {
     return { success: false, error: 'Browser profile not found' };
   }
 
-  // In Docker, check container status
-  let running = activeBrowsers.has(id);
-  if (isDocker()) {
-    const dockerBrowserService = require('./docker-browser-service');
-    const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-    if (dockerAvailable) {
-      const containerStatus = await dockerBrowserService.getBrowserContainerStatus(id).catch(() => ({ running: false }));
-      running = containerStatus.running;
+  // Check if browser process is running (tracked by us)
+  let running = false;
+  const browserInfo = runningBrowsers.get(id);
+  if (browserInfo) {
+    running = isProcessRunning(browserInfo.pid);
+    if (!running) {
+      // Process died, clean up tracking
+      runningBrowsers.delete(id);
+    }
+  }
+
+  // Also check if CDP is active on the port (browser may have been started externally)
+  let cdpActive = false;
+  if (browser.port) {
+    cdpActive = await isCdpActive(browser.port);
+    // If CDP is active but we're not tracking it, update running status
+    if (cdpActive && !running) {
+      running = true;
     }
   }
 
@@ -308,48 +341,134 @@ async function getBrowserStatus(id) {
     success: true,
     id,
     name: browser.name,
+    port: browser.port,
     running,
+    cdpActive,
     authenticated: await checkAuthentication(id)
   };
 }
 
 /**
  * Launch browser for authentication
- * Uses Docker sidecar container with noVNC
+ * Opens native Chrome/Chromium window with profile directory
  */
 async function launchBrowser(id, options = {}) {
   const { url = 'about:blank' } = options;
 
-  const dockerBrowserService = require('./docker-browser-service');
-  // Check if Docker is accessible
-  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-  if (!dockerAvailable) {
-    const socketInfo = process.platform === 'win32'
-      ? 'Ensure Docker Desktop is running.'
-      : 'Ensure /var/run/docker.sock is mounted and has correct permissions.';
+  // Check if already running
+  const existingInfo = runningBrowsers.get(id);
+  if (existingInfo && isProcessRunning(existingInfo.pid)) {
     return {
-      success: false,
-      error: `Docker not accessible. ${socketInfo}`
+      success: true,
+      message: 'Browser already running',
+      pid: existingInfo.pid
     };
   }
-  return dockerBrowserService.startBrowserContainer(id, { url });
+
+  // Find Chrome executable
+  const chrome = findChrome();
+  if (!chrome) {
+    return {
+      success: false,
+      error: 'Chrome/Chromium not found. Install Google Chrome or run: npx playwright install chromium'
+    };
+  }
+
+  // Get profile info
+  const browser = await getBrowser(id);
+  if (!browser) {
+    return { success: false, error: 'Browser profile not found' };
+  }
+
+  const profileDir = getProfileDir(id);
+  const cdpPort = browser.port;
+
+  // Ensure profile directory exists
+  await fs.mkdir(profileDir, { recursive: true });
+
+  // Chrome launch arguments
+  const args = [
+    `--user-data-dir=${profileDir}`,
+    `--remote-debugging-port=${cdpPort}`,
+  ];
+
+  // Add URL if provided
+  if (url && url !== 'about:blank') {
+    args.push(url);
+  }
+
+  // Spawn Chrome process
+  const browserProcess = spawn(chrome.path, args, {
+    detached: true,
+    stdio: 'ignore'
+  });
+
+  // Allow Node to exit while browser runs
+  browserProcess.unref();
+
+  // Track the process
+  runningBrowsers.set(id, {
+    pid: browserProcess.pid,
+    cdpPort,
+    startedAt: Date.now(),
+    process: browserProcess
+  });
+
+  // Handle process exit to clean up tracking
+  browserProcess.on('exit', () => {
+    runningBrowsers.delete(id);
+  });
+
+  browserProcess.on('error', (err) => {
+    console.error(`Browser process error for ${id}:`, err.message);
+    runningBrowsers.delete(id);
+  });
+
+  console.log(`🌐 Launched browser for ${id} (PID: ${browserProcess.pid}, CDP: ${cdpPort})`);
+
+  return {
+    success: true,
+    pid: browserProcess.pid,
+    cdpPort
+  };
 }
 
 /**
  * Close a running browser
- * Stops the Docker sidecar container
+ * Terminates the native browser process
  */
 async function closeBrowser(id) {
-  const dockerBrowserService = require('./docker-browser-service');
-  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-  if (!dockerAvailable) {
-    return { success: false, error: 'Docker not accessible' };
+  const browserInfo = runningBrowsers.get(id);
+  if (!browserInfo) {
+    return { success: false, error: 'Browser not running' };
   }
-  return dockerBrowserService.stopBrowserContainer(id);
+
+  const { pid } = browserInfo;
+
+  // Platform-specific process termination
+  if (process.platform === 'win32') {
+    // Windows: use taskkill
+    spawn('taskkill', ['/PID', pid.toString(), '/F', '/T'], { stdio: 'ignore' });
+  } else {
+    // macOS/Linux: send SIGTERM for graceful close
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      // Process may already be dead
+    }
+  }
+
+  // Clean up tracking
+  runningBrowsers.delete(id);
+
+  console.log(`🌐 Closed browser for ${id} (PID: ${pid})`);
+
+  return { success: true };
 }
 
 /**
- * Get a browser context for plugin use (headless)
+ * Get a browser context for plugin use
+ * Connects to running browser via CDP, or launches headless if not running
  */
 async function getBrowserContext(id) {
   const chromium = await getPlaywright();
@@ -357,24 +476,35 @@ async function getBrowserContext(id) {
     throw new Error('Playwright not installed');
   }
 
-  const profileDir = path.join(DATA_DIR, id);
-
-  // Check if profile exists
-  const exists = await fs.access(profileDir).then(() => true).catch(() => false);
-  if (!exists) {
+  // Get browser config to find the CDP port
+  const config = await loadConfig();
+  const browserConfig = config.browsers[id];
+  if (!browserConfig) {
     throw new Error(`Browser profile not found: ${id}`);
   }
 
-  // Launch headless context with the profile
-  const context = await chromium.launchPersistentContext(profileDir, {
-    headless: true,
-    args: [
-      '--disable-blink-features=AutomationControlled',
-      '--disable-features=IsolateOrigins,site-per-process'
-    ]
-  });
+  const cdpPort = browserConfig.port;
+  if (!cdpPort) {
+    throw new Error(`Browser profile ${id} has no CDP port configured`);
+  }
 
-  return context;
+  // Check if browser is running on the CDP port
+  const cdpActive = await isCdpActive(cdpPort);
+  if (!cdpActive) {
+    throw new Error(`Browser not running on port ${cdpPort}. Launch the browser first from the Browsers page.`);
+  }
+
+  // Connect to the running browser via CDP
+  console.log(`🌐 Connecting to browser ${id} on CDP port ${cdpPort}`);
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+
+  // Get the default context (the one with the user's session)
+  const contexts = browser.contexts();
+  if (contexts.length === 0) {
+    throw new Error('No browser context available');
+  }
+
+  return contexts[0];
 }
 
 /**
@@ -396,7 +526,7 @@ async function updateBrowser(id, updates = {}) {
   }
 
   // Cannot update while running
-  if (activeBrowsers.has(id)) {
+  if (runningBrowsers.has(id)) {
     return { success: false, error: 'Cannot update browser while running. Close it first.' };
   }
 
@@ -443,27 +573,39 @@ function getPortRange() {
 }
 
 /**
- * Get noVNC URL for Docker browser (proxy to docker-browser-service)
+ * Get Chrome info for diagnostics
  */
-async function getNoVNCUrl(id) {
-  const dockerBrowserService = require('./docker-browser-service');
-  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-  if (!dockerAvailable) {
-    return { success: false, error: 'Docker not accessible' };
-  }
-  return dockerBrowserService.getNoVNCUrl(id);
+function getChromeStatus() {
+  return getChromeInfo();
 }
 
 /**
- * Get Docker browser container status (proxy to docker-browser-service)
+ * Check if running inside Docker container
  */
-async function getBrowserContainerStatus(id) {
-  const dockerBrowserService = require('./docker-browser-service');
-  const dockerAvailable = await dockerBrowserService.isDockerAvailable().catch(() => false);
-  if (!dockerAvailable) {
-    return { running: false };
+function isRunningInDocker() {
+  return fsSync.existsSync('/.dockerenv') ||
+    (fsSync.existsSync('/proc/1/cgroup') &&
+      fsSync.readFileSync('/proc/1/cgroup', 'utf8').includes('docker'));
+}
+
+/**
+ * Generate platform-specific authentication commands for running Chrome on host
+ * Used when server runs in Docker but browser auth needs to happen on host machine
+ */
+async function getAuthCommand(id, url = 'https://x.com/login') {
+  const browser = await getBrowser(id);
+  if (!browser) {
+    return null;
   }
-  return dockerBrowserService.getBrowserContainerStatus(id);
+
+  // Host path - data/browsers is mounted from host ./data/browsers
+  const hostProfileDir = `./data/browsers/${id}`;
+
+  return {
+    darwin: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --user-data-dir="${hostProfileDir}" "${url}"`,
+    win32: `start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="${hostProfileDir}" "${url}"`,
+    linux: `google-chrome --user-data-dir="${hostProfileDir}" "${url}"`
+  };
 }
 
 module.exports = {
@@ -480,8 +622,8 @@ module.exports = {
   getProfileDir,
   getUsedPorts,
   getPortRange,
-  isDocker,
-  getNoVNCUrl,
-  getBrowserContainerStatus,
+  getChromeStatus,
+  isRunningInDocker,
+  getAuthCommand,
   DATA_DIR
 };

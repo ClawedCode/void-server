@@ -107,7 +107,10 @@ Then('the response should contain available plugins', async function (this: Void
 
 Then('the response should contain a chat id', async function (this: VoidWorld) {
   const response = this.testData.lastResponse as Record<string, unknown>;
-  expect(response.id || response.chat?.id).toBeDefined();
+  const chatId = response.id || (response.chat as Record<string, unknown>)?.id;
+  expect(chatId).toBeDefined();
+  // Store chatId for cleanup in After hook
+  this.testData.chatId = chatId;
 });
 
 Then('the response should contain derived addresses', async function (this: VoidWorld) {

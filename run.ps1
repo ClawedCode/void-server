@@ -1,5 +1,5 @@
 # Void Server - Run Script for Windows
-# Prefers Docker, falls back to PM2/native if Docker unavailable.
+# Starts infrastructure (Docker) and application (PM2).
 
 $ErrorActionPreference = "Stop"
 
@@ -7,78 +7,30 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ScriptDir
 
-function Test-DockerAvailable {
-    $docker = Get-Command docker -ErrorAction SilentlyContinue
-    if (-not $docker) {
-        return $false
-    }
-    try {
-        $null = docker info 2>$null
-        return $LASTEXITCODE -eq 0
-    } catch {
-        return $false
-    }
+Write-Host "▶ " -ForegroundColor Green -NoNewline
+Write-Host "Starting infrastructure containers..."
+docker compose -f docker-compose.infra.yml up -d
+
+Write-Host "▶ " -ForegroundColor Green -NoNewline
+Write-Host "Starting void-server with PM2..."
+pm2 start ecosystem.config.js 2>$null
+if ($LASTEXITCODE -ne 0) {
+    pm2 restart ecosystem.config.js
 }
 
-function Start-Docker {
-    # On Windows, Docker Desktop uses named pipes - no GID configuration needed
-    # Browser sidecar support works automatically
-    Write-Host "▶ " -ForegroundColor Green -NoNewline
-    Write-Host "Browser sidecar support enabled (Docker Desktop)"
+Write-Host ""
+pm2 status
 
-    Write-Host "▶ " -ForegroundColor Green -NoNewline
-    Write-Host "Building latest Docker image..."
-    docker compose build
+Write-Host ""
+Write-Host "Void Server is running!" -ForegroundColor Green
+Write-Host ""
+Write-Host "  App:     http://localhost:4420"
+Write-Host "  Neo4j:   http://localhost:7474"
+Write-Host "  IPFS:    http://localhost:5001"
+Write-Host ""
 
-    Write-Host "▶ " -ForegroundColor Green -NoNewline
-    Write-Host "Starting Void Server with Docker..."
-    docker compose up -d
+Start-Process "http://localhost:4420"
 
-    Write-Host ""
-    docker compose ps
-
-    Write-Host ""
-    Write-Host "Void Server is running with Docker!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  App:     http://localhost:4420"
-    Write-Host "  Neo4j:   http://localhost:4421"
-    Write-Host ""
-    Write-Host "Streaming logs (Ctrl+C to exit)..." -ForegroundColor Cyan
-    Write-Host ""
-    docker compose logs -f
-}
-
-function Start-Native {
-    $pid = npx pm2 pid void-server 2>$null
-
-    if ($pid) {
-        Write-Host "▶ " -ForegroundColor Green -NoNewline
-        Write-Host "Void Server is already running. Restarting..."
-        npx pm2 restart ecosystem.config.js
-    } else {
-        Write-Host "▶ " -ForegroundColor Green -NoNewline
-        Write-Host "Starting Void Server..."
-        npx pm2 start ecosystem.config.js
-    }
-
-    Write-Host ""
-    npx pm2 status
-
-    Write-Host ""
-    Write-Host "Void Server is running!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  API:     http://localhost:4401"
-    Write-Host "  Client:  http://localhost:4480"
-    Write-Host ""
-    Write-Host "Streaming logs (Ctrl+C to exit)..." -ForegroundColor Cyan
-    Write-Host ""
-    npx pm2 logs
-}
-
-# Main
-if (Test-DockerAvailable) {
-    Start-Docker
-} else {
-    Write-Host "Docker not available, using PM2..." -ForegroundColor Yellow
-    Start-Native
-}
+Write-Host "Streaming logs (Ctrl+C to exit)..." -ForegroundColor Cyan
+Write-Host ""
+pm2 logs

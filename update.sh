@@ -1,6 +1,6 @@
 #!/bin/bash
 # Void Server - Update Script
-# Pull latest code, update containers, and restart services.
+# Pull latest code, update dependencies, and restart services.
 
 set -e
 
@@ -36,57 +36,11 @@ print_error() {
   echo -e "${RED}✖${NC} $1"
 }
 
-# Check if Docker is available
-check_docker() {
-  if command -v docker &>/dev/null; then
-    if docker info &>/dev/null 2>&1; then
-      return 0
-    fi
-  fi
-  return 1
-}
-
-# Configure Docker GID for browser sidecar support
-configure_docker_gid() {
-  if [[ -S /var/run/docker.sock ]]; then
-    local docker_gid
-    # Linux: use stat -c, macOS: use stat -f
-    if stat --version &>/dev/null 2>&1; then
-      docker_gid=$(stat -c '%g' /var/run/docker.sock)
-    else
-      docker_gid=$(stat -f '%g' /var/run/docker.sock)
-    fi
-
-    # Update .env file with DOCKER_GID
-    if [[ -f .env ]]; then
-      if grep -q "^DOCKER_GID=" .env; then
-        sed -i.bak "s/^DOCKER_GID=.*/DOCKER_GID=$docker_gid/" .env && rm -f .env.bak
-      else
-        echo "DOCKER_GID=$docker_gid" >> .env
-      fi
-    else
-      echo "DOCKER_GID=$docker_gid" > .env
-    fi
-    print_step "Docker socket GID: $docker_gid (browser sidecar enabled)"
-  fi
-}
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 print_header "Void Server Update"
-
-# Check Docker is available
-if ! check_docker; then
-  print_error "Docker is required to run Void Server"
-  echo ""
-  echo -e "Please install Docker Desktop from:"
-  echo -e "  ${CYAN}https://www.docker.com/products/docker-desktop/${NC}"
-  exit 1
-fi
-
-print_success "Docker is available"
 
 # Auto-stash uncommitted changes
 STASHED=false
@@ -107,31 +61,35 @@ if [[ -n $(git status --porcelain) ]]; then
   fi
 fi
 
-# Stop services
+# Stop PM2 services
 print_step "Stopping services..."
-docker compose stop 2>/dev/null || true
-
-# Clean up unused Docker resources
-print_step "Cleaning up unused Docker resources..."
-docker system prune -y
+pm2 stop void-server void-client 2>/dev/null || true
 
 # Pull latest code
 print_step "Pulling latest code..."
 git pull --rebase
 
-# Configure Docker GID for browser management
-configure_docker_gid
+# Update infrastructure containers
+print_step "Updating infrastructure containers..."
+docker compose -f docker-compose.infra.yml pull
+docker compose -f docker-compose.infra.yml up -d
 
-# Pull new images and rebuild
-print_step "Pulling latest Docker images..."
-docker compose pull
+# Update npm dependencies
+print_step "Updating server dependencies..."
+npm install
 
-print_step "Rebuilding and restarting containers..."
-docker compose up -d --build
+print_step "Updating client dependencies..."
+npm install --prefix client
 
-# Show status
+print_step "Rebuilding client..."
+npm run build --prefix client
+
+# Restart PM2
+print_step "Restarting services..."
+pm2 restart void-server void-client 2>/dev/null || pm2 start ecosystem.config.js
+
 echo ""
-docker compose ps
+pm2 status
 
 # Restore stashed changes
 if [[ "$STASHED" == true ]]; then
@@ -144,5 +102,6 @@ print_header "Update Complete!"
 echo -e "${GREEN}Void Server has been updated and restarted.${NC}"
 echo ""
 echo "  App:     http://localhost:4420"
-echo "  Neo4j:   http://localhost:4421"
+echo "  Neo4j:   http://localhost:7474"
+echo "  IPFS:    http://localhost:5001"
 echo ""

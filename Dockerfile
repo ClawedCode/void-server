@@ -30,9 +30,28 @@ RUN npm run build --prefix client
 # =============================================================================
 FROM node:20-slim
 
-# Install ffmpeg for video processing (used by video-download plugin)
-# Install pm2 globally for process management and log streaming
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# Install system dependencies:
+# - ffmpeg: video processing (video-download plugin)
+# - Chromium deps: required for Playwright browser automation
+# - pm2: process management and log streaming
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    # Chromium dependencies for Playwright
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g pm2
 
@@ -41,6 +60,11 @@ WORKDIR /app
 # Copy package files and install server production deps
 COPY package*.json ./
 RUN npm ci --omit=dev
+
+# Install Playwright's bundled Chromium for browser profile management
+# Set PLAYWRIGHT_BROWSERS_PATH so browsers are accessible by non-root user
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers
+RUN node node_modules/playwright/cli.js install chromium
 
 # Copy client source and dependencies for plugin rebuild capability
 # This allows rebuilding the client when plugins are installed at runtime
