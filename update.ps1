@@ -176,6 +176,10 @@ Pop-Location
 Write-Step "Rebuilding client..."
 npm run build --prefix client
 
+# Update PM2 if needed
+Write-Step "Updating PM2..."
+npx pm2 update 2>$null
+
 # Start PM2 with fresh config
 Write-Step "Starting services..."
 pm2 start ecosystem.config.js

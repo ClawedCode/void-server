@@ -160,6 +160,10 @@ npm install --prefix client
 print_step "Rebuilding client..."
 npm run build --prefix client
 
+# Update PM2 if needed
+print_step "Updating PM2..."
+npx pm2 update 2>/dev/null || true
+
 # Start PM2 with fresh config
 print_step "Starting services..."
 pm2 start ecosystem.config.js

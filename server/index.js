@@ -236,8 +236,8 @@ app.use('/api/ipfs', ipfsRoutes);
 app.use('/api/ollama', ollamaRoutes);
 
 // Plugins API
-const pluginsRoutes = require('./routes/plugins');
-app.use('/api/plugins', pluginsRoutes);
+// Note: Plugin routes are defined inline below for enhanced functionality
+// (Docker auto-rebuild, runtime status, etc.)
 
 // Initialize Provider system
 aiProvider.initialize();
@@ -579,6 +579,27 @@ app.put('/api/plugins/:name/config', (req, res) => {
       ? 'Configuration saved. Restart required for mount path change to take effect.'
       : 'Configuration saved.'
   });
+});
+
+// API to check for plugin updates
+app.get('/api/plugins/updates', async (req, res) => {
+  const updates = await pluginManager.checkAllPluginUpdates();
+  const hasUpdates = updates.some(u => u.hasUpdate);
+  res.json({ success: true, hasUpdates, plugins: updates });
+});
+
+// API to check single plugin for updates
+app.get('/api/plugins/:name/check-update', async (req, res) => {
+  const { name } = req.params;
+  const result = await pluginManager.checkPluginUpdate(name);
+  res.json(result);
+});
+
+// API to update a plugin
+app.post('/api/plugins/:name/update', async (req, res) => {
+  const { name } = req.params;
+  const result = await pluginManager.updatePlugin(name);
+  res.json(result);
 });
 
 // API to restart the server
