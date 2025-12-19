@@ -2,6 +2,13 @@
 
 ## [0.13.1] - 2025-12-19
 
+### Changed
+
+- **Consolidated docker-compose files** - Single `docker-compose.yml` for all infrastructure
+  - Removed `docker-compose.infra.yml` and `docker-compose.dev.yml`
+  - Added Ollama container to default infrastructure
+  - Simplified commands: `docker compose up -d` instead of `-f docker-compose.infra.yml`
+
 ### Fixed
 
 - **E2E test port configuration** - Tests now use port 4420 consistently for native mode
@@ -16,7 +23,7 @@ Major architecture change: void-server now runs natively with PM2 while infrastr
 ### Breaking Changes
 
 - **Hybrid native + Docker architecture** - void-server runs natively, infrastructure in Docker
-  - Added `docker-compose.infra.yml` for Neo4j and IPFS only
+  - Single `docker-compose.yml` for Neo4j, IPFS, and Ollama
   - void-server runs with PM2 for direct browser launching
   - Eliminates copy/paste workaround for browser authentication
   - Docker can't open desktop windows; native mode solves this cleanly

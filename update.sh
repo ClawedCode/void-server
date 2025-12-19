@@ -71,8 +71,8 @@ git pull --rebase
 
 # Update infrastructure containers
 print_step "Updating infrastructure containers..."
-docker compose -f docker-compose.infra.yml pull
-docker compose -f docker-compose.infra.yml up -d
+docker compose pull
+docker compose up -d
 
 # Update npm dependencies
 print_step "Updating server dependencies..."
@@ -104,4 +104,5 @@ echo ""
 echo "  App:     http://localhost:4420"
 echo "  Neo4j:   http://localhost:7474"
 echo "  IPFS:    http://localhost:5001"
+echo "  Ollama:  http://localhost:11434"
 echo ""

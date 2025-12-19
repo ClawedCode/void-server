@@ -80,8 +80,8 @@ if ($LASTEXITCODE -ne 0) {
 
 # Update infrastructure containers
 Write-Step "Updating infrastructure containers..."
-docker compose -f docker-compose.infra.yml pull
-docker compose -f docker-compose.infra.yml up -d
+docker compose pull
+docker compose up -d
 
 # Update npm dependencies
 Write-Step "Updating server dependencies..."
@@ -121,4 +121,5 @@ Write-Host ""
 Write-Host "  App:     http://localhost:4420"
 Write-Host "  Neo4j:   http://localhost:7474"
 Write-Host "  IPFS:    http://localhost:5001"
+Write-Host "  Ollama:  http://localhost:11434"
 Write-Host ""

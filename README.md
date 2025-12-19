@@ -27,7 +27,7 @@ cd void-server
 
 The setup script:
 - Installs Node.js dependencies
-- Starts infrastructure (Neo4j, IPFS) via Docker
+- Starts infrastructure (Neo4j, IPFS, Ollama) via Docker
 - Starts void-server natively with PM2
 
 ### 3. Access
@@ -221,20 +221,20 @@ Void Server uses a hybrid architecture: the application runs natively with PM2 w
 └──────────┼──────────────────────┼─────────────────────────┘
            │                      │
            ▼                      ▼ 
-┌───────────────────────────────────────────────────────────┐
-│           DOCKER INFRASTRUCTURE (docker-compose)          │
-│                                                           │
-│  ┌─────────────────────┐         ┌─────────────────────┐  │
-│  │     ipfs (:5001)    │         │    neo4j (:7687)    │  │
-│  │ ┌─────────────────┐ │         │ ┌─────────────────┐ │  │
-│  │ │    Kubo Node    │ │         │ │  Graph Database │ │  │
-│  │ │    + Gateway    │ │         │ │  (Memories)     │ │  │
-│  │ │    (:8080)      │ │         │ ├─────────────────┤ │  │
-│  │ └─────────────────┘ │         │ │  Browser :7474  │ │  │
-│  │   ipfs_data vol     │         │ └─────────────────┘ │  │
-│  └─────────────────────┘         │    neo4j_data vol   │  │
-│                                  └─────────────────────┘  │
-└───────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    DOCKER INFRASTRUCTURE (docker-compose)                    │
+│                                                                              │
+│  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────────────┐  │
+│  │  ipfs (:5001)    │   │  neo4j (:7687)   │   │  ollama (:11434)         │  │
+│  │ ┌──────────────┐ │   │ ┌──────────────┐ │   │ ┌──────────────────────┐ │  │
+│  │ │  Kubo Node   │ │   │ │Graph Database│ │   │ │   Local AI Models    │ │  │
+│  │ │  + Gateway   │ │   │ │  (Memories)  │ │   │ │ (Chat + Embeddings)  │ │  │
+│  │ │  (:8080)     │ │   │ ├──────────────┤ │   │ └──────────────────────┘ │  │
+│  │ └──────────────┘ │   │ │Browser :7474 │ │   │    data/models vol       │  │
+│  │  ipfs_data vol   │   │ └──────────────┘ │   └──────────────────────────┘  │
+│  └──────────────────┘   │  neo4j_data vol  │                                 │
+│                         └──────────────────┘                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Port Reference

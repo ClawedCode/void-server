@@ -128,12 +128,12 @@ fi
 
 print_header "Starting Infrastructure (Docker)"
 
-print_step "Starting Neo4j and IPFS containers..."
-docker compose -f docker-compose.infra.yml up -d
+print_step "Starting Neo4j, IPFS, and Ollama containers..."
+docker compose up -d
 
 # Wait for Neo4j to be healthy
 print_step "Waiting for Neo4j to be ready..."
-until docker inspect --format='{{.State.Health.Status}}' void-neo4j-dev 2>/dev/null | grep -q "healthy"; do
+until docker inspect --format='{{.State.Health.Status}}' void-neo4j 2>/dev/null | grep -q "healthy"; do
   sleep 2
   printf "."
 done
@@ -173,6 +173,7 @@ echo ""
 echo "  App:     http://localhost:4420"
 echo "  Neo4j:   http://localhost:7474"
 echo "  IPFS:    http://localhost:5001"
+echo "  Ollama:  http://localhost:11434"
 echo ""
 echo -e "${CYAN}Commands:${NC}"
 echo "  pm2 logs              View server logs"

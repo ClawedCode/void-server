@@ -24,7 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo -e "${GREEN}▶${NC} Starting infrastructure containers..."
-docker compose -f docker-compose.infra.yml up -d
+docker compose up -d
 
 echo -e "${GREEN}▶${NC} Starting void-server with PM2..."
 pm2 start ecosystem.config.js 2>/dev/null || pm2 restart ecosystem.config.js
@@ -38,6 +38,7 @@ echo ""
 echo "  App:     http://localhost:4420"
 echo "  Neo4j:   http://localhost:7474"
 echo "  IPFS:    http://localhost:5001"
+echo "  Ollama:  http://localhost:11434"
 echo ""
 
 open_browser "http://localhost:4420"

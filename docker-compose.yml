@@ -1,66 +1,10 @@
-services:
-  # ==========================================================================
-  # Void Server - Main Application
-  # ==========================================================================
-  # Docker ports are offset to avoid conflicts with native installations:
-  #   - App: 4420 (native uses 4401)
-  #   - Neo4j Browser: 4421 (native uses 7474)
-  #   - Neo4j Bolt: 4422 (native uses 7687)
-  void-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ghcr.io/clawedcode/void-server:latest
-    container_name: void-server
-    restart: unless-stopped
-    ports:
-      - "4420:4401"
-    labels:
-      # Enable Watchtower auto-updates for this container
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "com.centurylinklabs.watchtower.scope=void-server"
-    environment:
-      - NODE_ENV=production
-      - PORT=4401
-      # Neo4j connection (uses service name as hostname)
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-voidserver}
-      - NEO4J_DATABASE=neo4j
-      # Optional: LM Studio running on host machine
-      - LM_STUDIO_URL=${LM_STUDIO_URL:-http://host.docker.internal:1234/v1}
-      # IPFS connection (uses service name as hostname)
-      - IPFS_API_URL=http://ipfs:5001
-      - IPFS_GATEWAY_URL=http://ipfs:8080
-      # Watchtower API for triggering updates from UI
-      - WATCHTOWER_URL=http://watchtower:8080
-      - WATCHTOWER_TOKEN=${WATCHTOWER_TOKEN:-void-update-token}
-      # Ollama AI provider (uses service name as hostname)
-      - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434/v1}
-      - OLLAMA_MODELS=${OLLAMA_MODELS:-}
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-auto}
-      # LM Studio models path for importing into Ollama
-      - LM_STUDIO_MODELS_PATH=/lm-studio-models
-    volumes:
-      # Persistent data directories
-      - ./config:/app/config
-      - ./backups:/app/backups
-      - ./logs:/app/logs
-      - ./data:/app/data
-      # LM Studio models directory for importing
-      - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
-    depends_on:
-      neo4j:
-        condition: service_healthy
-    networks:
-      - void-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4401/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+# Docker Compose - Infrastructure Services
+# Usage: docker compose up -d
+#
+# Runs infrastructure services in Docker while void-server runs natively with PM2.
+# This enables direct browser launching for authentication (Docker can't open desktop windows).
 
+services:
   # ==========================================================================
   # Neo4j - Graph Database for Memory System
   # ==========================================================================
@@ -69,20 +13,17 @@ services:
     container_name: void-neo4j
     restart: unless-stopped
     ports:
-      - "4421:7474"  # HTTP (Neo4j Browser)
-      - "4422:7687"  # Bolt protocol
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt protocol
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-voidserver}
       - NEO4J_PLUGINS=["apoc"]
-      # Performance tuning
       - NEO4J_dbms_memory_heap_initial__size=512m
       - NEO4J_dbms_memory_heap_max__size=1G
       - NEO4J_dbms_memory_pagecache_size=512m
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
-    networks:
-      - void-network
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
       interval: 30s
@@ -98,15 +39,13 @@ services:
     container_name: void-ipfs
     restart: unless-stopped
     ports:
-      - "4423:5001"  # API port
-      - "4424:8080"  # Gateway port
+      - "5001:5001"   # API
+      - "8080:8080"   # Gateway
     environment:
       - IPFS_PROFILE=server
       - IPFS_TELEMETRY=off
     volumes:
       - ipfs_data:/data/ipfs
-    networks:
-      - void-network
     healthcheck:
       test: ["CMD-SHELL", "ipfs id || exit 1"]
       interval: 30s
@@ -122,55 +61,17 @@ services:
     container_name: void-ollama
     restart: unless-stopped
     ports:
-      - "4425:11434"
+      - "11434:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0
     volumes:
       - ./data/models:/root/.ollama
-      # Mount LM Studio models directory for importing (empty path = no mount)
-      - ${LM_STUDIO_MODELS_PATH:-./data/lm-studio-models}:/lm-studio-models:ro
-    networks:
-      - void-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-
-  # ==========================================================================
-  # Watchtower - Automatic Container Updates
-  # ==========================================================================
-  # Monitors for new Docker images and automatically updates containers.
-  # Also exposes HTTP API for on-demand update checks from the UI.
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: void-watchtower
-    restart: unless-stopped
-    environment:
-      # Docker API version (1.44 minimum required by Docker Desktop 4.x)
-      - DOCKER_API_VERSION=${DOCKER_API_VERSION:-1.44}
-      # Only watch void-server container (not neo4j, ipfs, etc.)
-      - WATCHTOWER_SCOPE=void-server
-      # Check for updates every 24 hours (86400 seconds)
-      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-86400}
-      # Clean up old images after update
-      - WATCHTOWER_CLEANUP=true
-      # Enable HTTP API for on-demand updates from UI
-      - WATCHTOWER_HTTP_API_UPDATE=true
-      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN:-void-update-token}
-      # Only update containers with this label
-      - WATCHTOWER_LABEL_ENABLE=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - void-network
-    labels:
-      - "com.centurylinklabs.watchtower.scope=void-server"
-
-networks:
-  void-network:
-    driver: bridge
 
 volumes:
   neo4j_data:

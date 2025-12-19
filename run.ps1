@@ -9,7 +9,7 @@ Set-Location $ScriptDir
 
 Write-Host "▶ " -ForegroundColor Green -NoNewline
 Write-Host "Starting infrastructure containers..."
-docker compose -f docker-compose.infra.yml up -d
+docker compose up -d
 
 Write-Host "▶ " -ForegroundColor Green -NoNewline
 Write-Host "Starting void-server with PM2..."
@@ -27,6 +27,7 @@ Write-Host ""
 Write-Host "  App:     http://localhost:4420"
 Write-Host "  Neo4j:   http://localhost:7474"
 Write-Host "  IPFS:    http://localhost:5001"
+Write-Host "  Ollama:  http://localhost:11434"
 Write-Host ""
 
 Start-Process "http://localhost:4420"

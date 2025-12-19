@@ -94,15 +94,15 @@ if ($missing.Count -gt 0) {
 
 Write-Header "Starting Infrastructure (Docker)"
 
-Write-Step "Starting Neo4j and IPFS containers..."
-docker compose -f docker-compose.infra.yml up -d
+Write-Step "Starting Neo4j, IPFS, and Ollama containers..."
+docker compose up -d
 
 # Wait for Neo4j
 Write-Step "Waiting for Neo4j to be ready..."
 do {
     Start-Sleep -Seconds 2
     Write-Host "." -NoNewline
-    $health = docker inspect --format='{{.State.Health.Status}}' void-neo4j-dev 2>$null
+    $health = docker inspect --format='{{.State.Health.Status}}' void-neo4j 2>$null
 } while ($health -ne "healthy")
 Write-Host ""
 Write-Success "Neo4j is ready"
@@ -142,6 +142,7 @@ Write-Host ""
 Write-Host "  App:     http://localhost:4420"
 Write-Host "  Neo4j:   http://localhost:7474"
 Write-Host "  IPFS:    http://localhost:5001"
+Write-Host "  Ollama:  http://localhost:11434"
 Write-Host ""
 Write-Host "Commands:" -ForegroundColor Cyan
 Write-Host "  pm2 logs              View server logs"
