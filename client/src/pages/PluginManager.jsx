@@ -16,6 +16,7 @@ import {
   PackagePlus,
   Link as LinkIcon,
   Hammer,
+  ArrowUpCircle,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -77,6 +78,8 @@ const PluginManager = () => {
   const [uninstallingPlugin, setUninstallingPlugin] = useState(null);
   const [togglingPlugin, setTogglingPlugin] = useState(null);
   const [restarting, setRestarting] = useState(false);
+  const [pluginUpdates, setPluginUpdates] = useState({});
+  const [updatingPlugin, setUpdatingPlugin] = useState(null);
 
   // Listen for rebuild WebSocket events
   useEffect(() => {
@@ -146,9 +149,49 @@ const PluginManager = () => {
     setLoading(false);
   }, []);
 
+  // Fetch plugin updates
+  const fetchPluginUpdates = useCallback(async () => {
+    const response = await fetch('/api/plugins/updates');
+    if (response.ok) {
+      const data = await response.json();
+      const updates = {};
+      (data.plugins || []).forEach(p => {
+        if (p.hasUpdate) {
+          updates[p.name] = p;
+        }
+      });
+      setPluginUpdates(updates);
+    }
+  }, []);
+
+  // Handle plugin update
+  const handlePluginUpdate = async plugin => {
+    setUpdatingPlugin(plugin.name);
+    toast.loading(`Updating ${plugin.name}...`, { id: `update-${plugin.name}` });
+
+    const response = await fetch(`/api/plugins/${plugin.name}/update`, {
+      method: 'POST',
+    });
+
+    const result = await response.json();
+    setUpdatingPlugin(null);
+
+    if (result.success) {
+      toast.success(`${plugin.name} updated to v${result.newVersion}`, {
+        id: `update-${plugin.name}`,
+      });
+      setPendingChanges(prev => [...prev, { type: 'update', plugin: plugin.name }]);
+      fetchPlugins();
+      fetchPluginUpdates();
+    } else {
+      toast.error(result.error || 'Update failed', { id: `update-${plugin.name}` });
+    }
+  };
+
   useEffect(() => {
     fetchPlugins();
-  }, [fetchPlugins]);
+    fetchPluginUpdates();
+  }, [fetchPlugins, fetchPluginUpdates]);
 
   // Handle enable/disable toggle
   const handleToggle = async plugin => {
@@ -472,19 +515,25 @@ const PluginManager = () => {
                         />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-[var(--color-text-primary)]">
                             {plugin.navConfig?.navTitle || plugin.name.replace('void-plugin-', '')}
                           </h3>
+                          <span className="badge badge-secondary text-xs font-mono">
+                            v{plugin.version || '?'}
+                          </span>
+                          {pluginUpdates[plugin.name] && (
+                            <span className="badge bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-xs flex items-center gap-1">
+                              <ArrowUpCircle className="w-3 h-3" />
+                              v{pluginUpdates[plugin.name].latestVersion} available
+                            </span>
+                          )}
                           <span
                             className={`badge ${isDisabled ? 'badge-secondary' : 'badge-success'}`}
                           >
                             {isDisabled ? 'disabled' : 'enabled'}
                           </span>
                           {plugin.loaded && <span className="badge badge-info">loaded</span>}
-                          <span className="badge badge-secondary text-xs">
-                            {plugin.installationType}
-                          </span>
                           {plugin.builtIn && (
                             <span className="badge badge-primary text-xs">built-in</span>
                           )}
@@ -524,6 +573,27 @@ const PluginManager = () => {
                           <ToggleRight className="w-5 h-5" />
                         )}
                       </button>
+
+                      {/* Update - show if update available */}
+                      {pluginUpdates[plugin.name] && (
+                        <button
+                          onClick={() => handlePluginUpdate(plugin)}
+                          disabled={updatingPlugin === plugin.name}
+                          className="btn btn-primary flex items-center gap-2"
+                        >
+                          {updatingPlugin === plugin.name ? (
+                            <>
+                              <RotateCw className="w-4 h-4 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <ArrowUpCircle className="w-4 h-4" />
+                              Update
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       {/* Configure */}
                       <button
