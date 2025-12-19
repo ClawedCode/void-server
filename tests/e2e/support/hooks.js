@@ -10,7 +10,7 @@ let apiContext = null;
 setDefaultTimeout(30000);
 
 const TEST_ENV = process.env.TEST_ENV || 'native';
-const APP_URL = process.env.TEST_APP_URL || (TEST_ENV === 'docker' ? 'http://localhost:4420' : 'http://localhost:4401');
+const APP_URL = process.env.TEST_APP_URL || 'http://localhost:4420';
 // When app runs in Docker, use host.docker.internal to reach mock on host
 const MOCK_HOST = TEST_ENV === 'docker' ? 'host.docker.internal' : 'localhost';
 

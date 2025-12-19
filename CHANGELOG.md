@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.1] - 2025-12-19
+
+### Fixed
+
+- **E2E test port configuration** - Tests now use port 4420 consistently for native mode
+
+---
+
 ## [0.13.0] - 2025-12-19
 
 Major architecture change: void-server now runs natively with PM2 while infrastructure (Neo4j, IPFS) runs in Docker. This enables proper browser authentication and Playwright automation.
