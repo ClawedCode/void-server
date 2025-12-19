@@ -321,6 +321,7 @@ const execGit = (args, options = {}) => {
   const result = spawnSync('git', args, {
     cwd: options.cwd || PROJECT_ROOT,
     encoding: 'utf8',
+    windowsHide: true,
     ...options
   });
 
@@ -523,7 +524,8 @@ const installFromGitToPath = (gitUrl, pluginName, branch, pluginPath) => {
   console.log(`📥 Cloning plugin from ${gitUrl}`);
   const cloneResult = spawnSync('git', ['clone', '--depth', '1', '-b', branch, gitUrl, pluginPath], {
     encoding: 'utf8',
-    cwd: path.dirname(pluginPath)
+    cwd: path.dirname(pluginPath),
+    windowsHide: true
   });
 
   if (cloneResult.status !== 0) {

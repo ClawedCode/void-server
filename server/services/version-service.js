@@ -363,7 +363,8 @@ function rebuildClient() {
         ...process.env,
         NODE_ENV: 'production',
         NODE_OPTIONS: '--max-old-space-size=4096'
-      }
+      },
+      windowsHide: true
     });
 
     let stdout = '';

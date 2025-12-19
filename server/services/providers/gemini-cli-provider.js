@@ -35,7 +35,8 @@ class GeminiCliProvider extends BaseProvider {
 
       const proc = spawn(this.command, args, {
         timeout: this.timeout,
-        env: { ...process.env }
+        env: { ...process.env },
+        windowsHide: true
       });
 
       proc.stdout.on('data', (data) => {
@@ -78,7 +79,8 @@ class GeminiCliProvider extends BaseProvider {
   async testConnection() {
     return new Promise((resolve) => {
       const proc = spawn(this.command, ['--version'], {
-        timeout: 10000
+        timeout: 10000,
+        windowsHide: true
       });
 
       let stdout = '';

@@ -5,19 +5,25 @@
  * Falls back gracefully if CLI is not installed.
  */
 
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 // Cache for model detection (refreshed on demand)
 let cachedModels = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 60000; // 1 minute
+const isWindows = process.platform === 'win32';
 
 /**
- * Check if lms CLI is available
+ * Check if lms CLI is available (cross-platform)
  */
 function isCliAvailable() {
-  const result = execSync('which lms 2>/dev/null || echo ""', { encoding: 'utf8' });
-  return result.trim().length > 0;
+  const cmd = isWindows ? 'where' : 'which';
+  const result = spawnSync(cmd, ['lms'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true
+  });
+  return result.status === 0 && result.stdout.trim().length > 0;
 }
 
 /**
@@ -103,6 +109,19 @@ function parseLoadedModels(output) {
 }
 
 /**
+ * Run lms command safely (cross-platform)
+ */
+function runLmsCommand(args) {
+  const result = spawnSync('lms', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true
+  });
+  // Combine stdout and stderr for parsing
+  return (result.stdout || '') + (result.stderr || '');
+}
+
+/**
  * Get all available models (downloaded)
  */
 function getAvailableModels(forceRefresh = false) {
@@ -115,7 +134,7 @@ function getAvailableModels(forceRefresh = false) {
     return { available: false, error: 'lms CLI not found', llm: [], embedding: [] };
   }
 
-  const output = execSync('lms ls 2>&1', { encoding: 'utf8' });
+  const output = runLmsCommand(['ls']);
   const models = parseModelList(output);
 
   cachedModels = {
@@ -136,7 +155,7 @@ function getLoadedModels() {
     return { available: false, error: 'lms CLI not found', models: [] };
   }
 
-  const output = execSync('lms ps 2>&1', { encoding: 'utf8' });
+  const output = runLmsCommand(['ps']);
   const models = parseLoadedModels(output);
 
   return {

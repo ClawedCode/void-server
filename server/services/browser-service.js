@@ -400,7 +400,8 @@ async function launchBrowser(id, options = {}) {
   // Spawn Chrome process
   const browserProcess = spawn(chrome.path, args, {
     detached: true,
-    stdio: 'ignore'
+    stdio: 'ignore',
+    windowsHide: true
   });
 
   // Allow Node to exit while browser runs
@@ -448,7 +449,7 @@ async function closeBrowser(id) {
   // Platform-specific process termination
   if (process.platform === 'win32') {
     // Windows: use taskkill
-    spawn('taskkill', ['/PID', pid.toString(), '/F', '/T'], { stdio: 'ignore' });
+    spawn('taskkill', ['/PID', pid.toString(), '/F', '/T'], { stdio: 'ignore', windowsHide: true });
   } else {
     // macOS/Linux: send SIGTERM for graceful close
     try {

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.13.7] - 2025-12-19
+
+### Fixed
+
+- **Windows console windows flashing** - Added `windowsHide: true` to all spawn calls
+  - Fixed PowerShell/cmd windows popping up during startup and operations
+  - Affected: PM2 restart, git operations, browser launch, CLI providers, ffmpeg checks
+- **Cross-platform LM Studio CLI detection** - Fixed Unix-only `which` command on Windows
+  - Uses `where` on Windows, `which` on macOS/Linux
+  - Uses `spawnSync` instead of `execSync` with shell redirections
+  - Prevents "The system cannot find the path specified" errors during embedding status checks
+- **Plugin manifest version** - Updated void-plugin-videodownload to 2.1.0
+
+---
+
 ## [0.13.6] - 2025-12-19
 
 ### Fixed
