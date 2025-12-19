@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.1] - 2025-12-19
+
+### Changed
+
+- **Generic browser profiles** - Browser profiles no longer tied to X.com
+  - Added optional `startUrl` field to specify URL to load on launch
+  - Leave empty for a blank browser, or set specific login URL
+  - Removed hardcoded X.com references from launch buttons
+- **Renamed "Authenticated" to "Has Session Data"** - More accurate terminology
+  - Status now reflects whether cookies/session files exist
+  - Not a verification of actual authentication to any service
+
+---
+
 ## [0.14.0] - 2025-12-19
 
 ### New Features
