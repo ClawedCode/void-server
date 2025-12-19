@@ -31,6 +31,10 @@ const BUILT_IN_PLUGINS = [
 const pluginVersionCache = new Map();
 const PLUGIN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+// Rate limit backoff tracking
+let rateLimitedUntil = 0;
+const RATE_LIMIT_BACKOFF = 60 * 1000; // 1 minute backoff after rate limit
+
 // Ensure config directory exists
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -824,13 +828,21 @@ const fetchLatestVersion = (repoUrl) => {
     };
 
     const apiUrl = `https://api.github.com/repos/${apiPath}/releases/latest`;
+
+    // Check if we're in rate limit backoff
+    if (Date.now() < rateLimitedUntil) {
+      console.log(`⏳ Skipping API call (rate limit backoff): ${apiUrl}`);
+      return resolve({ success: false, error: 'GitHub API rate limit exceeded', rateLimited: true });
+    }
+
     console.log(`🔍 Checking plugin version: ${apiUrl}`);
 
     https.get(options, (response) => {
       // Handle rate limiting
       if (response.statusCode === 403) {
         console.log(`⚠️ Rate limited (403) for: ${apiUrl}`);
-        return resolve({ success: false, error: 'GitHub API rate limit exceeded' });
+        rateLimitedUntil = Date.now() + RATE_LIMIT_BACKOFF;
+        return resolve({ success: false, error: 'GitHub API rate limit exceeded', rateLimited: true });
       }
 
       // Handle no releases

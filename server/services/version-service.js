@@ -18,6 +18,10 @@ let cachedLatestVersion = null;
 let lastCheckTime = 0;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour (GitHub rate limit is 60 req/hour)
 
+// Rate limit backoff tracking
+let rateLimitedUntil = 0;
+const RATE_LIMIT_BACKOFF = 60 * 1000; // 1 minute backoff after rate limit
+
 /**
  * Get current version from package.json
  */
@@ -31,6 +35,12 @@ function getCurrentVersion() {
  */
 function fetchLatestRelease() {
   return new Promise((resolve, reject) => {
+    // Check if we're in rate limit backoff
+    if (Date.now() < rateLimitedUntil) {
+      console.log(`⏳ Skipping API call (rate limit backoff): ${GITHUB_API}`);
+      return resolve(null);
+    }
+
     const options = {
       headers: {
         'User-Agent': 'void-server',
@@ -59,8 +69,9 @@ function fetchLatestRelease() {
         } else if (res.statusCode === 404) {
           resolve(null); // No releases yet
         } else if (res.statusCode === 403) {
-          // Rate limited - return null gracefully, will use cached data if available
+          // Rate limited - set backoff and return null
           console.log('⚠️ GitHub API rate limited (403). Using cached version data if available.');
+          rateLimitedUntil = Date.now() + RATE_LIMIT_BACKOFF;
           resolve(null);
         } else {
           reject(new Error(`GitHub API returned ${res.statusCode}`));
