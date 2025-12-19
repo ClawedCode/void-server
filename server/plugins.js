@@ -395,12 +395,22 @@ const isGitUrl = (url) => {
  * @returns {string} Release zip URL
  */
 const buildReleaseUrl = (repoUrl, version) => {
-  // Convert git@github.com:user/repo.git to https://github.com/user/repo
-  let baseUrl = repoUrl
-    .replace('git@github.com:', 'https://github.com/')
-    .replace(/\.git$/, '');
+  // Extract user/repo from various URL formats
+  const match = repoUrl.match(/github\.com[/:]([^/]+\/[^/.]+)/);
+  const repoPath = match ? match[1] : null;
 
-  return `${baseUrl}/archive/refs/tags/v${version}.zip`;
+  if (!repoPath) {
+    // Fallback: try to clean up URL directly
+    let baseUrl = repoUrl
+      .replace('git@github.com:', 'https://github.com/')
+      .replace(/\.git$/, '')
+      .replace(/\/archive\/.*$/, '');
+    const vPrefix = version.startsWith('v') ? '' : 'v';
+    return `${baseUrl}/archive/refs/tags/${vPrefix}${version}.zip`;
+  }
+
+  const vPrefix = version.startsWith('v') ? '' : 'v';
+  return `https://github.com/${repoPath}/archive/refs/tags/${vPrefix}${version}.zip`;
 };
 
 /**
@@ -1016,6 +1026,7 @@ const updatePlugin = async (pluginName) => {
   // Update config with new version
   config[pluginName] = config[pluginName] || {};
   config[pluginName].installedVersion = latestResult.version;
+  config[pluginName].installedFrom = releaseUrl;
   config[pluginName].updatedAt = new Date().toISOString();
   saveConfig(config);
 
