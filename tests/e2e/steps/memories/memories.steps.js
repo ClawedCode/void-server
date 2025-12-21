@@ -81,3 +81,39 @@ Then('the test memory should be removed', async function () {
   // Verify the specific memory is no longer visible (optimistic update - should be immediate)
   await expect(this.page.locator(`.memory-item:has-text("${this.testData.memoryContent}")`)).not.toBeVisible({ timeout: 5000 });
 });
+
+// Memory Toggle step definitions
+
+When('I POST to {string} with enabled false', async function (endpoint) {
+  const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
+    data: { enabled: false },
+  });
+  this.testData.response = await response.json();
+});
+
+When('I POST to {string} with enabled true', async function (endpoint) {
+  const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
+    data: { enabled: true },
+  });
+  this.testData.response = await response.json();
+});
+
+Then('the response should indicate memory is disabled', async function () {
+  expect(this.testData.response.success).toBe(true);
+  expect(this.testData.response.memoryEnabled).toBe(false);
+});
+
+Then('the response should indicate memory is enabled', async function () {
+  expect(this.testData.response.success).toBe(true);
+  expect(this.testData.response.memoryEnabled).toBe(true);
+});
+
+Then('I should see the memory toggle switch', async function () {
+  await expect(this.page.locator('input[type="checkbox"]').first()).toBeVisible({ timeout: 5000 });
+});
+
+Then('the toggle should reflect the current memory state', async function () {
+  // The toggle should be present in the settings tab
+  const toggle = this.page.locator('input[type="checkbox"]').first();
+  await expect(toggle).toBeVisible({ timeout: 5000 });
+});

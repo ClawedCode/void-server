@@ -35,3 +35,46 @@ Feature: Chat System
   Scenario: API - Create chat session
     When I POST to "/api/chat" with a template
     Then the response should contain a chat id
+
+  # Conversation Branching Tests
+
+  @api @smoke
+  Scenario: API - List branches for a chat
+    Given I have a chat with messages
+    When I GET the chat branches
+    Then the response should contain at least one branch
+
+  @api
+  Scenario: API - Create a branch from a message
+    Given I have a chat with messages
+    When I create a branch from the first message
+    Then the response should contain the new branch
+    And the chat should have 2 branches
+
+  @api
+  Scenario: API - Get tree structure
+    Given I have a chat with messages
+    When I GET the chat tree structure
+    Then the response should contain tree nodes
+    And each node should have an id and role
+
+  @api
+  Scenario: API - Switch between branches
+    Given I have a chat with multiple branches
+    When I switch to a different branch
+    Then the active branch should change
+    And I should get messages for that branch
+
+  @ui
+  Scenario: View conversation tree page
+    Given I have a chat with multiple branches
+    When I navigate to the tree view page
+    Then I should see the tree visualization
+    And I should see zoom controls
+
+  @ui
+  Scenario: Branch indicator shows when multiple branches
+    Given I have a chat with multiple branches
+    And I am viewing that chat
+    Then I should see the branch indicator badge
+    And it should show the branch count

@@ -43,3 +43,21 @@ Feature: Memories System
   Scenario: API - Get memory stats
     When I GET "/api/memories/stats"
     Then the response should contain statistics
+
+  # Memory Toggle Tests
+
+  @api @requires-neo4j
+  Scenario: API - Toggle memory system off
+    When I POST to "/api/memories/toggle" with enabled false
+    Then the response should indicate memory is disabled
+
+  @api @requires-neo4j
+  Scenario: API - Toggle memory system on
+    When I POST to "/api/memories/toggle" with enabled true
+    Then the response should indicate memory is enabled
+
+  @ui @requires-neo4j
+  Scenario: Memory toggle switch on settings tab
+    When I click the "Settings" tab
+    Then I should see the memory toggle switch
+    And the toggle should reflect the current memory state
