@@ -180,10 +180,8 @@ When('I navigate to the tree view page', async function () {
 });
 
 Then('I should see the tree visualization', async function () {
-  // Look for SVG with large viewBox (tree canvas) or containing tree nodes
-  await expect(this.page.locator('svg[viewBox]').first()).toBeVisible({ timeout: 5000 });
-  // Also verify tree has nodes
-  await expect(this.page.locator('.nodes, g.nodes')).toBeVisible({ timeout: 5000 });
+  // Look for the conversation tree SVG with data-testid
+  await expect(this.page.locator('[data-testid="conversation-tree"]')).toBeVisible({ timeout: 5000 });
 });
 
 Then('I should see zoom controls', async function () {

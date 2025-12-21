@@ -279,6 +279,7 @@ function BranchTreeOverlay({
         >
         <svg
           ref={svgRef}
+          data-testid="conversation-tree"
           width={maxX}
           height={maxY}
           viewBox={`0 0 ${maxX} ${maxY}`}
