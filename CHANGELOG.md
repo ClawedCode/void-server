@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.2] - 2025-12-20
+
+### Fixed
+
+- **Server restart crash** - Fixed `logStreamer.kill is not a function` error
+  - Graceful shutdown was calling `.kill()` but fs.watch returns `.close()`
+  - Caused white screen when clicking restart button after plugin updates
+
+---
+
 ## [0.15.1] - 2025-12-20
 
 ### Fixed
