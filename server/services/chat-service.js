@@ -1,6 +1,11 @@
 /**
  * Chat Service
  * Manages chat sessions and message persistence
+ *
+ * Schema v2: Tree-based messages with branching support
+ * - Messages stored as object { [id]: msg } for O(1) lookup
+ * - Each message has parentId forming a tree structure
+ * - Branches track fork points and tips (leaf nodes)
  */
 
 const fs = require('fs');
@@ -9,6 +14,8 @@ const crypto = require('crypto');
 
 const CHATS_DIR = path.resolve(__dirname, '../../data/chats');
 const LEGACY_CHATS_DIR = path.resolve(__dirname, '../../config/prompts/chats');
+
+const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * Ensure chats directory exists
@@ -24,6 +31,20 @@ function ensureChatsDir() {
  */
 function generateChatId() {
   return crypto.randomUUID();
+}
+
+/**
+ * Generate a unique message ID
+ */
+function generateMessageId() {
+  return `msg-${crypto.randomUUID()}`;
+}
+
+/**
+ * Generate a unique branch ID
+ */
+function generateBranchId() {
+  return `branch-${crypto.randomUUID()}`;
 }
 
 /**
@@ -108,6 +129,339 @@ function migrateChatToFolder(chatId) {
 }
 
 // ============================================================================
+// Schema v2 Migration (Tree Structure)
+// ============================================================================
+
+/**
+ * Migrate a chat from v1 (linear array) to v2 (tree structure)
+ */
+function migrateToTreeStructure(chat) {
+  // Already migrated
+  if (chat.schemaVersion === CURRENT_SCHEMA_VERSION) {
+    return chat;
+  }
+
+  console.log(`🌳 Migrating chat "${chat.title}" to tree structure...`);
+
+  // Convert messages array to object with IDs
+  const messagesObj = {};
+  let prevId = null;
+
+  for (const msg of chat.messages || []) {
+    const id = generateMessageId();
+    messagesObj[id] = {
+      id,
+      parentId: prevId,
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      // Preserve any metadata (provider, model, duration, etc.)
+      ...(msg.provider && { provider: msg.provider }),
+      ...(msg.model && { model: msg.model }),
+      ...(msg.duration && { duration: msg.duration }),
+      ...(msg.debug && { debug: msg.debug })
+    };
+    prevId = id;
+  }
+
+  // Create default main branch
+  const mainBranchId = 'branch-main';
+  const branches = [{
+    id: mainBranchId,
+    name: 'Main',
+    createdAt: chat.createdAt,
+    forkPointMessageId: null, // null for main branch
+    tipMessageId: prevId, // Last message (or null if empty)
+    isActive: true
+  }];
+
+  // Build migrated chat
+  const migratedChat = {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    id: chat.id,
+    templateId: chat.templateId,
+    title: chat.title,
+    createdAt: chat.createdAt,
+    updatedAt: chat.updatedAt,
+    providerOverride: chat.providerOverride,
+    messages: messagesObj,
+    branches,
+    activeBranchId: mainBranchId
+  };
+
+  console.log(`✅ Migrated ${Object.keys(messagesObj).length} messages to tree structure`);
+  return migratedChat;
+}
+
+// ============================================================================
+// Tree Traversal Helpers
+// ============================================================================
+
+/**
+ * Get the linear path from root to a specific message
+ * Returns array of message IDs from root to target (inclusive)
+ */
+function getMessagePath(chat, messageId) {
+  if (!messageId || !chat.messages[messageId]) {
+    return [];
+  }
+
+  const path = [];
+  let currentId = messageId;
+
+  while (currentId) {
+    path.unshift(currentId);
+    currentId = chat.messages[currentId]?.parentId;
+  }
+
+  return path;
+}
+
+/**
+ * Get all messages in order for a branch (from root to tip)
+ */
+function getBranchMessages(chat, branchId) {
+  const branch = chat.branches?.find(b => b.id === branchId);
+  if (!branch) {
+    return [];
+  }
+
+  const path = getMessagePath(chat, branch.tipMessageId);
+  return path.map(id => chat.messages[id]);
+}
+
+/**
+ * Get all descendants of a message (children, grandchildren, etc.)
+ */
+function getDescendants(chat, messageId) {
+  const descendants = [];
+  const children = Object.values(chat.messages || {}).filter(m => m.parentId === messageId);
+
+  for (const child of children) {
+    descendants.push(child.id);
+    descendants.push(...getDescendants(chat, child.id));
+  }
+
+  return descendants;
+}
+
+/**
+ * Get direct children of a message
+ */
+function getChildren(chat, messageId) {
+  return Object.values(chat.messages || {}).filter(m => m.parentId === messageId);
+}
+
+/**
+ * Find all leaf nodes (messages with no children) in the tree
+ */
+function getLeafNodes(chat) {
+  const allIds = new Set(Object.keys(chat.messages || {}));
+  const parentIds = new Set(Object.values(chat.messages || {}).map(m => m.parentId).filter(Boolean));
+
+  return [...allIds].filter(id => !parentIds.has(id));
+}
+
+/**
+ * Get tree structure for visualization
+ * Returns nested structure suitable for rendering
+ */
+function getTreeStructure(chat) {
+  const messages = chat.messages || {};
+
+  // Find root messages (no parent)
+  const roots = Object.values(messages).filter(m => !m.parentId);
+
+  function buildNode(msg) {
+    const children = Object.values(messages).filter(m => m.parentId === msg.id);
+    return {
+      id: msg.id,
+      role: msg.role,
+      preview: msg.content?.substring(0, 50) + (msg.content?.length > 50 ? '...' : ''),
+      timestamp: msg.timestamp,
+      children: children.map(buildNode)
+    };
+  }
+
+  return roots.map(buildNode);
+}
+
+// ============================================================================
+// Branch Management
+// ============================================================================
+
+/**
+ * Create a new branch forking from a specific message
+ */
+function createBranch(chatId, options = {}) {
+  const chat = getChat(chatId);
+  if (!chat) {
+    return { success: false, error: `Chat "${chatId}" not found` };
+  }
+
+  const { forkPointMessageId, name } = options;
+
+  // Validate fork point exists (unless creating from scratch)
+  if (forkPointMessageId && !chat.messages[forkPointMessageId]) {
+    return { success: false, error: 'Fork point message not found' };
+  }
+
+  const branchId = generateBranchId();
+  const branchNumber = chat.branches.length + 1;
+
+  const newBranch = {
+    id: branchId,
+    name: name || `Branch ${branchNumber}`,
+    createdAt: new Date().toISOString(),
+    forkPointMessageId: forkPointMessageId || null,
+    tipMessageId: forkPointMessageId || null, // Start at fork point
+    isActive: false
+  };
+
+  chat.branches.push(newBranch);
+  chat.updatedAt = new Date().toISOString();
+
+  const chatPath = getChatPath(chatId);
+  fs.writeFileSync(chatPath, JSON.stringify(chat, null, 2));
+
+  console.log(`🌿 Created branch "${newBranch.name}" from message ${forkPointMessageId || 'root'}`);
+  return { success: true, branch: newBranch, chat };
+}
+
+/**
+ * Switch to a different branch
+ */
+function setActiveBranch(chatId, branchId) {
+  const chat = getChat(chatId);
+  if (!chat) {
+    return { success: false, error: `Chat "${chatId}" not found` };
+  }
+
+  const branch = chat.branches.find(b => b.id === branchId);
+  if (!branch) {
+    return { success: false, error: `Branch "${branchId}" not found` };
+  }
+
+  // Deactivate all, activate selected
+  chat.branches.forEach(b => { b.isActive = (b.id === branchId); });
+  chat.activeBranchId = branchId;
+  chat.updatedAt = new Date().toISOString();
+
+  const chatPath = getChatPath(chatId);
+  fs.writeFileSync(chatPath, JSON.stringify(chat, null, 2));
+
+  console.log(`🔀 Switched to branch "${branch.name}"`);
+  return { success: true, branch, chat };
+}
+
+/**
+ * Update branch metadata
+ */
+function updateBranch(chatId, branchId, updates) {
+  const chat = getChat(chatId);
+  if (!chat) {
+    return { success: false, error: `Chat "${chatId}" not found` };
+  }
+
+  const branchIndex = chat.branches.findIndex(b => b.id === branchId);
+  if (branchIndex === -1) {
+    return { success: false, error: `Branch "${branchId}" not found` };
+  }
+
+  // Only allow updating name
+  if (updates.name !== undefined) {
+    chat.branches[branchIndex].name = updates.name;
+  }
+
+  chat.updatedAt = new Date().toISOString();
+
+  const chatPath = getChatPath(chatId);
+  fs.writeFileSync(chatPath, JSON.stringify(chat, null, 2));
+
+  console.log(`✏️ Updated branch "${chat.branches[branchIndex].name}"`);
+  return { success: true, branch: chat.branches[branchIndex], chat };
+}
+
+/**
+ * Delete a branch (and optionally its messages)
+ */
+function deleteBranch(chatId, branchId, deleteMessages = false) {
+  const chat = getChat(chatId);
+  if (!chat) {
+    return { success: false, error: `Chat "${chatId}" not found` };
+  }
+
+  const branchIndex = chat.branches.findIndex(b => b.id === branchId);
+  if (branchIndex === -1) {
+    return { success: false, error: `Branch "${branchId}" not found` };
+  }
+
+  const branch = chat.branches[branchIndex];
+
+  // Cannot delete main branch
+  if (branch.id === 'branch-main') {
+    return { success: false, error: 'Cannot delete the main branch' };
+  }
+
+  // If deleting messages, remove all messages unique to this branch
+  if (deleteMessages && branch.forkPointMessageId) {
+    const branchPath = getMessagePath(chat, branch.tipMessageId);
+    const forkIndex = branchPath.indexOf(branch.forkPointMessageId);
+
+    // Messages after fork point belong to this branch
+    const branchOnlyMessages = branchPath.slice(forkIndex + 1);
+
+    // Only delete if no other branch uses these messages
+    for (const msgId of branchOnlyMessages) {
+      const usedByOther = chat.branches.some(b =>
+        b.id !== branchId && getMessagePath(chat, b.tipMessageId).includes(msgId)
+      );
+      if (!usedByOther) {
+        delete chat.messages[msgId];
+      }
+    }
+  }
+
+  // Remove branch
+  chat.branches.splice(branchIndex, 1);
+
+  // If deleted branch was active, switch to main
+  if (chat.activeBranchId === branchId) {
+    chat.activeBranchId = 'branch-main';
+    const mainBranch = chat.branches.find(b => b.id === 'branch-main');
+    if (mainBranch) mainBranch.isActive = true;
+  }
+
+  chat.updatedAt = new Date().toISOString();
+
+  const chatPath = getChatPath(chatId);
+  fs.writeFileSync(chatPath, JSON.stringify(chat, null, 2));
+
+  console.log(`🗑️ Deleted branch "${branch.name}"`);
+  return { success: true, message: `Deleted branch "${branch.name}"`, chat };
+}
+
+/**
+ * List all branches for a chat
+ */
+function listBranches(chatId) {
+  const chat = getChat(chatId);
+  if (!chat) {
+    return { success: false, error: `Chat "${chatId}" not found` };
+  }
+
+  const branchesWithCounts = chat.branches.map(branch => {
+    const messages = getBranchMessages(chat, branch.id);
+    return {
+      ...branch,
+      messageCount: messages.length
+    };
+  });
+
+  return { success: true, branches: branchesWithCounts };
+}
+
+// ============================================================================
 // Chat CRUD
 // ============================================================================
 
@@ -137,14 +491,25 @@ function listChats() {
       continue;
     }
 
+    // Calculate message count based on schema version
+    let messageCount = 0;
+    if (data.schemaVersion === CURRENT_SCHEMA_VERSION) {
+      // v2: messages is an object
+      messageCount = Object.keys(data.messages || {}).length;
+    } else {
+      // v1: messages is an array
+      messageCount = data.messages?.length || 0;
+    }
+
     chats.push({
       id: data.id,
       templateId: data.templateId,
       title: data.title,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
-      messageCount: data.messages?.length || 0,
-      providerOverride: data.providerOverride
+      messageCount,
+      providerOverride: data.providerOverride,
+      branchCount: data.branches?.length || 1
     });
   }
 
@@ -155,7 +520,7 @@ function listChats() {
 }
 
 /**
- * Get full chat with messages
+ * Get full chat with messages (auto-migrates to v2 schema)
  */
 function getChat(chatId) {
   ensureChatsDir();
@@ -171,26 +536,46 @@ function getChat(chatId) {
     return null;
   }
 
-  return JSON.parse(fs.readFileSync(chatPath, 'utf8'));
+  let chat = JSON.parse(fs.readFileSync(chatPath, 'utf8'));
+
+  // Auto-migrate to v2 tree structure if needed
+  if (chat.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+    chat = migrateToTreeStructure(chat);
+    // Persist the migrated chat
+    fs.writeFileSync(chatPath, JSON.stringify(chat, null, 2));
+  }
+
+  return chat;
 }
 
 /**
- * Create a new chat session
+ * Create a new chat session (v2 schema with tree structure)
  */
 function createChat(templateId, title = null, providerOverride = null) {
   ensureChatsDir();
 
   const id = generateChatId();
   const now = new Date().toISOString();
+  const mainBranchId = 'branch-main';
 
   const chat = {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     id,
     templateId,
     title: title || `Chat ${new Date().toLocaleDateString()}`,
     createdAt: now,
     updatedAt: now,
     providerOverride,
-    messages: []
+    messages: {},
+    branches: [{
+      id: mainBranchId,
+      name: 'Main',
+      createdAt: now,
+      forkPointMessageId: null,
+      tipMessageId: null,
+      isActive: true
+    }],
+    activeBranchId: mainBranchId
   };
 
   // Create folder structure
@@ -263,28 +648,54 @@ function deleteChat(chatId) {
 // ============================================================================
 
 /**
- * Add a message to a chat
+ * Add a message to a chat (v2: tree structure with branch support)
+ *
+ * @param {string} chatId - The chat ID
+ * @param {object} message - Message object with role, content, and optional metadata
+ * @param {object} options - Optional: { parentId, branchId }
+ *   - parentId: Explicitly set parent (otherwise uses active branch tip)
+ *   - branchId: Target branch (otherwise uses active branch)
  */
-function addMessage(chatId, message) {
+function addMessage(chatId, message, options = {}) {
   const chat = getChat(chatId);
   if (!chat) {
     return { success: false, error: `Chat "${chatId}" not found` };
   }
 
   const now = new Date().toISOString();
+  const targetBranchId = options.branchId || chat.activeBranchId;
+  const branch = chat.branches.find(b => b.id === targetBranchId);
+
+  if (!branch) {
+    return { success: false, error: `Branch "${targetBranchId}" not found` };
+  }
+
+  // Determine parent: explicit, or branch tip, or null (first message)
+  const parentId = options.parentId !== undefined ? options.parentId : branch.tipMessageId;
+
+  // Generate message ID
+  const msgId = generateMessageId();
 
   const msg = {
+    id: msgId,
+    parentId,
     role: message.role, // 'user' or 'assistant'
     content: message.content,
     timestamp: now,
     ...message.metadata // provider, model, duration, etc.
   };
 
-  chat.messages.push(msg);
+  // Add to messages object
+  chat.messages[msgId] = msg;
+
+  // Update branch tip
+  branch.tipMessageId = msgId;
+
   chat.updatedAt = now;
 
   // Auto-generate title from first user message if still default
-  if (chat.messages.length === 1 && message.role === 'user') {
+  const messageCount = Object.keys(chat.messages).length;
+  if (messageCount === 1 && message.role === 'user') {
     const firstWords = message.content.split(/\s+/).slice(0, 5).join(' ');
     if (chat.title.startsWith('Chat ')) {
       chat.title = firstWords.length > 30 ? firstWords.slice(0, 30) + '...' : firstWords;
@@ -298,7 +709,8 @@ function addMessage(chatId, message) {
 }
 
 /**
- * Get messages from a chat with optional pagination
+ * Get messages from a chat for a specific branch
+ * Returns linear message array from root to branch tip
  */
 function getMessages(chatId, options = {}) {
   const chat = getChat(chatId);
@@ -306,8 +718,11 @@ function getMessages(chatId, options = {}) {
     return { success: false, error: `Chat "${chatId}" not found` };
   }
 
-  const { limit, offset = 0 } = options;
-  let messages = chat.messages;
+  const { limit, offset = 0, branchId } = options;
+  const targetBranchId = branchId || chat.activeBranchId;
+
+  // Get messages for the branch (linear path from root to tip)
+  let messages = getBranchMessages(chat, targetBranchId);
 
   if (offset > 0) {
     messages = messages.slice(offset);
@@ -320,12 +735,13 @@ function getMessages(chatId, options = {}) {
   return {
     success: true,
     messages,
-    total: chat.messages.length
+    total: getBranchMessages(chat, targetBranchId).length,
+    branchId: targetBranchId
   };
 }
 
 /**
- * Clear all messages in a chat
+ * Clear all messages in a chat (resets all branches to empty)
  */
 function clearMessages(chatId) {
   const chat = getChat(chatId);
@@ -333,7 +749,17 @@ function clearMessages(chatId) {
     return { success: false, error: `Chat "${chatId}" not found` };
   }
 
-  chat.messages = [];
+  // Reset to empty state
+  chat.messages = {};
+  chat.branches = [{
+    id: 'branch-main',
+    name: 'Main',
+    createdAt: chat.createdAt,
+    forkPointMessageId: null,
+    tipMessageId: null,
+    isActive: true
+  }];
+  chat.activeBranchId = 'branch-main';
   chat.updatedAt = new Date().toISOString();
 
   const chatPath = getChatPath(chatId);
@@ -344,17 +770,20 @@ function clearMessages(chatId) {
 }
 
 /**
- * Get chat history formatted for prompt injection
- * Returns array of formatted messages
+ * Get chat history formatted for prompt injection (branch-aware)
+ * Returns array of formatted messages for the active branch
  */
-function getChatHistory(chatId, maxMessages = 20) {
+function getChatHistory(chatId, maxMessages = 20, branchId = null) {
   const chat = getChat(chatId);
   if (!chat) {
     return [];
   }
 
-  // Get last N messages
-  const recentMessages = chat.messages.slice(-maxMessages);
+  const targetBranchId = branchId || chat.activeBranchId;
+  const branchMessages = getBranchMessages(chat, targetBranchId);
+
+  // Get last N messages from the branch
+  const recentMessages = branchMessages.slice(-maxMessages);
 
   return recentMessages.map(msg => {
     const role = msg.role === 'user' ? 'User' : 'Assistant';
@@ -363,21 +792,26 @@ function getChatHistory(chatId, maxMessages = 20) {
 }
 
 /**
- * Export chat to different formats
+ * Export chat to different formats (branch-aware)
  */
-function exportChat(chatId, format = 'json') {
+function exportChat(chatId, format = 'json', branchId = null) {
   const chat = getChat(chatId);
   if (!chat) {
     return { success: false, error: `Chat "${chatId}" not found` };
   }
 
+  const targetBranchId = branchId || chat.activeBranchId;
+  const branch = chat.branches.find(b => b.id === targetBranchId);
+  const branchMessages = getBranchMessages(chat, targetBranchId);
+
   if (format === 'markdown') {
     let md = `# ${chat.title}\n\n`;
     md += `Template: ${chat.templateId}\n`;
-    md += `Created: ${chat.createdAt}\n\n`;
+    md += `Created: ${chat.createdAt}\n`;
+    md += `Branch: ${branch?.name || 'Main'} (${branchMessages.length} messages)\n\n`;
     md += `---\n\n`;
 
-    for (const msg of chat.messages) {
+    for (const msg of branchMessages) {
       const role = msg.role === 'user' ? '**User**' : '**Assistant**';
       md += `${role}:\n\n${msg.content}\n\n`;
     }
@@ -385,7 +819,7 @@ function exportChat(chatId, format = 'json') {
     return { success: true, format: 'markdown', content: md };
   }
 
-  // Default: JSON
+  // Default: JSON (full chat including all branches)
   return { success: true, format: 'json', content: JSON.stringify(chat, null, 2) };
 }
 
@@ -394,14 +828,18 @@ function exportChat(chatId, format = 'json') {
 // ============================================================================
 
 /**
- * Get the current turn number for a chat
+ * Get the current turn number for a chat (branch-aware)
  */
-function getCurrentTurnNumber(chatId) {
+function getCurrentTurnNumber(chatId, branchId = null) {
   const chat = getChat(chatId);
   if (!chat) return 0;
 
+  // Get messages for the active branch
+  const targetBranchId = branchId || chat.activeBranchId;
+  const branchMsgs = getBranchMessages(chat, targetBranchId);
+
   // Each user+assistant pair is one turn
-  const userMessages = chat.messages.filter(m => m.role === 'user');
+  const userMessages = branchMsgs.filter(m => m.role === 'user');
   return userMessages.length;
 }
 
@@ -568,6 +1006,19 @@ module.exports = {
   clearMessages,
   getChatHistory,
   exportChat,
+  // Branch management
+  createBranch,
+  setActiveBranch,
+  updateBranch,
+  deleteBranch,
+  listBranches,
+  getBranchMessages,
+  // Tree traversal
+  getMessagePath,
+  getDescendants,
+  getChildren,
+  getLeafNodes,
+  getTreeStructure,
   // Turn logging
   getCurrentTurnNumber,
   logTurnRequest,

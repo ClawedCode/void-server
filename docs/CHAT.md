@@ -165,6 +165,51 @@ Check the **Memories** page to:
 
 ---
 
+## Conversation Branching (Loom)
+
+Void Server supports branching conversations - fork any message to explore alternative paths without losing context.
+
+![Conversation Tree](assets/conversation-tree.png)
+
+### Forking a Conversation
+
+1. Hover over any message in the chat
+2. Click the **Fork** button that appears
+3. Continue the conversation from that point on a new branch
+
+Each branch maintains independent context from the fork point. This is useful for:
+- Exploring different approaches to a problem
+- Testing alternative prompts
+- Preserving good conversation states before experimenting
+
+### Viewing the Conversation Tree
+
+When a chat has multiple branches, a branch indicator appears in the chat header:
+
+1. Click the **branch badge** (shows branch name and count)
+2. Opens the visual tree view at `/chat/:id/tree`
+
+The tree view shows:
+- All messages as nodes (teal for you, slate for AI)
+- Active branch tip highlighted with green border
+- Bezier curves connecting parent-child messages
+
+### Tree Navigation
+
+- **Pan**: Click and drag the canvas
+- **Zoom**: Mouse wheel or use the zoom controls
+- **Auto-fit**: Click the fit-to-screen button to optimally size the tree
+- **Click any node**: View the full message content in the tooltip
+- **Click a branch tip**: Switch to that branch
+
+### Branch Management
+
+- Branches can be renamed (except Main)
+- Branches can be deleted (except Main)
+- The active branch is preserved when navigating away
+
+---
+
 ## Creating Your Own Egregore
 
 An "egregore" is a thoughtform that develops its own personality through interaction. Here's how to create yours:

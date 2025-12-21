@@ -152,6 +152,21 @@ router.put('/config', async (req, res) => {
   });
 });
 
+// POST /api/memories/toggle - Toggle memory system on/off
+router.post('/toggle', (req, res) => {
+  const { enabled } = req.body;
+  console.log(`🧠 POST /api/memories/toggle enabled=${enabled}`);
+
+  const neo4j = getNeo4jService();
+  const newState = neo4j.setMemoryEnabled(enabled);
+
+  res.json({
+    success: true,
+    memoryEnabled: newState,
+    message: `Memory system ${newState ? 'enabled' : 'disabled'}`
+  });
+});
+
 // GET /api/memories/context - Get relevant memories for chat context
 router.get('/context', async (req, res) => {
   const { message, user, category, limit } = req.query;

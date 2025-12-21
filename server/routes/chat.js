@@ -92,7 +92,7 @@ router.delete('/:id', (req, res) => {
  * Send a message and get a response
  */
 router.post('/:id/message', async (req, res) => {
-  const { content, providerOverride, modelType, maxHistory, debug } = req.body;
+  const { content, providerOverride, modelType, maxHistory, debug, useMemory } = req.body;
 
   if (!content) {
     return res.status(400).json({ success: false, error: 'Message content required' });
@@ -102,7 +102,8 @@ router.post('/:id/message', async (req, res) => {
     providerOverride,
     modelType,
     maxHistory,
-    debug: debug === true
+    debug: debug === true,
+    useMemory: useMemory !== false // Default to true
   });
 
   if (!result.success) {
@@ -146,6 +147,125 @@ router.delete('/:id/messages', (req, res) => {
 });
 
 // ============================================================================
+// Branch Routes (Conversation Loom)
+// ============================================================================
+
+/**
+ * GET /api/chat/:id/branches
+ * List all branches for a chat
+ */
+router.get('/:id/branches', (req, res) => {
+  const result = chatService.listBranches(req.params.id);
+
+  if (!result.success) {
+    return res.status(404).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * GET /api/chat/:id/tree
+ * Get tree structure for visualization
+ */
+router.get('/:id/tree', (req, res) => {
+  const chat = chatService.getChat(req.params.id);
+
+  if (!chat) {
+    return res.status(404).json({ success: false, error: 'Chat not found' });
+  }
+
+  const tree = chatService.getTreeStructure(chat);
+  res.json({
+    success: true,
+    tree,
+    branches: chat.branches,
+    activeBranchId: chat.activeBranchId
+  });
+});
+
+/**
+ * POST /api/chat/:id/branch
+ * Create a new branch from a message
+ */
+router.post('/:id/branch', (req, res) => {
+  const { forkPointMessageId, name } = req.body;
+
+  const result = chatService.createBranch(req.params.id, {
+    forkPointMessageId,
+    name
+  });
+
+  if (!result.success) {
+    return res.status(result.error?.includes('not found') ? 404 : 400).json(result);
+  }
+
+  res.status(201).json(result);
+});
+
+/**
+ * GET /api/chat/:id/branch/:branchId/messages
+ * Get messages for a specific branch
+ */
+router.get('/:id/branch/:branchId/messages', (req, res) => {
+  const { limit, offset } = req.query;
+
+  const result = chatService.getMessages(req.params.id, {
+    branchId: req.params.branchId,
+    limit: limit ? parseInt(limit) : undefined,
+    offset: offset ? parseInt(offset) : 0
+  });
+
+  if (!result.success) {
+    return res.status(404).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * PUT /api/chat/:id/branch/:branchId
+ * Update branch metadata or switch to branch
+ */
+router.put('/:id/branch/:branchId', (req, res) => {
+  const { name, setActive } = req.body;
+
+  // If setActive is true, switch to this branch
+  if (setActive) {
+    const result = chatService.setActiveBranch(req.params.id, req.params.branchId);
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  }
+
+  // Otherwise, update branch metadata
+  const result = chatService.updateBranch(req.params.id, req.params.branchId, { name });
+
+  if (!result.success) {
+    return res.status(404).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * DELETE /api/chat/:id/branch/:branchId
+ * Delete a branch
+ */
+router.delete('/:id/branch/:branchId', (req, res) => {
+  const deleteMessages = req.query.deleteMessages === 'true';
+
+  const result = chatService.deleteBranch(req.params.id, req.params.branchId, deleteMessages);
+
+  if (!result.success) {
+    return res.status(result.error?.includes('Cannot delete') ? 400 : 404).json(result);
+  }
+
+  res.json(result);
+});
+
+// ============================================================================
 // Export Routes
 // ============================================================================
 
@@ -154,9 +274,9 @@ router.delete('/:id/messages', (req, res) => {
  * Export chat to different formats
  */
 router.get('/:id/export', (req, res) => {
-  const { format } = req.query;
+  const { format, branchId } = req.query;
 
-  const result = chatService.exportChat(req.params.id, format || 'json');
+  const result = chatService.exportChat(req.params.id, format || 'json', branchId);
 
   if (!result.success) {
     return res.status(404).json(result);

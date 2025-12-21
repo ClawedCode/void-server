@@ -20,7 +20,8 @@ const DEFAULT_CONFIG = {
   uri: 'bolt://localhost:7687',
   user: 'neo4j',
   password: 'voidserver',
-  database: 'neo4j'  // Community Edition only supports default database
+  database: 'neo4j',  // Community Edition only supports default database
+  memoryEnabled: true // Global toggle for memory system
 };
 
 /**
@@ -88,12 +89,33 @@ class Neo4jService {
    * Get current configuration (without password)
    */
   getConfig() {
+    const fileConfig = loadConfig();
     return {
       uri: this.uri,
       user: this.user,
       database: this.database,
-      hasPassword: !!this.password
+      hasPassword: !!this.password,
+      memoryEnabled: fileConfig.memoryEnabled !== false
     };
+  }
+
+  /**
+   * Check if memory system is globally enabled
+   */
+  isMemoryEnabled() {
+    const fileConfig = loadConfig();
+    return fileConfig.memoryEnabled !== false;
+  }
+
+  /**
+   * Set memory system enabled/disabled
+   */
+  setMemoryEnabled(enabled) {
+    const fileConfig = loadConfig();
+    fileConfig.memoryEnabled = enabled;
+    saveConfig(fileConfig);
+    console.log(`🧠 Memory system ${enabled ? 'enabled' : 'disabled'}`);
+    return enabled;
   }
 
   /**

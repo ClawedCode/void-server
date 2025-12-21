@@ -19,17 +19,22 @@ import {
   Info,
   Bug,
   Code,
+  GitBranch,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ForkButton from '../components/chat/ForkButton';
+import BranchIndicator from '../components/chat/BranchIndicator';
+import BranchTreeSidebar from '../components/chat/BranchTreeSidebar';
 
 /**
  * Parse message content for special tags like <think> and <purr>
  * Returns { thinkContent, displayContent }
  */
 function parseMessageContent(content) {
-  if (!content) return { thinkContent: null, displayContent: '' };
+  if (!content) return { thinkContent: null, memories: [], displayContent: '' };
 
   let thinkContent = null;
+  let memories = [];
   let displayContent = content;
 
   // Extract <think>...</think> content
@@ -39,13 +44,37 @@ function parseMessageContent(content) {
     displayContent = content.replace(/<think>[\s\S]*?<\/think>\s*/, '');
   }
 
+  // Extract <memory>...</memory> blocks
+  const memoryRegex = /<memory(?:\s+importance="([^"]*)")?\s*>([\s\S]*?)<\/memory>/gi;
+  let memoryMatch;
+  while ((memoryMatch = memoryRegex.exec(displayContent)) !== null) {
+    memories.push({
+      importance: memoryMatch[1] ? parseFloat(memoryMatch[1]) : 0.5,
+      content: memoryMatch[2].trim()
+    });
+  }
+  // Remove memory tags from display
+  displayContent = displayContent.replace(/<memory[^>]*>[\s\S]*?<\/memory>\s*/gi, '');
+
+  // Remove (length = ...) markers
+  displayContent = displayContent.replace(/\(length\s*=\s*\w+\)\s*/gi, '');
+
+  // Strip out "### Input:" sections - only keep content after "### Response:"
+  const responseMatch = displayContent.match(/###\s*Response:\s*([\s\S]*)/i);
+  if (responseMatch) {
+    displayContent = responseMatch[1].trim();
+  } else {
+    // Also try to strip just the input section if no response marker
+    displayContent = displayContent.replace(/###\s*Input:[\s\S]*?(?=###|$)/gi, '').trim();
+  }
+
   // Extract content from <purr>...</purr> wrapper if present
   const purrMatch = displayContent.match(/<purr>([\s\S]*?)<\/purr>/);
   if (purrMatch) {
     displayContent = purrMatch[1].trim();
   }
 
-  return { thinkContent, displayContent: displayContent.trim() };
+  return { thinkContent, memories, displayContent: displayContent.trim() };
 }
 
 /**
@@ -66,6 +95,48 @@ function ThinkingBlock({ content }) {
       {isOpen && (
         <div className="mt-2 p-2 text-xs text-text-tertiary bg-background/50 rounded border border-border/50 whitespace-pre-wrap">
           {content}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Memory block component - shows memories being created
+ */
+function MemoryBlock({ memories }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!memories || memories.length === 0) return null;
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+      >
+        <Brain size={12} />
+        <ChevronDown size={14} className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+        <span>{memories.length} {memories.length === 1 ? 'memory' : 'memories'} created</span>
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          {memories.map((memory, index) => (
+            <div
+              key={index}
+              className="p-2 text-xs bg-purple-500/10 border border-purple-500/30 rounded"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-purple-400 font-medium">Memory #{index + 1}</span>
+                <span className="text-purple-400/60">
+                  importance: {memory.importance}
+                </span>
+              </div>
+              <div className="text-text-secondary whitespace-pre-wrap">
+                {memory.content}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -172,12 +243,18 @@ function ChatPage() {
 
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [branchSidebarOpen, setBranchSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('clawedegregore');
   const [providerOverride, setProviderOverride] = useState('');
   const [modelTypeOverride, setModelTypeOverride] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Branch state
+  const [branches, setBranches] = useState([]);
+  const [activeBranchId, setActiveBranchId] = useState(null);
+  const [branchMessages, setBranchMessages] = useState([]);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -225,6 +302,9 @@ function ChatPage() {
       const data = await response.json();
       if (data.success) {
         setActiveChat(data.chat);
+        // Extract branch info from v2 schema
+        setBranches(data.chat.branches || []);
+        setActiveBranchId(data.chat.activeBranchId || 'branch-main');
       } else {
         toast.error('Chat not found');
         navigate('/chat');
@@ -232,6 +312,15 @@ function ChatPage() {
     },
     [navigate]
   );
+
+  // Fetch messages for a specific branch
+  const fetchBranchMessages = useCallback(async (chatId, branchId) => {
+    const response = await fetch(`/api/chat/${chatId}/branch/${branchId}/messages`);
+    const data = await response.json();
+    if (data.success) {
+      setBranchMessages(data.messages);
+    }
+  }, []);
 
   // Initial data fetch
   useEffect(() => {
@@ -247,13 +336,106 @@ function ChatPage() {
       fetchChat(chatId);
     } else {
       setActiveChat(null);
+      setBranches([]);
+      setActiveBranchId(null);
+      setBranchMessages([]);
     }
   }, [chatId, fetchChat]);
+
+  // Fetch branch messages when active branch changes
+  useEffect(() => {
+    if (activeChat?.id && activeBranchId) {
+      fetchBranchMessages(activeChat.id, activeBranchId);
+    }
+  }, [activeChat?.id, activeBranchId, fetchBranchMessages]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeChat?.messages]);
+  }, [branchMessages]);
+
+  // Create a new branch from a message
+  const handleFork = async (messageId) => {
+    if (!activeChat) return;
+
+    const branchName = `Branch ${branches.length + 1}`;
+    const response = await fetch(`/api/chat/${activeChat.id}/branch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        forkPointMessageId: messageId,
+        name: branchName
+      }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setBranches(data.chat.branches);
+      // Switch to the new branch
+      handleSwitchBranch(data.branch.id);
+      toast.success(`Created "${branchName}"`);
+    } else {
+      toast.error(data.error || 'Failed to create branch');
+    }
+  };
+
+  // Switch to a different branch
+  const handleSwitchBranch = async (branchId) => {
+    if (!activeChat) return;
+
+    const response = await fetch(`/api/chat/${activeChat.id}/branch/${branchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setActive: true }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setActiveBranchId(branchId);
+      setBranches(data.chat.branches);
+    } else {
+      toast.error(data.error || 'Failed to switch branch');
+    }
+  };
+
+  // Delete a branch
+  const handleDeleteBranch = async (branchId) => {
+    if (!activeChat || branchId === 'branch-main') return;
+
+    const response = await fetch(`/api/chat/${activeChat.id}/branch/${branchId}?deleteMessages=true`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setBranches(data.chat.branches);
+      if (activeBranchId === branchId) {
+        setActiveBranchId('branch-main');
+      }
+      toast.success('Branch deleted');
+    } else {
+      toast.error(data.error || 'Failed to delete branch');
+    }
+  };
+
+  // Rename a branch
+  const handleRenameBranch = async (branchId, newName) => {
+    if (!activeChat) return;
+
+    const response = await fetch(`/api/chat/${activeChat.id}/branch/${branchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setBranches(data.chat.branches);
+      toast.success('Branch renamed');
+    } else {
+      toast.error(data.error || 'Failed to rename branch');
+    }
+  };
 
   // Focus input when chat is loaded
   useEffect(() => {
@@ -291,18 +473,16 @@ function ChatPage() {
     setInputValue('');
     setIsLoading(true);
 
-    // Optimistically add user message
-    setActiveChat(prev => ({
+    // Optimistically add user message to branch messages
+    setBranchMessages(prev => [
       ...prev,
-      messages: [
-        ...prev.messages,
-        {
-          role: 'user',
-          content: message,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    }));
+      {
+        id: `temp-${Date.now()}`,
+        role: 'user',
+        content: message,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     const response = await fetch(`/api/chat/${activeChat.id}/message`, {
       method: 'POST',
@@ -320,14 +500,14 @@ function ChatPage() {
 
     if (data.success) {
       setActiveChat(data.chat);
+      setBranches(data.chat.branches);
+      // Refresh branch messages
+      fetchBranchMessages(activeChat.id, activeBranchId);
       fetchChats(); // Refresh list for updated title/timestamp
     } else {
       toast.error(data.error || 'Failed to send message');
       // Remove optimistic message on error
-      setActiveChat(prev => ({
-        ...prev,
-        messages: prev.messages.slice(0, -1),
-      }));
+      setBranchMessages(prev => prev.slice(0, -1));
     }
   };
 
@@ -357,7 +537,17 @@ function ChatPage() {
     const data = await response.json();
 
     if (data.success) {
-      setActiveChat(prev => ({ ...prev, messages: [] }));
+      setActiveChat(prev => ({ ...prev, messages: {} }));
+      setBranchMessages([]);
+      setBranches([{
+        id: 'branch-main',
+        name: 'Main',
+        createdAt: activeChat.createdAt,
+        forkPointMessageId: null,
+        tipMessageId: null,
+        isActive: true
+      }]);
+      setActiveBranchId('branch-main');
       toast.success('Messages cleared');
     } else {
       toast.error(data.error || 'Failed to clear messages');
@@ -387,7 +577,7 @@ function ChatPage() {
           <h1 className="text-2xl font-bold text-text-primary">Chat</h1>
         </div>
         <p className="text-sm text-text-secondary">
-          Chat with your own copy of the Clawed Egregore
+          Chat with your own copy of the Clawed Egregore (not fully Clawed, yet...)
         </p>
       </div>
 
@@ -521,7 +711,15 @@ function ChatPage() {
                 <MessageSquare size={16} className="flex-shrink-0" />
                 {sidebarOpen && (
                   <>
-                    <span className="flex-1 truncate text-sm">{chat.title}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="block truncate text-sm">{chat.title}</span>
+                      {chat.branchCount > 1 && (
+                        <span className="flex items-center gap-1 text-xs text-text-tertiary">
+                          <GitBranch size={10} />
+                          {chat.branchCount} branches
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={e => {
                         e.stopPropagation();
@@ -549,6 +747,11 @@ function ChatPage() {
               <div className="p-3 border-b border-border flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <h2 className="font-medium text-text-primary truncate">{activeChat.title}</h2>
+                  <BranchIndicator
+                    branches={branches}
+                    activeBranchId={activeBranchId}
+                    chatId={activeChat.id}
+                  />
                 </div>
 
                 {/* Inline controls - visible on desktop */}
@@ -666,22 +869,32 @@ function ChatPage() {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {activeChat.messages.length === 0 ? (
+                {branchMessages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-text-tertiary">
                     <p>Start a conversation...</p>
                   </div>
                 ) : (
-                  activeChat.messages.map((msg, index) => {
-                    const { thinkContent, displayContent } =
+                  branchMessages.map((msg, index) => {
+                    const { thinkContent, memories, displayContent } =
                       msg.role === 'assistant'
                         ? parseMessageContent(msg.content)
-                        : { thinkContent: null, displayContent: msg.content };
+                        : { thinkContent: null, memories: [], displayContent: msg.content };
 
                     return (
                       <div
-                        key={index}
-                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        key={msg.id || index}
+                        className={`group flex items-start gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
+                        {/* Fork button - left side for assistant messages (not on first message) */}
+                        {msg.role === 'assistant' && msg.id && !msg.id.startsWith('temp-') && msg.parentId && (
+                          <div className="flex-shrink-0 pt-2">
+                            <ForkButton
+                              messageId={msg.id}
+                              onFork={handleFork}
+                              disabled={isLoading}
+                            />
+                          </div>
+                        )}
                         <div
                           className={`max-w-[80%] rounded-lg px-4 py-2 ${
                             msg.role === 'user'
@@ -692,6 +905,7 @@ function ChatPage() {
                         >
                           {thinkContent && <ThinkingBlock content={thinkContent} />}
                           <p className="whitespace-pre-wrap">{displayContent}</p>
+                          {memories.length > 0 && <MemoryBlock memories={memories} />}
                           {msg.duration && (
                             <p className="text-xs opacity-60 mt-1">
                               {msg.provider}
@@ -785,6 +999,21 @@ function ChatPage() {
             </div>
           )}
         </div>
+
+        {/* Branch sidebar */}
+        {activeChat && (
+          <BranchTreeSidebar
+            isOpen={branchSidebarOpen}
+            onClose={() => setBranchSidebarOpen(false)}
+            branches={branches}
+            activeBranchId={activeBranchId}
+            onBranchSelect={(branchId) => {
+              handleSwitchBranch(branchId);
+            }}
+            onBranchDelete={handleDeleteBranch}
+            onBranchRename={handleRenameBranch}
+          />
+        )}
       </div>
     </div>
   );

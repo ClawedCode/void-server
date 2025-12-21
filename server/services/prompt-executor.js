@@ -154,12 +154,14 @@ async function executeChat(chatId, userMessage, options = {}) {
   // Get chat history for context
   const chatHistory = chatService.getChatHistory(chatId, options.maxHistory || 20);
 
-  // Query relevant memories if Neo4j is available
+  // Query relevant memories if Neo4j is available and memory is enabled
   let memoryContext = '';
   let relevantMemories = [];
-
   const neo4j = getNeo4jService();
-  if (await neo4j.isAvailable()) {
+  const globalMemoryEnabled = neo4j.isMemoryEnabled();
+  const useMemory = globalMemoryEnabled && options.useMemory !== false; // Check both global and per-request
+
+  if (useMemory && await neo4j.isAvailable()) {
     relevantMemories = await memoryQueryService.getRelevantMemories({
       message: userMessage,
       userHandle: options.userHandle,
@@ -171,6 +173,8 @@ async function executeChat(chatId, userMessage, options = {}) {
       memoryContext = memoryQueryService.formatMemoriesForPrompt(relevantMemories);
       console.log(`🧠 Retrieved ${relevantMemories.length} relevant memories for chat`);
     }
+  } else if (!useMemory) {
+    console.log(`🧠 Memory disabled for this request`);
   }
 
   // Get memory instructions for LLM to tag memorable content
@@ -254,15 +258,22 @@ async function executeChat(chatId, userMessage, options = {}) {
     }, {})
   } : null;
 
-  // Process response to extract memories and get cleaned content
-  const { response: cleanedContent, memoriesExtracted } = await memoryExtractor.processResponse(
-    result.content,
-    {
-      chatId,
-      templateId: chat.templateId,
-      userMessage
-    }
-  );
+  // Process response to extract memories and get cleaned content (skip if memory disabled)
+  let cleanedContent = result.content;
+  let memoriesExtracted = 0;
+
+  if (useMemory) {
+    const extracted = await memoryExtractor.processResponse(
+      result.content,
+      {
+        chatId,
+        templateId: chat.templateId,
+        userMessage
+      }
+    );
+    cleanedContent = extracted.response;
+    memoriesExtracted = extracted.memoriesExtracted;
+  }
 
   // Log turn response
   chatService.logTurnResponse(chatId, turnNumber, {

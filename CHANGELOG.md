@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.15.0] - 2025-12-20
+
+### New Features
+
+- **Conversation Loom** - Transform linear chats into branching conversations
+  - Fork any message to create a new conversation branch
+  - Each branch maintains independent context from fork point
+  - Branch tree sidebar for navigating between branches
+  - Branch indicator badge in chat header when multiple branches exist
+  - Rename and delete branches (except main)
+  - Branch count shown in chat list sidebar
+
+- **Visual Tree Overlay** - UML-style diagram for navigating conversation trees
+  - Dedicated tree view page at `/chat/:id/tree`
+  - SVG-based visualization with pan and zoom controls
+  - Auto-fit zoom to optimally size tree for viewport
+  - Click any node to view full message content
+  - Muted color scheme (teal for user, slate for AI)
+  - Active branch tip highlighted with green border
+  - Compact horizontal layout with bezier curve connections
+
+- **Memory System Toggle** - Global on/off switch for memory retrieval
+  - Toggle in Settings > Memories to enable/disable memory injection
+  - Useful for testing prompts without memory context
+  - Toggle state persists in Neo4j configuration
+
+### UI Improvements
+
+- **Memory Tags in Chat** - `<memory>` blocks render as collapsible purple cards
+- **Cleaner LLM Responses** - Strips `### Input:` sections, only shows `### Response:` content
+- **ToggleSwitch Component** - Reusable toggle with green indicator and label
+
+### Technical Changes
+
+- **Chat schema v2** - Tree-based message structure with automatic migration
+  - Messages stored as object `{ [id]: msg }` for O(1) lookup
+  - Each message has `parentId` forming a tree structure
+  - Branches track fork points and tip (leaf) nodes
+  - Lazy migration on chat access - no bulk migration needed
+- **New API endpoints** for branch management
+  - `GET /api/chat/:id/branches` - List all branches
+  - `POST /api/chat/:id/branch` - Create branch from message
+  - `PUT /api/chat/:id/branch/:branchId` - Update/switch branch
+  - `DELETE /api/chat/:id/branch/:branchId` - Delete branch
+  - `GET /api/chat/:id/branch/:branchId/messages` - Get branch messages
+  - `GET /api/chat/:id/tree` - Get tree structure for visualization
+- **Memory toggle endpoint** - `POST /api/memories/toggle`
+
+### New Files
+
+- `client/src/pages/BranchTreePage.jsx` - Dedicated tree view page
+- `client/src/components/ui/ToggleSwitch.jsx` - Reusable toggle switch
+
+---
+
 ## [0.14.1] - 2025-12-19
 
 ### Changed

@@ -24,6 +24,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ToggleSwitch from '../components/ui/ToggleSwitch';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -2083,11 +2084,13 @@ function SettingsTab({ neo4jStatus, fetchStatus }) {
     password: '',
     database: '',
   });
+  const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordIsPlaceholder, setPasswordIsPlaceholder] = useState(false);
+  const [togglingMemory, setTogglingMemory] = useState(false);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -2101,8 +2104,27 @@ function SettingsTab({ neo4jStatus, fetchStatus }) {
         database: data.config.database || '',
       });
       setPasswordIsPlaceholder(data.config.hasPassword);
+      setMemoryEnabled(data.config.memoryEnabled !== false);
     }
     setLoading(false);
+  };
+
+  const handleToggleMemory = async (newState) => {
+    setTogglingMemory(true);
+    const response = await fetch('/api/memories/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: newState }),
+    });
+    const data = await response.json();
+    setTogglingMemory(false);
+
+    if (data.success) {
+      setMemoryEnabled(data.memoryEnabled);
+      toast.success(data.message);
+    } else {
+      toast.error('Failed to toggle memory system');
+    }
   };
 
   useEffect(() => {
@@ -2163,6 +2185,29 @@ function SettingsTab({ neo4jStatus, fetchStatus }) {
 
   return (
     <div className="space-y-6">
+      {/* Memory System Toggle */}
+      <div className="card">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Brain size={20} className="text-primary" />
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">Memory System</h2>
+              <p className="text-sm text-text-secondary">
+                {memoryEnabled
+                  ? 'Memories are retrieved and created during chat'
+                  : 'Memory system is disabled - chats will not use or create memories'}
+              </p>
+            </div>
+          </div>
+          <ToggleSwitch
+            enabled={memoryEnabled}
+            onChange={handleToggleMemory}
+            disabled={togglingMemory}
+            label={memoryEnabled ? 'On' : 'Off'}
+          />
+        </div>
+      </div>
+
       {/* Neo4j Connection Settings */}
       <div className="card">
         <div className="flex items-center gap-3 mb-4">

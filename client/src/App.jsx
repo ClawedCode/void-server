@@ -7,6 +7,7 @@ import LogsPage from './pages/LogsPage';
 import PluginViewer from './pages/PluginViewer';
 import SettingsPage from './pages/SettingsPage';
 import ChatPage from './pages/ChatPage';
+import BranchTreePage from './pages/BranchTreePage';
 import TemplatesPage from './pages/TemplatesPage';
 import VariablesPage from './pages/VariablesPage';
 import MemoriesPage from './pages/MemoriesPage';
@@ -42,6 +43,7 @@ function App() {
         <Route path="settings/:tab" element={<SettingsPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="chat/:id" element={<ChatPage />} />
+        <Route path="chat/:id/tree" element={<BranchTreePage />} />
         <Route path="prompts/templates" element={<TemplatesPage />} />
         <Route path="prompts/variables" element={<VariablesPage />} />
         <Route path="memories" element={<MemoriesPage />} />
