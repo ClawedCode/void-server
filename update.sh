@@ -43,16 +43,16 @@ cd "$SCRIPT_DIR"
 
 print_header "Void Server Update"
 
-# Stop and delete PM2 services (ensures fresh config on restart)
-print_step "Stopping services..."
-pm2 delete void-server void-client 2>/dev/null || true
-
-# Stop old Docker containers (migration from Docker-only to hybrid)
+# Stop old Docker containers first (migration from Docker-only to hybrid)
+# This is safe to do early since void-server runs via PM2, not Docker
 print_step "Stopping old Docker containers..."
 docker compose down --remove-orphans 2>/dev/null || true
 # Explicitly stop void-server container if it exists (handles different compose project names)
 docker stop void-server 2>/dev/null || true
 docker rm void-server 2>/dev/null || true
+
+# NOTE: We delay PM2 delete until AFTER code update to avoid killing the
+# update script when triggered from within void-server
 
 # Check if this is a git repo or zip download
 if [ -d ".git" ]; then
@@ -163,6 +163,10 @@ npm run build --prefix client
 # Update PM2 if needed
 print_step "Updating PM2..."
 npx pm2 update 2>/dev/null || true
+
+# Now it's safe to stop PM2 services (code is already updated)
+print_step "Stopping PM2 services..."
+pm2 delete void-server void-client 2>/dev/null || true
 
 # Start PM2 with fresh config
 print_step "Starting services..."
