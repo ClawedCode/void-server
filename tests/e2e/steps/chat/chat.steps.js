@@ -70,8 +70,8 @@ Given('I have a chat with messages', async function () {
   const chat = createData.chat || createData;
   this.testData.chatId = chat.id;
 
-  // Add a message via the API
-  const msgResponse = await this.request.post(`${this.config.appUrl}/api/chat/${chat.id}/messages`, {
+  // Add a message via the API (endpoint is /message singular)
+  const msgResponse = await this.request.post(`${this.config.appUrl}/api/chat/${chat.id}/message`, {
     data: { content: 'Test message for branching', role: 'user' },
   });
   const msgData = await msgResponse.json();
@@ -140,8 +140,8 @@ Given('I have a chat with multiple branches', async function () {
   const chat = createData.chat || createData;
   this.testData.chatId = chat.id;
 
-  // Add a message
-  const msgResponse = await this.request.post(`${this.config.appUrl}/api/chat/${chat.id}/messages`, {
+  // Add a message (endpoint is /message singular)
+  const msgResponse = await this.request.post(`${this.config.appUrl}/api/chat/${chat.id}/message`, {
     data: { content: 'Test message', role: 'user' },
   });
   const msgData = await msgResponse.json();
