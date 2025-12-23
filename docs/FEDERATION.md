@@ -40,40 +40,52 @@ curl http://localhost:4420/api/federation/manifest
 
 ## Connecting to a Peer
 
-### What You Need
+You can connect to peers using two methods:
 
-To connect to another void-server, you need their **endpoint URL**:
-- The full URL where their server is accessible
-- Example: `https://peer.example.com:4420` or `http://192.168.1.100:4420`
+### Method 1: Endpoint URL
 
-> **Note**: Currently, connections require the endpoint URL. Direct connection via Node ID alone is planned for a future release with full DHT routing.
+The most reliable method - requires the peer's full URL.
 
-### Via the UI
-
+**Via the UI:**
 1. Go to **Federation** in the sidebar
-2. In the **Add Peer** card, enter the peer's endpoint URL
-3. Click **Connect**
-4. The peer will appear in the **Peers** table below
+2. In the **Add Peer** card, select **Endpoint URL** tab
+3. Enter the peer's endpoint URL (e.g., `https://peer.example.com:4420`)
+4. Click **Connect**
 
-### Via API
-
+**Via API:**
 ```bash
-# Add a peer by endpoint
 curl -X POST http://localhost:4420/api/federation/peers \
   -H "Content-Type: application/json" \
   -d '{"endpoint": "https://peer.example.com:4420"}'
-
-# Response:
-{
-  "success": true,
-  "peer": {
-    "serverId": "void-b2c3d4e5",
-    "publicKey": "...",
-    "capabilities": ["memory", "neo4j"],
-    "trustLevel": "unknown"
-  }
-}
 ```
+
+### Method 2: Node ID (DHT Lookup)
+
+Connect using the peer's DHT Node ID - useful when you don't have their endpoint.
+
+**Via the UI:**
+1. Go to **Federation** in the sidebar
+2. In the **Add Peer** card, select **Node ID (DHT)** tab
+3. Enter the Node ID (full 64-character hex, or partial for local matches)
+4. Click **Lookup**
+
+**Via API:**
+```bash
+# Look up a node by ID
+curl http://localhost:4420/api/federation/dht/lookup/abc123def456...
+
+# Connect by Node ID
+curl -X POST http://localhost:4420/api/federation/peers/connect-by-id \
+  -H "Content-Type: application/json" \
+  -d '{"nodeId": "abc123def456..."}'
+```
+
+**How DHT Lookup Works:**
+- **Partial IDs** (< 64 chars): Searches locally known peers by prefix match
+- **Full IDs** (64 chars): Uses Kademlia DHT routing to find the node across the network
+- Once found, the peer's endpoint is retrieved and connection is established automatically
+
+> **Note**: DHT lookup requires the target node to have been discovered through the network. For first-time connections between isolated networks, use the endpoint URL method.
 
 ## Sharing Connection Info
 
@@ -293,8 +305,10 @@ See the full API at `/api/federation/`:
 | `/manifest` | GET | Get server identity |
 | `/status` | GET | Get federation status |
 | `/peers` | GET/POST | List or add peers |
+| `/peers/connect-by-id` | POST | Connect to peer by Node ID |
 | `/peers/neo4j` | GET | List Neo4j peers |
 | `/dht/status` | GET | Get DHT network status |
+| `/dht/lookup/:nodeId` | GET | Look up node by ID |
 | `/memories/export` | POST | Export memories |
 | `/memories/import` | POST | Import memories |
 | `/ipfs/stats` | GET | Get IPFS stats |

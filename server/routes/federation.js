@@ -473,6 +473,50 @@ router.get('/dht/bootstrap-nodes', (req, res) => {
   });
 });
 
+// GET /api/federation/dht/lookup/:nodeId - Look up a node by ID
+router.get('/dht/lookup/:nodeId', async (req, res) => {
+  const { nodeId } = req.params;
+  const allowPartial = req.query.partial !== 'false';
+  console.log(`🌐 GET /api/federation/dht/lookup/${nodeId.slice(0, 16)}... partial=${allowPartial}`);
+
+  const dht = ensureDHTInitialized();
+  const result = await dht.lookupNode(nodeId, allowPartial);
+
+  res.json({
+    success: result.found,
+    ...result
+  });
+});
+
+// POST /api/federation/peers/connect-by-id - Connect to a peer by node ID
+router.post('/peers/connect-by-id', async (req, res) => {
+  const { nodeId } = req.body;
+  console.log(`🌐 POST /api/federation/peers/connect-by-id nodeId=${nodeId?.slice(0, 16)}...`);
+
+  if (!nodeId) {
+    return res.status(400).json({ success: false, error: 'nodeId required' });
+  }
+
+  const dht = ensureDHTInitialized();
+  const result = await dht.connectByNodeId(nodeId);
+
+  if (!result.success) {
+    return res.status(404).json(result);
+  }
+
+  // Also add to Neo4j for persistence
+  const peerService = ensurePeerServiceInitialized();
+  await peerService.upsertPeer({
+    serverId: result.peer.serverId,
+    publicKey: result.peer.publicKey || '',
+    endpoint: result.peer.endpoint,
+    capabilities: result.peer.capabilities || [],
+    trustLevel: 'seen'
+  });
+
+  res.json(result);
+});
+
 // ============ Neo4j Peer Management ============
 
 /**

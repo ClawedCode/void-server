@@ -25,6 +25,8 @@
   - Iterative node lookup with ALPHA=3 parallel queries
   - Automatic peer announcement to network
   - Periodic routing table refresh
+  - Node lookup by ID (`GET /api/federation/dht/lookup/:nodeId`)
+  - Connect to peers by Node ID (`POST /api/federation/peers/connect-by-id`)
 
 - **Neo4j Peer Management** - Persistent peer storage with trust graph relationships
   - Store discovered peers in Neo4j graph database
@@ -46,10 +48,12 @@
 
 - **Federation UI Dashboard** - Visual interface for federation management
   - Server identity display with public key copy
+  - Copy connection info button for easy sharing
   - DHT network status and node count
   - Peer list with trust levels and health scores
   - Trust graph visualization
-  - Add/remove/block/unblock peers
+  - Add peers by endpoint URL or Node ID (DHT lookup)
+  - Remove/block/unblock peers
   - Crypto self-test button
 
 - **Memory Sync Service** - Cross-instance memory sharing protocol

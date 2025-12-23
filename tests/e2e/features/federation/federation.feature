@@ -287,3 +287,25 @@ Feature: Federation System
     When I POST to "/api/federation/ipfs/auto-pin" with threshold 100
     Then the response should be successful
     And the response should contain pinned count
+
+  # DHT Lookup Tests
+
+  @smoke
+  Scenario: DHT node lookup with partial ID
+    When I GET "/api/federation/dht/lookup/abc123"
+    Then the response should be successful
+    And the response should contain "source"
+
+  Scenario: DHT node lookup with full nonexistent ID
+    When I GET "/api/federation/dht/lookup/0000000000000000000000000000000000000000000000000000000000000000"
+    Then the response should be successful
+    And the response should contain "source"
+
+  Scenario: Connect by node ID requires nodeId
+    When I POST to "/api/federation/peers/connect-by-id" with empty body
+    Then the response status should be 400
+    And the response should contain "nodeId required"
+
+  Scenario: Connect by node ID with nonexistent ID
+    When I POST to "/api/federation/peers/connect-by-id" with nodeId "nonexistent123"
+    Then the response status should be 404

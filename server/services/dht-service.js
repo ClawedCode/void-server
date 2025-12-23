@@ -729,6 +729,143 @@ class DHTService {
   }
 
   /**
+   * Lookup a specific node by ID
+   * Returns the node if found (locally or via DHT lookup)
+   * @param {string} nodeId - Full or partial node ID (hex string)
+   * @param {boolean} allowPartial - Allow prefix matching
+   */
+  async lookupNode(nodeId, allowPartial = true) {
+    // Normalize to lowercase
+    const searchId = nodeId.toLowerCase();
+
+    // First check local routing table
+    let localNode = this.routingTable.getNode(searchId);
+
+    // If not exact match and partial allowed, search by prefix
+    if (!localNode && allowPartial && searchId.length < 64) {
+      const allNodes = this.routingTable.getAllNodes();
+      localNode = allNodes.find(n => n.nodeId.startsWith(searchId));
+    }
+
+    if (localNode) {
+      return {
+        found: true,
+        source: 'local',
+        node: {
+          nodeId: localNode.nodeId,
+          endpoint: localNode.endpoint,
+          publicKey: localNode.publicKey,
+          serverId: localNode.serverId,
+          lastSeen: localNode.lastSeen
+        }
+      };
+    }
+
+    // For partial IDs, we can't do DHT lookup (need full ID for XOR routing)
+    if (searchId.length < 64) {
+      return {
+        found: false,
+        source: 'local',
+        error: 'Node not found locally. Full 64-character node ID required for DHT lookup.'
+      };
+    }
+
+    // Do DHT lookup for full node ID
+    console.log(`🌐 DHT lookup for node: ${searchId.slice(0, 16)}...`);
+
+    const closest = await this.findNode(searchId);
+
+    // Check if we found the exact node
+    const exactMatch = closest.find(n => n.nodeId === searchId);
+
+    if (exactMatch) {
+      return {
+        found: true,
+        source: 'dht',
+        node: {
+          nodeId: exactMatch.nodeId,
+          endpoint: exactMatch.endpoint,
+          publicKey: exactMatch.publicKey,
+          serverId: exactMatch.serverId,
+          lastSeen: exactMatch.lastSeen
+        }
+      };
+    }
+
+    // Return closest nodes as suggestions
+    return {
+      found: false,
+      source: 'dht',
+      error: 'Exact node not found in DHT',
+      closestNodes: closest.slice(0, 5).map(n => ({
+        nodeId: n.nodeId,
+        serverId: n.serverId,
+        distance: xorDistance(n.nodeId, searchId).slice(0, 16)
+      }))
+    };
+  }
+
+  /**
+   * Connect to a peer by node ID
+   * Looks up the node and adds it as a peer
+   */
+  async connectByNodeId(nodeId) {
+    const lookup = await this.lookupNode(nodeId, true);
+
+    if (!lookup.found) {
+      return {
+        success: false,
+        error: lookup.error || 'Node not found',
+        closestNodes: lookup.closestNodes
+      };
+    }
+
+    const node = lookup.node;
+
+    // Verify the node is reachable
+    const pingResult = await this.pingNode(node.endpoint).catch(err => ({
+      error: err.message
+    }));
+
+    if (pingResult.error) {
+      return {
+        success: false,
+        error: `Node found but unreachable: ${pingResult.error}`,
+        node
+      };
+    }
+
+    // Add to federation peers
+    this.federationService.addPeer({
+      serverId: pingResult.serverId || node.serverId,
+      publicKey: pingResult.publicKey || node.publicKey,
+      capabilities: pingResult.capabilities || []
+    }, node.endpoint);
+
+    // Update node in routing table
+    const dhtNode = new DHTNode(
+      node.nodeId,
+      node.endpoint,
+      pingResult.publicKey || node.publicKey,
+      pingResult.serverId || node.serverId
+    );
+    dhtNode.touch();
+    this.routingTable.addNode(dhtNode);
+    this.saveState();
+
+    return {
+      success: true,
+      source: lookup.source,
+      peer: {
+        serverId: pingResult.serverId || node.serverId,
+        nodeId: node.nodeId,
+        endpoint: node.endpoint,
+        capabilities: pingResult.capabilities || []
+      }
+    };
+  }
+
+  /**
    * Get DHT status
    */
   getStatus() {

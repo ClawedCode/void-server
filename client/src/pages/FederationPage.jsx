@@ -152,6 +152,8 @@ const FederationPage = () => {
   const [trustGraph, setTrustGraph] = useState({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
   const [addPeerEndpoint, setAddPeerEndpoint] = useState('');
+  const [addPeerNodeId, setAddPeerNodeId] = useState('');
+  const [connectMode, setConnectMode] = useState('endpoint'); // 'endpoint' or 'nodeId'
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -195,6 +197,28 @@ const FederationPage = () => {
       fetchData();
     } else {
       toast.error(data.error || 'Failed to add peer');
+    }
+  };
+
+  const connectByNodeId = async () => {
+    if (!addPeerNodeId) return;
+    const res = await fetch('/api/federation/peers/connect-by-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nodeId: addPeerNodeId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success(`Connected via DHT: ${data.peer.serverId}`);
+      setAddPeerNodeId('');
+      fetchData();
+    } else {
+      const errorMsg = data.error || 'Node not found';
+      if (data.closestNodes?.length > 0) {
+        toast.error(`${errorMsg}. Found ${data.closestNodes.length} similar nodes.`);
+      } else {
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -389,25 +413,79 @@ const FederationPage = () => {
         {/* Add Peer */}
         <Card title="Add Peer" icon={Plus}>
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={addPeerEndpoint}
-                onChange={(e) => setAddPeerEndpoint(e.target.value)}
-                placeholder="https://peer.example.com:4420"
-                className="flex-1 px-3 py-2 bg-void-bg-primary border border-void-border rounded-lg text-sm text-void-fg-primary placeholder:text-void-fg-muted focus:outline-none focus:border-void-accent"
-              />
+            {/* Mode Toggle */}
+            <div className="flex gap-1 p-1 bg-void-bg-primary rounded-lg">
               <button
-                onClick={addPeer}
-                disabled={!addPeerEndpoint}
-                className="px-4 py-2 bg-void-accent text-white rounded-lg text-sm font-medium hover:bg-void-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setConnectMode('endpoint')}
+                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  connectMode === 'endpoint'
+                    ? 'bg-void-accent text-white'
+                    : 'text-void-fg-muted hover:text-void-fg-primary'
+                }`}
               >
-                Connect
+                Endpoint URL
+              </button>
+              <button
+                onClick={() => setConnectMode('nodeId')}
+                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  connectMode === 'nodeId'
+                    ? 'bg-void-accent text-white'
+                    : 'text-void-fg-muted hover:text-void-fg-primary'
+                }`}
+              >
+                Node ID (DHT)
               </button>
             </div>
-            <p className="text-xs text-void-fg-muted">
-              Enter the full URL of another void-server instance to connect
-            </p>
+
+            {/* Endpoint Input */}
+            {connectMode === 'endpoint' && (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={addPeerEndpoint}
+                    onChange={(e) => setAddPeerEndpoint(e.target.value)}
+                    placeholder="https://peer.example.com:4420"
+                    className="flex-1 px-3 py-2 bg-void-bg-primary border border-void-border rounded-lg text-sm text-void-fg-primary placeholder:text-void-fg-muted focus:outline-none focus:border-void-accent"
+                  />
+                  <button
+                    onClick={addPeer}
+                    disabled={!addPeerEndpoint}
+                    className="px-4 py-2 bg-void-accent text-white rounded-lg text-sm font-medium hover:bg-void-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Connect
+                  </button>
+                </div>
+                <p className="text-xs text-void-fg-muted">
+                  Enter the full URL of another void-server instance
+                </p>
+              </>
+            )}
+
+            {/* Node ID Input */}
+            {connectMode === 'nodeId' && (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={addPeerNodeId}
+                    onChange={(e) => setAddPeerNodeId(e.target.value)}
+                    placeholder="abc123... (full or partial node ID)"
+                    className="flex-1 px-3 py-2 bg-void-bg-primary border border-void-border rounded-lg text-sm text-void-fg-primary placeholder:text-void-fg-muted focus:outline-none focus:border-void-accent font-mono"
+                  />
+                  <button
+                    onClick={connectByNodeId}
+                    disabled={!addPeerNodeId}
+                    className="px-4 py-2 bg-void-accent text-white rounded-lg text-sm font-medium hover:bg-void-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Lookup
+                  </button>
+                </div>
+                <p className="text-xs text-void-fg-muted">
+                  Enter a Node ID to find via DHT routing. Partial IDs match locally, full IDs search the network.
+                </p>
+              </>
+            )}
           </div>
         </Card>
 

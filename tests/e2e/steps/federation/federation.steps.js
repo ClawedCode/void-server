@@ -404,3 +404,13 @@ Then('the response should contain pinned count', async function () {
   expect(response.success).toBe(true);
   expect(typeof response.pinned).toBe('number');
 });
+
+// DHT Lookup Steps
+
+When('I POST to {string} with nodeId {string}', async function (endpoint, nodeId) {
+  const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
+    data: { nodeId }
+  });
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
+});
