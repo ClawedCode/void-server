@@ -372,9 +372,8 @@ class DHTService {
     // Default bootstrap nodes (can be overridden by local config)
     // These are official ClawedCode bootstrap nodes for initial network entry
     const defaultBootstrap = [
-      // Primary bootstrap node (deployed on Render.com)
-      // Update this URL after deploying your first bootstrap node
-      // { endpoint: 'https://void-server.onrender.com', name: 'ClawedCode Primary' }
+      // Primary bootstrap node hosted on void-mud (Render.com)
+      { endpoint: 'https://void-mud.onrender.com', name: 'ClawedCode Primary' }
     ];
 
     if (fs.existsSync(BOOTSTRAP_PATH)) {
