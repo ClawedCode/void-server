@@ -1003,6 +1003,148 @@ router.post('/marketplace/memory/:memoryId/cite', async (req, res) => {
   res.json({ success: true });
 });
 
+// ============ Memory IPFS Routes ============
+
+const memoryIpfs = require('../services/memory-ipfs-service');
+
+// GET /api/federation/ipfs/stats - Get memory IPFS statistics
+router.get('/ipfs/stats', async (req, res) => {
+  console.log('🌐 GET /api/federation/ipfs/stats');
+  const stats = await memoryIpfs.getMemoryIpfsStats();
+  res.json({ success: true, stats });
+});
+
+// GET /api/federation/ipfs/memories - List pinned memories
+router.get('/ipfs/memories', async (req, res) => {
+  const { limit, category } = req.query;
+  console.log(`🌐 GET /api/federation/ipfs/memories category=${category || 'all'}`);
+
+  const memories = await memoryIpfs.listPinnedMemories({
+    limit: parseInt(limit) || 100,
+    category: category || null
+  });
+
+  res.json({
+    success: true,
+    count: memories.length,
+    memories
+  });
+});
+
+// POST /api/federation/ipfs/pin/:memoryId - Pin a specific memory to IPFS
+router.post('/ipfs/pin/:memoryId', async (req, res) => {
+  const { memoryId } = req.params;
+  console.log(`🌐 POST /api/federation/ipfs/pin/${memoryId}`);
+
+  // Get memory from Neo4j
+  const neo4j = getNeo4jService();
+  if (!await neo4j.isAvailable()) {
+    return res.status(503).json({ success: false, error: 'Neo4j unavailable' });
+  }
+
+  const result = await neo4j.read(`
+    MATCH (m:Memory {id: $memoryId})
+    RETURN m
+  `, { memoryId });
+
+  const memory = result[0]?.m?.properties;
+  if (!memory) {
+    return res.status(404).json({ success: false, error: 'Memory not found' });
+  }
+
+  const pinResult = await memoryIpfs.pinMemory(memory);
+  res.json(pinResult);
+});
+
+// POST /api/federation/ipfs/pin-collection - Pin multiple memories as a collection
+router.post('/ipfs/pin-collection', async (req, res) => {
+  const { memoryIds, name, description } = req.body;
+  console.log(`🌐 POST /api/federation/ipfs/pin-collection count=${memoryIds?.length || 0}`);
+
+  if (!memoryIds || !Array.isArray(memoryIds) || memoryIds.length === 0) {
+    return res.status(400).json({ success: false, error: 'memoryIds array required' });
+  }
+
+  // Get memories from Neo4j
+  const neo4j = getNeo4jService();
+  if (!await neo4j.isAvailable()) {
+    return res.status(503).json({ success: false, error: 'Neo4j unavailable' });
+  }
+
+  const result = await neo4j.read(`
+    MATCH (m:Memory)
+    WHERE m.id IN $memoryIds
+    RETURN m
+  `, { memoryIds });
+
+  const memories = result.map(r => r.m?.properties).filter(Boolean);
+  if (memories.length === 0) {
+    return res.status(404).json({ success: false, error: 'No memories found' });
+  }
+
+  const pinResult = await memoryIpfs.pinMemoryCollection(memories, { name, description });
+  res.json(pinResult);
+});
+
+// DELETE /api/federation/ipfs/pin/:memoryId - Unpin a memory from IPFS
+router.delete('/ipfs/pin/:memoryId', async (req, res) => {
+  const { memoryId } = req.params;
+  console.log(`🌐 DELETE /api/federation/ipfs/pin/${memoryId}`);
+
+  const result = await memoryIpfs.unpinMemory(memoryId);
+  if (!result.success) {
+    return res.status(404).json(result);
+  }
+  res.json(result);
+});
+
+// POST /api/federation/ipfs/auto-pin - Auto-pin high quality memories
+router.post('/ipfs/auto-pin', async (req, res) => {
+  const { threshold, limit } = req.body;
+  console.log(`🌐 POST /api/federation/ipfs/auto-pin threshold=${threshold || 'default'}`);
+
+  const result = await memoryIpfs.autoPinHighQualityMemories({
+    threshold: parseFloat(threshold) || undefined,
+    limit: parseInt(limit) || undefined
+  });
+
+  res.json(result);
+});
+
+// GET /api/federation/ipfs/memory/:cid - Get a memory by IPFS CID
+router.get('/ipfs/memory/:cid', async (req, res) => {
+  const { cid } = req.params;
+  console.log(`🌐 GET /api/federation/ipfs/memory/${cid}`);
+
+  const result = await memoryIpfs.getMemoryByCid(cid);
+  res.json(result);
+});
+
+// POST /api/federation/ipfs/import/:cid - Import a memory from IPFS CID
+router.post('/ipfs/import/:cid', async (req, res) => {
+  const { cid } = req.params;
+  const { dryRun, sourceServerId } = req.body;
+  console.log(`🌐 POST /api/federation/ipfs/import/${cid} dryRun=${dryRun || false}`);
+
+  const result = await memoryIpfs.importMemoryFromCid(cid, { dryRun, sourceServerId });
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+// POST /api/federation/ipfs/publish-pinata/:memoryId - Publish memory to Pinata
+router.post('/ipfs/publish-pinata/:memoryId', async (req, res) => {
+  const { memoryId } = req.params;
+  console.log(`🌐 POST /api/federation/ipfs/publish-pinata/${memoryId}`);
+
+  const result = await memoryIpfs.publishMemoryToPinata(memoryId);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
 // ============ Memory Sync Routes ============
 
 const { getMemorySyncService } = require('../services/memory-sync-service');

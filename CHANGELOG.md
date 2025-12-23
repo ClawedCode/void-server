@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+---
+
+## [0.16.0] - 2025-12-22
+
 ### New Features
 
 - **Federation Protocol Foundation** - Enable void-server instances to discover and communicate
@@ -77,6 +81,15 @@
   - Top memories and top contributors leaderboards
   - Neo4j storage for marketplace data (quality scores, votes, contributors)
 
+- **Memory IPFS Distribution** - Decentralized memory storage using IPFS
+  - Pin memories to IPFS for permanent, distributed storage
+  - CID-based memory addressing for immutability
+  - Memory collection pinning (multiple memories as a directory)
+  - Auto-pin high-quality memories based on quality score threshold
+  - Import memories from IPFS by CID
+  - Publish memories to Pinata for wider distribution
+  - IPFS stats and pinned memory listing
+
 ### Files Added
 
 - `server/services/federation-service.js` - Federation identity and peer management
@@ -85,7 +98,8 @@
 - `server/services/memory-sync-service.js` - Cross-instance memory sharing
 - `server/services/token-gate-service.js` - $CLAWED token-based access control
 - `server/services/memory-marketplace-service.js` - Quality scoring and reputation tracking
-- `server/routes/federation.js` - Federation, DHT, peer, and token gate API endpoints
+- `server/services/memory-ipfs-service.js` - IPFS-based memory distribution
+- `server/routes/federation.js` - Federation, DHT, peer, token gate, and IPFS API endpoints
 - `client/src/pages/FederationPage.jsx` - Federation UI dashboard
 - `tests/e2e/features/federation/federation.feature` - Federation tests
 - `tests/e2e/steps/federation/federation.steps.js` - Federation step definitions

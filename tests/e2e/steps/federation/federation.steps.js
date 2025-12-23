@@ -379,3 +379,28 @@ When('I POST to {string} with citing memory {string}', async function (endpoint,
   this.testData.lastResponse = await response.json();
   this.testData.lastStatus = response.status();
 });
+
+// Memory IPFS Steps
+
+Then('the response should contain IPFS stats', async function () {
+  const response = this.testData.lastResponse;
+  expect(response.success).toBe(true);
+  expect(response.stats).toBeDefined();
+  expect(response.stats.ipfs).toBeDefined();
+  expect(typeof response.stats.ipfs.enabled).toBe('boolean');
+  expect(response.stats.memories).toBeDefined();
+});
+
+When('I POST to {string} with threshold {int}', async function (endpoint, threshold) {
+  const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
+    data: { threshold, limit: 5 }
+  });
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
+});
+
+Then('the response should contain pinned count', async function () {
+  const response = this.testData.lastResponse;
+  expect(response.success).toBe(true);
+  expect(typeof response.pinned).toBe('number');
+});

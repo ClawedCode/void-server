@@ -259,3 +259,31 @@ Feature: Federation System
   Scenario: Record citation between memories
     When I POST to "/api/federation/marketplace/memory/test-memory-004/cite" with citing memory "test-memory-005"
     Then the response should be successful
+
+  # Memory IPFS Tests
+
+  @smoke
+  Scenario: IPFS stats endpoint
+    When I GET "/api/federation/ipfs/stats"
+    Then the response should be successful
+    And the response should contain IPFS stats
+
+  Scenario: List pinned memories (initially empty or has data)
+    When I GET "/api/federation/ipfs/memories"
+    Then the response should be successful
+    And the response should have "memories" array
+
+  Scenario: Pin memory requires valid memory ID
+    When I POST to "/api/federation/ipfs/pin/nonexistent-memory" with empty body
+    Then the response status should be 404
+    And the response should contain "Memory not found"
+
+  Scenario: Pin collection requires memoryIds
+    When I POST to "/api/federation/ipfs/pin-collection" with empty body
+    Then the response status should be 400
+    And the response should contain "memoryIds array required"
+
+  Scenario: Auto-pin endpoint works
+    When I POST to "/api/federation/ipfs/auto-pin" with threshold 100
+    Then the response should be successful
+    And the response should contain pinned count
