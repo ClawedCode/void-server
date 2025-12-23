@@ -425,6 +425,24 @@ router.post('/dht/announce', async (req, res) => {
   });
 });
 
+// POST /api/federation/dht/peer-push - Receive push notification of new peer
+router.post('/dht/peer-push', (req, res) => {
+  const { nodeId, endpoint, publicKey, serverId, capabilities } = req.body;
+  console.log(`🌐 POST /api/federation/dht/peer-push from=${serverId}`);
+
+  if (!nodeId || !endpoint || !publicKey || !serverId) {
+    return res.status(400).json({ success: false, error: 'nodeId, endpoint, publicKey, and serverId required' });
+  }
+
+  const dht = ensureDHTInitialized();
+  const added = dht.handlePeerPush(nodeId, endpoint, publicKey, serverId, capabilities);
+
+  res.json({
+    success: true,
+    added
+  });
+});
+
 // POST /api/federation/dht/find-node - Find nodes close to a target ID
 router.post('/dht/find-node', (req, res) => {
   const { targetId, fromNodeId, fromEndpoint, fromPublicKey, fromServerId } = req.body;

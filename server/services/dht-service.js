@@ -489,6 +489,11 @@ class DHTService {
       isBootstrapped: this.isBootstrapped
     });
 
+    // Announce ourselves to the network so bootstrap nodes can push us to other peers
+    if (this.isBootstrapped) {
+      await this.announce().catch(() => null);
+    }
+
     return { success: true, contacted, added };
   }
 
@@ -712,6 +717,93 @@ class DHTService {
         publicKey,
         capabilities
       }, endpoint);
+
+      // Push the new peer to other known nodes (helps discovery)
+      this.pushPeerToNetwork(node);
+    }
+
+    return added;
+  }
+
+  /**
+   * Push a new peer announcement to all known nodes
+   * This helps nodes discover each other faster than waiting for refresh
+   */
+  async pushPeerToNetwork(newNode) {
+    const allNodes = this.routingTable.getAllNodes();
+    const otherNodes = allNodes.filter(n => n.nodeId !== newNode.nodeId);
+
+    if (otherNodes.length === 0) return;
+
+    console.log(`🌐 Pushing new peer ${newNode.serverId} to ${otherNodes.length} nodes...`);
+
+    // Push new node to all existing nodes
+    const pushPromises = otherNodes.map(async node => {
+      const url = `${node.endpoint.replace(/\/$/, '')}/api/federation/dht/peer-push`;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodeId: newNode.nodeId,
+          endpoint: newNode.endpoint,
+          publicKey: newNode.publicKey,
+          serverId: newNode.serverId,
+          capabilities: newNode.capabilities || []
+        }),
+        signal: AbortSignal.timeout(5000)
+      }).catch(() => null);
+    });
+
+    // Also push all existing nodes to the new node (bidirectional discovery)
+    const reversePromises = otherNodes.map(async existingNode => {
+      const url = `${newNode.endpoint.replace(/\/$/, '')}/api/federation/dht/peer-push`;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodeId: existingNode.nodeId,
+          endpoint: existingNode.endpoint,
+          publicKey: existingNode.publicKey,
+          serverId: existingNode.serverId,
+          capabilities: existingNode.capabilities || []
+        }),
+        signal: AbortSignal.timeout(5000)
+      }).catch(() => null);
+    });
+
+    await Promise.all([...pushPromises, ...reversePromises]);
+  }
+
+  /**
+   * Handle incoming peer push (notification of new peer from bootstrap node)
+   */
+  handlePeerPush(nodeId, endpoint, publicKey, serverId, capabilities) {
+    // Skip if it's ourselves
+    if (nodeId === this.nodeId) return false;
+
+    // Check if we already know this peer
+    const existing = this.routingTable.getNode(nodeId);
+    if (existing) {
+      existing.touch();
+      return false;
+    }
+
+    const node = new DHTNode(nodeId, endpoint, publicKey, serverId);
+    node.capabilities = capabilities;
+
+    const added = this.routingTable.addNode(node);
+
+    if (added) {
+      this.saveState();
+
+      // Add to federation peers
+      this.federationService.addPeer({
+        serverId,
+        publicKey,
+        capabilities
+      }, endpoint);
+
+      console.log(`🌐 Discovered new peer via push: ${serverId}`);
     }
 
     return added;
