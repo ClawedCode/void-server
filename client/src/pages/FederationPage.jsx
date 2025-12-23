@@ -277,33 +277,35 @@ const FederationPage = () => {
         {/* Server Identity */}
         <Card title="Server Identity" icon={Server}>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-void-fg-muted text-sm">Server ID</span>
-              <div className="flex items-center gap-2">
-                <code className="text-void-fg-primary font-mono text-sm">
-                  {manifest?.serverId}
-                </code>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-void-fg-muted text-sm">Server ID</span>
                 <button
                   onClick={() => copyToClipboard(manifest?.serverId)}
                   className="p-1 hover:bg-void-bg-tertiary rounded"
+                  title="Copy Server ID"
                 >
                   <Copy className="w-3 h-3 text-void-fg-muted" />
                 </button>
               </div>
+              <code className="block text-void-fg-primary font-mono text-sm bg-void-bg-primary px-2 py-1 rounded border border-void-border">
+                {manifest?.serverId}
+              </code>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-void-fg-muted text-sm">Public Key</span>
-              <div className="flex items-center gap-2">
-                <code className="text-void-fg-primary font-mono text-xs truncate max-w-48">
-                  {manifest?.publicKey}
-                </code>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-void-fg-muted text-sm">Public Key</span>
                 <button
                   onClick={() => copyToClipboard(manifest?.publicKey)}
                   className="p-1 hover:bg-void-bg-tertiary rounded"
+                  title="Copy Public Key"
                 >
                   <Copy className="w-3 h-3 text-void-fg-muted" />
                 </button>
               </div>
+              <code className="block text-void-fg-primary font-mono text-xs bg-void-bg-primary px-2 py-1 rounded border border-void-border break-all">
+                {manifest?.publicKey}
+              </code>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-void-fg-muted text-sm">Version</span>
@@ -323,16 +325,41 @@ const FederationPage = () => {
                 {Math.floor(status?.uptime / 60)} min
               </span>
             </div>
+            <div className="pt-2 border-t border-void-border">
+              <button
+                onClick={() => {
+                  const connectionInfo = JSON.stringify({
+                    serverId: manifest?.serverId,
+                    publicKey: manifest?.publicKey,
+                    endpoint: window.location.origin
+                  }, null, 2);
+                  copyToClipboard(connectionInfo);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-void-accent/10 hover:bg-void-accent/20 text-void-accent rounded-lg transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+                Copy Connection Info
+              </button>
+            </div>
           </div>
         </Card>
 
         {/* DHT Status */}
         <Card title="DHT Network" icon={Network}>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-void-fg-muted text-sm">Node ID</span>
-              <code className="text-void-fg-primary font-mono text-xs truncate max-w-48">
-                {dhtStatus?.nodeId?.slice(0, 16)}...
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-void-fg-muted text-sm">Node ID</span>
+                <button
+                  onClick={() => copyToClipboard(dhtStatus?.nodeId)}
+                  className="p-1 hover:bg-void-bg-tertiary rounded"
+                  title="Copy Node ID"
+                >
+                  <Copy className="w-3 h-3 text-void-fg-muted" />
+                </button>
+              </div>
+              <code className="block text-void-fg-primary font-mono text-xs bg-void-bg-primary px-2 py-1 rounded border border-void-border break-all">
+                {dhtStatus?.nodeId}
               </code>
             </div>
             <div className="flex items-center justify-between">

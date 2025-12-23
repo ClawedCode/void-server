@@ -103,6 +103,12 @@
 - `client/src/pages/FederationPage.jsx` - Federation UI dashboard
 - `tests/e2e/features/federation/federation.feature` - Federation tests
 - `tests/e2e/steps/federation/federation.steps.js` - Federation step definitions
+- `docs/FEDERATION.md` - Federation guide and API reference
+
+### Improved
+
+- **Federation UI** - Server ID, public key, and DHT node ID now display in full with copy buttons
+- **Copy Connection Info** - One-click button to copy all connection details as JSON
 
 ---
 
