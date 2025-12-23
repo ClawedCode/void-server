@@ -158,6 +158,7 @@ const FederationPage = () => {
   const [addPeerNodeId, setAddPeerNodeId] = useState('');
   const [connectMode, setConnectMode] = useState('endpoint'); // 'endpoint' or 'nodeId'
   const [confirmAction, setConfirmAction] = useState(null); // { type: 'block'|'delete', peer }
+  const [cryptoTest, setCryptoTest] = useState(null); // { loading, results }
   const { on, off } = useWebSocket();
 
   const fetchData = useCallback(async () => {
@@ -276,12 +277,24 @@ const FederationPage = () => {
   };
 
   const testCrypto = async () => {
+    setCryptoTest({ loading: true, results: null });
     const res = await fetch('/api/federation/test-crypto', { method: 'POST' });
     const data = await res.json();
-    if (data.success && data.encryption.matches && data.signing.verified) {
-      toast.success('Crypto test passed!');
+
+    if (data.success) {
+      setCryptoTest({
+        loading: false,
+        results: {
+          encryption: data.encryption.matches,
+          signing: data.signing.verified,
+          allPassed: data.encryption.matches && data.signing.verified
+        }
+      });
     } else {
-      toast.error('Crypto test failed');
+      setCryptoTest({
+        loading: false,
+        results: { error: data.error || 'Test failed', allPassed: false }
+      });
     }
   };
 
@@ -340,22 +353,13 @@ const FederationPage = () => {
           <Globe className="w-6 h-6 text-void-accent" />
           <h1 className="text-xl font-semibold text-void-fg-primary">Federation</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={testCrypto}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-void-bg-tertiary hover:bg-void-bg-elevated rounded-lg border border-void-border transition-colors"
-          >
-            <Lock className="w-4 h-4" />
-            Test Crypto
-          </button>
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-void-bg-tertiary hover:bg-void-bg-elevated rounded-lg border border-void-border transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
+        <button
+          onClick={fetchData}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-void-bg-tertiary hover:bg-void-bg-elevated rounded-lg border border-void-border transition-colors"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -410,6 +414,49 @@ const FederationPage = () => {
                 {Math.floor(status?.uptime / 60)} min
               </span>
             </div>
+            {/* Crypto Test Section */}
+            <div className="pt-3 border-t border-void-border space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-void-fg-muted text-sm">Cryptography</span>
+                <button
+                  onClick={testCrypto}
+                  disabled={cryptoTest?.loading}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs bg-void-bg-tertiary hover:bg-void-bg-elevated rounded border border-void-border transition-colors disabled:opacity-50"
+                >
+                  {cryptoTest?.loading ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Shield className="w-3 h-3" />
+                  )}
+                  Run Test
+                </button>
+              </div>
+              {cryptoTest?.results && (
+                <div className="bg-void-bg-primary rounded border border-void-border p-2 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-void-fg-muted">TweetNaCl Box (encrypt/decrypt)</span>
+                    <span className={cryptoTest.results.encryption ? 'text-green-400' : 'text-red-400'}>
+                      {cryptoTest.results.encryption ? '✓ Pass' : '✗ Fail'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-void-fg-muted">Ed25519 Sign/Verify</span>
+                    <span className={cryptoTest.results.signing ? 'text-green-400' : 'text-red-400'}>
+                      {cryptoTest.results.signing ? '✓ Pass' : '✗ Fail'}
+                    </span>
+                  </div>
+                  {cryptoTest.results.error && (
+                    <div className="text-xs text-red-400">{cryptoTest.results.error}</div>
+                  )}
+                  <div className="text-xs text-void-fg-muted pt-1 border-t border-void-border">
+                    {cryptoTest.results.allPassed
+                      ? 'Secure peer communication ready'
+                      : 'Crypto functions not working correctly'}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="pt-2 border-t border-void-border">
               <button
                 onClick={() => {
