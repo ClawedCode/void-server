@@ -26,10 +26,72 @@ class PeerService {
   /**
    * Initialize with federation service reference
    */
-  initialize(federationService) {
+  async initialize(federationService) {
     this.federationService = federationService;
+    // Clean up duplicates FIRST, then add constraint
+    await this.cleanupDuplicateServerIds();
+    await this.ensureConstraints();
     this.startHealthChecks();
     console.log('🌐 Peer service initialized with Neo4j backend');
+  }
+
+  /**
+   * Ensure unique constraint on serverId exists
+   */
+  async ensureConstraints() {
+    if (!await this.isNeo4jAvailable()) return;
+
+    const neo4j = getNeo4jService();
+
+    // Create unique constraint if it doesn't exist
+    const cypher = `
+      CREATE CONSTRAINT federation_peer_server_id IF NOT EXISTS
+      FOR (p:FederationPeer) REQUIRE p.serverId IS UNIQUE
+    `;
+
+    await neo4j.write(cypher).catch(() => {
+      // Constraint might already exist or syntax differs by Neo4j version
+      console.log('🌐 FederationPeer constraint already exists or not supported');
+    });
+  }
+
+  /**
+   * Clean up duplicate peers with same serverId (keep highest trust level)
+   */
+  async cleanupDuplicateServerIds() {
+    if (!await this.isNeo4jAvailable()) return;
+
+    const neo4j = getNeo4jService();
+
+    // Find and remove duplicates, keeping the one with highest trust level
+    const cypher = `
+      MATCH (p:FederationPeer)
+      WITH p.serverId AS sid, collect(p) AS peers
+      WHERE size(peers) > 1
+      WITH sid, peers,
+           [x IN peers WHERE x.trustLevel = 'trusted'] AS trusted,
+           [x IN peers WHERE x.trustLevel = 'verified'] AS verified,
+           [x IN peers WHERE x.trustLevel = 'seen'] AS seen,
+           [x IN peers WHERE x.trustLevel = 'unknown'] AS unknown
+      WITH sid,
+           CASE
+             WHEN size(trusted) > 0 THEN head(trusted)
+             WHEN size(verified) > 0 THEN head(verified)
+             WHEN size(seen) > 0 THEN head(seen)
+             ELSE head(unknown)
+           END AS keep,
+           peers
+      UNWIND peers AS p
+      WITH p, keep WHERE p <> keep
+      DETACH DELETE p
+      RETURN count(p) AS deleted
+    `;
+
+    const result = await neo4j.write(cypher);
+    const deleted = result[0]?.deleted || 0;
+    if (deleted > 0) {
+      console.log(`🌐 Cleaned up ${deleted} duplicate peer entries`);
+    }
   }
 
   /**
@@ -69,9 +131,11 @@ class PeerService {
     // Clean up any peers with same endpoint but different serverId (identity changed)
     await this.cleanupDuplicateEndpoints(peer.endpoint, peer.serverId);
 
+    // Use MERGE with ON CREATE/ON MATCH to preserve trust level progression
     const cypher = `
       MERGE (p:FederationPeer {serverId: $serverId})
-      SET p.publicKey = $publicKey,
+      ON CREATE SET
+          p.publicKey = $publicKey,
           p.nodeId = $nodeId,
           p.endpoint = $endpoint,
           p.version = $version,
@@ -82,7 +146,24 @@ class PeerService {
           p.healthScore = $healthScore,
           p.failedChecks = $failedChecks,
           p.lastSeen = datetime($lastSeen),
-          p.addedAt = COALESCE(p.addedAt, datetime($addedAt)),
+          p.addedAt = datetime($addedAt),
+          p.updatedAt = datetime()
+      ON MATCH SET
+          p.publicKey = $publicKey,
+          p.nodeId = COALESCE($nodeId, p.nodeId),
+          p.endpoint = $endpoint,
+          p.version = COALESCE($version, p.version),
+          p.capabilities = CASE WHEN size($capabilities) > 0 THEN $capabilities ELSE p.capabilities END,
+          p.plugins = CASE WHEN $plugins <> '[]' THEN $plugins ELSE p.plugins END,
+          p.trustLevel = CASE
+            WHEN p.trustLevel IN ['trusted', 'verified'] AND $trustLevel IN ['unknown', 'seen'] THEN p.trustLevel
+            WHEN p.trustLevel = 'verified' AND $trustLevel = 'seen' THEN p.trustLevel
+            ELSE $trustLevel
+          END,
+          p.isProtected = COALESCE(p.isProtected, $isProtected),
+          p.healthScore = $healthScore,
+          p.failedChecks = $failedChecks,
+          p.lastSeen = datetime($lastSeen),
           p.verifiedAt = CASE WHEN $verifiedAt IS NOT NULL THEN datetime($verifiedAt) ELSE p.verifiedAt END,
           p.updatedAt = datetime()
       RETURN p

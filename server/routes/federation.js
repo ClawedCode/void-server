@@ -817,6 +817,22 @@ router.post('/peers/neo4j/health-check', async (req, res) => {
   });
 });
 
+// POST /api/federation/peers/neo4j/cleanup - Clean up duplicate peers
+router.post('/peers/neo4j/cleanup', async (req, res) => {
+  console.log(`🌐 POST /api/federation/peers/neo4j/cleanup`);
+
+  const peerService = ensurePeerServiceInitialized();
+  await peerService.cleanupDuplicateServerIds();
+
+  const peers = await peerService.getAllPeers();
+
+  res.json({
+    success: true,
+    message: 'Cleanup complete',
+    count: peers.length
+  });
+});
+
 // ============ Token Gate Routes ============
 
 const tokenGate = require('../services/token-gate-service');
