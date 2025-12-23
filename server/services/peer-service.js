@@ -41,6 +41,7 @@ class PeerService {
 
   /**
    * Create or update a peer in Neo4j
+   * Also cleans up stale peers with same endpoint but different serverId
    */
   async upsertPeer(peer) {
     if (!await this.isNeo4jAvailable()) {
@@ -49,6 +50,9 @@ class PeerService {
     }
 
     const neo4j = getNeo4jService();
+
+    // Clean up any peers with same endpoint but different serverId (identity changed)
+    await this.cleanupDuplicateEndpoints(peer.endpoint, peer.serverId);
 
     const cypher = `
       MERGE (p:FederationPeer {serverId: $serverId})
@@ -196,6 +200,32 @@ class PeerService {
 
     const result = await neo4j.read(cypher);
     return result.map(r => this.formatPeer(r.p));
+  }
+
+  /**
+   * Clean up peers with same endpoint but different serverId
+   * This handles the case where a server's identity changes (e.g., after redeploy)
+   */
+  async cleanupDuplicateEndpoints(endpoint, currentServerId) {
+    if (!endpoint || !currentServerId) return;
+
+    const neo4j = getNeo4jService();
+
+    // Find and delete peers with same endpoint but different serverId
+    const cypher = `
+      MATCH (p:FederationPeer)
+      WHERE p.endpoint = $endpoint AND p.serverId <> $currentServerId
+      WITH p, p.serverId as oldServerId
+      DETACH DELETE p
+      RETURN oldServerId
+    `;
+
+    const result = await neo4j.write(cypher, { endpoint, currentServerId });
+
+    if (result.length > 0) {
+      const deletedIds = result.map(r => r.oldServerId).join(', ');
+      console.log(`🌐 Cleaned up stale peer(s) for endpoint ${endpoint}: ${deletedIds}`);
+    }
   }
 
   /**

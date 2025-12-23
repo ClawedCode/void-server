@@ -322,6 +322,15 @@ class FederationService {
    * Add or update a peer
    */
   addPeer(manifest, endpoint) {
+    // Clean up any stale peers with same endpoint but different serverId
+    // This handles cases where a server's identity changed (e.g., after redeploy)
+    for (const [existingId, existingPeer] of this.peers.entries()) {
+      if (existingPeer.endpoint === endpoint && existingId !== manifest.serverId) {
+        console.log(`🌐 Removing stale peer ${existingId} (endpoint ${endpoint} now has serverId ${manifest.serverId})`);
+        this.peers.delete(existingId);
+      }
+    }
+
     const isNew = !this.peers.has(manifest.serverId);
     const existingPeer = this.peers.get(manifest.serverId);
     const peer = {
