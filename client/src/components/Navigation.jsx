@@ -24,6 +24,7 @@ import {
   X,
   Terminal,
   Check,
+  Wallet,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -264,6 +265,13 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
       title: 'Federation',
       icon: Network,
       path: '/federation',
+      single: true,
+    });
+
+    contentItems.push({
+      title: 'Wallet',
+      icon: Wallet,
+      path: '/wallet',
       single: true,
     });
 

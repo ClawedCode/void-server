@@ -376,5 +376,45 @@ app.use('/api/federation', federation.routes)
 
 ---
 
+### v0.17.0 Token-Gated Federation Auth ✅
+Federation authentication now requires CLAWED token holdings:
+
+**void-mud Changes:**
+- `server/services/signature-service.js` - Ed25519 signature verification
+- `server/services/token-service.js` - CLAWED balance checking with 5-min cache
+- `server/services/session-service.js` - Stateless 7-day HMAC session tokens
+- `server/services/auth-service.js` - Auth orchestration with rate limiting
+- `server/services/relay-service.js` - Auth requirement before registration
+- `server/routes/federation.js` - REST auth endpoint + bootstrap memory endpoints
+
+**void-server Changes:**
+- `server/services/wallet/` - Wallet migrated from plugin to core
+- `server/services/relay-client-service.js` - Auth + session persistence to disk
+- `server/services/memory-sync-service.js` - Bootstrap push/fetch methods
+- `server/routes/federation.js` - Bootstrap memory routes
+
+**Session Persistence:**
+- Sessions are stateless (no server-side storage in void-mud)
+- Token contains: publicKey, serverId, expiresAt, HMAC signature
+- void-mud can restart without losing sessions (tokens self-verify)
+- void-server persists token to `data/federation-session.json`
+- 7-day token lifetime with automatic re-auth on expiry
+
+**Auth Flow:**
+1. void-server connects to void-mud relay
+2. Checks for cached session in `data/federation-session.json`
+3. If valid cached session → use it, skip to step 7
+4. Signs auth message with wallet
+5. void-mud verifies signature + checks 500K+ CLAWED balance
+6. Returns 7-day session token (void-server persists to disk)
+7. void-server registers with session token
+
+**Configuration:**
+- CLAWED mint: `ELusVXzUPHyAuPB3M7qemr2Y2KshiWnGXauK17XYpump`
+- Treasury: `HHj6pCU5Y7ThymSAwqJmJrvAb9YvmEyf8ghr2jFFyv13`
+- Threshold: 500,000 CLAWED
+
+---
+
 ### Next Up
 - [ ] Phase 3: AI Enhancements (RAG, embeddings, multi-model)

@@ -13,6 +13,10 @@ const crypto = require('crypto');
 const { getNeo4jService } = require('./neo4j-service');
 const { getFederationService } = require('./federation-service');
 const memoryService = require('./memory-service');
+const walletService = require('./wallet/wallet-service');
+
+// Default void-mud relay URL
+const DEFAULT_RELAY_URL = 'https://void-mud.onrender.com';
 
 // Sync metadata stored in Neo4j
 const SYNC_NODE_LABEL = 'MemorySyncState';
@@ -499,6 +503,201 @@ class MemorySyncService {
 
     // Dry run import
     return this.importMemories(exportData.data, { dryRun: true });
+  }
+
+  // ============================================
+  // Bootstrap Methods (for void-mud federation)
+  // ============================================
+
+  /**
+   * Get auth token for void-mud API calls
+   * Signs a message with wallet and exchanges for session token
+   */
+  async getBootstrapAuthToken() {
+    const federation = getFederationService();
+    const relayUrl = process.env.RELAY_URL || DEFAULT_RELAY_URL;
+
+    // Get primary wallet
+    const groups = walletService.getWalletGroups();
+    if (!groups?.length || !groups[0].addresses?.length) {
+      return { success: false, error: 'No wallet configured' };
+    }
+
+    const primaryWallet = groups[0].addresses[0];
+    const publicKey = primaryWallet.publicKey;
+
+    // Create auth message
+    const message = JSON.stringify({
+      action: 'federation:auth',
+      timestamp: Date.now(),
+      serverId: federation.identity.serverId
+    });
+
+    // Sign the message
+    const signResult = walletService.signMessage(publicKey, message);
+    if (!signResult.success) {
+      return { success: false, error: `Failed to sign: ${signResult.error}` };
+    }
+
+    // Exchange for session token via HTTP
+    const authUrl = `${relayUrl}/api/federation/auth`;
+    const response = await fetch(authUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        publicKey,
+        signature: signResult.signature,
+        message
+      }),
+      signal: AbortSignal.timeout(30000)
+    }).catch(err => ({ ok: false, error: err.message }));
+
+    if (!response.ok) {
+      // Try to parse error response
+      const errorText = await response.text?.() || 'Request failed';
+      return { success: false, error: errorText };
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      return { success: false, error: data.error };
+    }
+
+    return {
+      success: true,
+      sessionToken: data.sessionToken,
+      expiresAt: data.expiresAt
+    };
+  }
+
+  /**
+   * Push bootstrap memories to void-mud
+   * Only callable by treasury wallet
+   *
+   * @param {Object} options - Export options (passed to exportMemories)
+   */
+  async pushBootstrapMemories(options = {}) {
+    const relayUrl = process.env.RELAY_URL || DEFAULT_RELAY_URL;
+
+    // Get auth token
+    const authResult = await this.getBootstrapAuthToken();
+    if (!authResult.success) {
+      return { success: false, error: `Auth failed: ${authResult.error}` };
+    }
+
+    // Export memories
+    const exportData = await this.exportMemories(options);
+
+    // Push to void-mud
+    const pushUrl = `${relayUrl}/api/federation/memories/bootstrap`;
+    const response = await fetch(pushUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authResult.sessionToken}`
+      },
+      body: JSON.stringify({
+        memories: exportData.memories,
+        metadata: {
+          manifest: exportData.manifest,
+          signature: exportData.signature,
+          options
+        }
+      }),
+      signal: AbortSignal.timeout(120000)
+    }).catch(err => ({ ok: false, error: err.message }));
+
+    if (!response.ok) {
+      const errorText = await response.text?.() || 'Push failed';
+      return { success: false, error: errorText };
+    }
+
+    const result = await response.json();
+    return {
+      success: result.success,
+      pushedAt: result.pushedAt,
+      memoryCount: exportData.memories.length,
+      error: result.error
+    };
+  }
+
+  /**
+   * Fetch bootstrap memories from void-mud
+   * @param {Object} options - Import options
+   * @param {boolean} options.dryRun - Don't actually import, just preview
+   */
+  async fetchBootstrapMemories(options = {}) {
+    const relayUrl = process.env.RELAY_URL || DEFAULT_RELAY_URL;
+
+    // Get auth token
+    const authResult = await this.getBootstrapAuthToken();
+    if (!authResult.success) {
+      return { success: false, error: `Auth failed: ${authResult.error}` };
+    }
+
+    // Fetch from void-mud
+    const fetchUrl = `${relayUrl}/api/federation/memories/bootstrap`;
+    const response = await fetch(fetchUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authResult.sessionToken}`
+      },
+      signal: AbortSignal.timeout(120000)
+    }).catch(err => ({ ok: false, error: err.message }));
+
+    if (!response.ok) {
+      const errorText = await response.text?.() || 'Fetch failed';
+      return { success: false, error: errorText };
+    }
+
+    const data = await response.json();
+
+    if (!data.available) {
+      return {
+        success: true,
+        available: false,
+        message: data.message || 'No bootstrap memories available'
+      };
+    }
+
+    // Reconstruct export format for import
+    const exportData = {
+      manifest: data.metadata?.manifest,
+      signature: data.metadata?.signature,
+      memories: data.memories
+    };
+
+    // Import the memories
+    const importResult = await this.importMemories(exportData, {
+      skipDuplicates: true,
+      dryRun: options.dryRun
+    });
+
+    return {
+      success: true,
+      available: true,
+      pushedAt: data.pushedAt,
+      ...importResult
+    };
+  }
+
+  /**
+   * Check bootstrap memory availability (no auth required)
+   */
+  async checkBootstrapStatus() {
+    const relayUrl = process.env.RELAY_URL || DEFAULT_RELAY_URL;
+
+    const statusUrl = `${relayUrl}/api/federation/memories/bootstrap/status`;
+    const response = await fetch(statusUrl, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10000)
+    }).catch(err => ({ ok: false, error: err.message }));
+
+    if (!response.ok) {
+      return { success: false, error: 'Failed to check bootstrap status' };
+    }
+
+    return response.json();
   }
 }
 

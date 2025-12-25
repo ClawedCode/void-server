@@ -14,6 +14,7 @@ import MemoriesPage from './pages/MemoriesPage';
 import BrowsersPage from './pages/BrowsersPage';
 import IPFSPage from './pages/IPFSPage';
 import FederationPage from './pages/FederationPage';
+import WalletPage from './pages/WalletPage';
 
 function App() {
   const [plugins, setPlugins] = useState([]);
@@ -52,6 +53,7 @@ function App() {
         <Route path="browsers" element={<BrowsersPage />} />
         <Route path="ipfs" element={<IPFSPage />} />
         <Route path="federation" element={<FederationPage />} />
+        <Route path="wallet" element={<WalletPage />} />
 
         {/* Dynamic plugin routes - all handled by PluginViewer */}
         {pluginsLoaded &&

@@ -20,6 +20,9 @@ const pluginManager = BOOTSTRAP_MODE ? null : require('./plugins');
 // Federation management (always loaded - core of bootstrap mode)
 const federationRoutes = require('./routes/federation');
 
+// Wallet management (core functionality for federation auth)
+const walletRoutes = require('./services/wallet/routes');
+
 // The following services are skipped in bootstrap mode
 let aiProvider, aiProvidersRoutes, promptExecutor, promptsRoutes, chatRoutes;
 let memoriesRoutes, backupRoutes, browsersRoutes, browserService, ffmpegService;
@@ -231,6 +234,9 @@ app.get('/health', (req, res) => {
 
 // Federation API (always mounted - core of bootstrap mode)
 app.use('/api/federation', federationRoutes);
+
+// Wallet API (core functionality - not a plugin)
+app.use('/wallet', walletRoutes);
 
 // The following routes are skipped in bootstrap mode
 if (!BOOTSTRAP_MODE) {

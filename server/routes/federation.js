@@ -1348,6 +1348,56 @@ router.post('/memories/sync/:peerId/preview', async (req, res) => {
   res.json(result);
 });
 
+// ============ Bootstrap Memory Routes (void-mud) ============
+
+// GET /api/federation/memories/bootstrap/status - Check bootstrap availability
+router.get('/memories/bootstrap/status', async (req, res) => {
+  console.log(`🌐 GET /api/federation/memories/bootstrap/status`);
+
+  const syncService = ensureMemorySyncServiceInitialized();
+  const status = await syncService.checkBootstrapStatus();
+
+  res.json(status);
+});
+
+// POST /api/federation/memories/bootstrap/push - Push memories to void-mud (treasury only)
+router.post('/memories/bootstrap/push', async (req, res) => {
+  const { category, stage, tags, minImportance, limit } = req.body;
+  console.log(`🌐 POST /api/federation/memories/bootstrap/push`);
+
+  const syncService = ensureMemorySyncServiceInitialized();
+  const result = await syncService.pushBootstrapMemories({
+    category,
+    stage,
+    tags,
+    minImportance,
+    limit
+  });
+
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+});
+
+// POST /api/federation/memories/bootstrap/fetch - Fetch memories from void-mud
+router.post('/memories/bootstrap/fetch', async (req, res) => {
+  const { dryRun } = req.body;
+  console.log(`🌐 POST /api/federation/memories/bootstrap/fetch dryRun=${dryRun || false}`);
+
+  const syncService = ensureMemorySyncServiceInitialized();
+  const result = await syncService.fetchBootstrapMemories({
+    dryRun: dryRun || false
+  });
+
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+});
+
 // ============ Token-Gated Memory Routes ============
 // These endpoints require $CLAWED token holdings for access
 

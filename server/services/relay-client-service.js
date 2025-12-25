@@ -3,14 +3,21 @@
  *
  * WebSocket client that connects to void-mud relay hub.
  * Enables communication with other void-server peers without PUBLIC_URL.
+ * Requires CLAWED token authentication (500K+ threshold).
  */
 
 const { io } = require('socket.io-client');
+const fs = require('fs');
+const path = require('path');
 const { broadcast } = require('../utils/broadcast');
 const { getPeerService } = require('./peer-service');
+const walletService = require('./wallet/wallet-service');
 
 // Default relay URL
 const DEFAULT_RELAY_URL = 'https://void-mud.onrender.com';
+
+// Session token persistence file
+const SESSION_FILE = path.join(process.cwd(), 'data', 'federation-session.json');
 
 // Chunk size for large payloads (64KB)
 const CHUNK_SIZE = 64 * 1024;
@@ -24,8 +31,51 @@ class RelayClientService {
     this.pendingMessages = new Map(); // messageId -> { resolve, reject, timeout }
     this.messageHandlers = new Map(); // type -> handler function
     this.isConnected = false;
+    this.isAuthenticated = false;
+    this.sessionToken = null;
+    this.sessionExpiresAt = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
+  }
+
+  /**
+   * Load persisted session token from disk
+   */
+  loadPersistedSession() {
+    if (!fs.existsSync(SESSION_FILE)) {
+      return null;
+    }
+
+    const data = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+
+    // Check if session is still valid (with 1 hour buffer)
+    if (data.expiresAt && data.expiresAt > Date.now() + 3600000) {
+      console.log('🌐 Relay: Loaded persisted session token');
+      return data;
+    }
+
+    // Expired, remove the file
+    fs.unlinkSync(SESSION_FILE);
+    console.log('🌐 Relay: Persisted session expired, will re-authenticate');
+    return null;
+  }
+
+  /**
+   * Save session token to disk for persistence across restarts
+   */
+  persistSession(sessionToken, expiresAt) {
+    const data = { sessionToken, expiresAt, savedAt: Date.now() };
+    fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2));
+    console.log('🌐 Relay: Session token persisted to disk');
+  }
+
+  /**
+   * Clear persisted session
+   */
+  clearPersistedSession() {
+    if (fs.existsSync(SESSION_FILE)) {
+      fs.unlinkSync(SESSION_FILE);
+    }
   }
 
   /**
@@ -69,21 +119,35 @@ class RelayClientService {
    */
   setupEventHandlers() {
     // Connection events
-    this.socket.on('connect', () => {
+    this.socket.on('connect', async () => {
       console.log('🌐 Relay: Connected to relay hub');
       this.isConnected = true;
       this.reconnectAttempts = 0;
-      this.register();
 
       broadcast('federation:relay-status', {
         connected: true,
         relayUrl: this.relayUrl
       });
+
+      // Authenticate before registering
+      const authResult = await this.authenticate();
+      if (authResult.success) {
+        this.register();
+      } else {
+        console.log(`🌐 Relay: Auth failed, not registering: ${authResult.error}`);
+        broadcast('federation:relay-auth-failed', {
+          error: authResult.error,
+          balance: authResult.balance,
+          threshold: authResult.threshold
+        });
+      }
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log(`🌐 Relay: Disconnected (${reason})`);
       this.isConnected = false;
+      this.isAuthenticated = false;
+      this.sessionToken = null;
       this.connectedPeers.clear();
 
       broadcast('federation:relay-status', {
@@ -151,11 +215,86 @@ class RelayClientService {
   }
 
   /**
+   * Authenticate with relay hub using wallet signature
+   * First checks for a valid persisted session, then falls back to fresh auth
+   */
+  async authenticate() {
+    if (!this.federationService?.identity) {
+      return { success: false, error: 'No federation identity' };
+    }
+
+    // Check for valid persisted session first
+    const cached = this.loadPersistedSession();
+    if (cached) {
+      this.isAuthenticated = true;
+      this.sessionToken = cached.sessionToken;
+      this.sessionExpiresAt = cached.expiresAt;
+      console.log('🌐 Relay: Using persisted session token');
+      return { success: true, cached: true };
+    }
+
+    // Get primary wallet for signing
+    const groups = walletService.getWalletGroups();
+    if (!groups?.length || !groups[0].addresses?.length) {
+      console.log('🌐 Relay: No wallet configured for federation auth');
+      return { success: false, error: 'No wallet configured. Add a wallet to enable federation.' };
+    }
+
+    const primaryWallet = groups[0].addresses[0];
+    const publicKey = primaryWallet.publicKey;
+
+    // Create auth message
+    const message = JSON.stringify({
+      action: 'federation:auth',
+      timestamp: Date.now(),
+      serverId: this.federationService.identity.serverId
+    });
+
+    // Sign the message
+    const signResult = walletService.signMessage(publicKey, message);
+    if (!signResult.success) {
+      return { success: false, error: `Failed to sign: ${signResult.error}` };
+    }
+
+    console.log(`🌐 Relay: Authenticating with wallet ${publicKey.slice(0, 8)}...`);
+
+    return new Promise((resolve) => {
+      this.socket.emit('relay:auth', {
+        publicKey,
+        signature: signResult.signature,
+        message
+      }, (response) => {
+        if (response.success) {
+          this.isAuthenticated = true;
+          this.sessionToken = response.sessionToken;
+          this.sessionExpiresAt = response.expiresAt;
+
+          // Persist session for survival across restarts
+          this.persistSession(response.sessionToken, response.expiresAt);
+
+          console.log(`🌐 Relay: Authenticated successfully (session expires in 7 days)`);
+          resolve({ success: true });
+        } else {
+          // Clear any stale persisted session on auth failure
+          this.clearPersistedSession();
+          console.log(`🌐 Relay: Authentication failed: ${response.error}`);
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  /**
    * Register with relay hub
    */
   register() {
     if (!this.federationService?.identity) {
       console.log('🌐 Relay: Cannot register - no identity');
+      return;
+    }
+
+    if (!this.isAuthenticated) {
+      console.log('🌐 Relay: Cannot register - not authenticated');
       return;
     }
 
@@ -183,6 +322,19 @@ class RelayClientService {
         });
       } else {
         console.log(`🌐 Relay: Registration failed: ${response.error}`);
+
+        // Handle auth required error (session expired or invalid)
+        if (response.requiresAuth) {
+          console.log('🌐 Relay: Session invalid, clearing cache and re-authenticating...');
+          this.isAuthenticated = false;
+          this.sessionToken = null;
+          this.clearPersistedSession();  // Force fresh auth
+          this.authenticate().then(authResult => {
+            if (authResult.success) {
+              this.register();
+            }
+          });
+        }
       }
     });
   }
@@ -355,6 +507,8 @@ class RelayClientService {
   getStatus() {
     return {
       connected: this.isConnected,
+      authenticated: this.isAuthenticated,
+      sessionExpiresAt: this.sessionExpiresAt,
       relayUrl: this.relayUrl,
       connectedPeers: this.connectedPeers.size,
       peers: this.getConnectedPeers()
