@@ -5,9 +5,13 @@
  */
 
 const express = require('express');
+const path = require('path');
 const walletService = require('./wallet-service');
 
 const router = express.Router();
+
+// Serve static assets (token icons)
+router.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Initialize wallet service on module load
 walletService.configure({});
