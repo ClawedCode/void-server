@@ -14,12 +14,17 @@ const lmstudioCli = require('../services/lmstudio-cli');
 
 // GET /api/memories - List all memories with stats
 router.get('/', async (req, res) => {
-  console.log(`📋 GET /api/memories`);
-
   // limit=0 means no limit (fetch all), undefined defaults to 100
   const limitParam = req.query.limit;
   const limit = limitParam !== undefined ? parseInt(limitParam) : 100;
-  const data = await memoryService.getAllMemories(limit);
+
+  // Sort parameters: sort=timestamp|importance|relevance|interactions, order=DESC|ASC
+  const sort = req.query.sort || 'timestamp';
+  const order = req.query.order || 'DESC';
+
+  console.log(`📋 GET /api/memories (limit=${limit}, sort=${sort}, order=${order})`);
+
+  const data = await memoryService.getAllMemories(limit, sort, order);
 
   res.json({
     success: true,

@@ -66,6 +66,7 @@ function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [sortBy, setSortBy] = useState('timestamp-desc'); // Default: newest first
   const [expandedMemory, setExpandedMemory] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingMemory, setEditingMemory] = useState(null);
@@ -86,11 +87,17 @@ function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
   const fetchMemories = useCallback(async () => {
     setLoading(true);
 
-    const url = filterCategory
-      ? `/api/memories/filter?category=${filterCategory}`
-      : searchQuery
-        ? `/api/memories/search?q=${encodeURIComponent(searchQuery)}`
-        : '/api/memories?limit=0';
+    // Parse sort params from sortBy state
+    const [sort, order] = sortBy.split('-');
+
+    let url;
+    if (filterCategory) {
+      url = `/api/memories/filter?category=${filterCategory}`;
+    } else if (searchQuery) {
+      url = `/api/memories/search?q=${encodeURIComponent(searchQuery)}`;
+    } else {
+      url = `/api/memories?limit=0&sort=${sort}&order=${order.toUpperCase()}`;
+    }
 
     const response = await fetch(url);
     const data = await response.json();
@@ -102,7 +109,7 @@ function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
     }
 
     setLoading(false);
-  }, [filterCategory, searchQuery]);
+  }, [filterCategory, searchQuery, sortBy]);
 
   useEffect(() => {
     fetchMemories();
@@ -301,6 +308,17 @@ function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
             </option>
           ))}
         </select>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          className="form-input"
+          style={{ width: '160px', flexShrink: 0 }}
+        >
+          <option value="timestamp-desc">Newest First</option>
+          <option value="timestamp-asc">Oldest First</option>
+          <option value="importance-desc">Most Important</option>
+          <option value="category-asc">By Category</option>
+        </select>
       </div>
 
       {/* Memory Count */}
@@ -436,7 +454,18 @@ function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
                       <div className="space-y-1 text-sm">
                         <p>
                           <span className="text-text-tertiary">ID:</span>{' '}
-                          <span className="text-text-primary font-mono">{memory.id}</span>
+                          {memory.id?.startsWith('mem_') ? (
+                            <a
+                              href={`https://x.com/ClawedCode/status/${memory.id.split('_')[1]}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:text-primary-hover font-mono"
+                            >
+                              {memory.id}
+                            </a>
+                          ) : (
+                            <span className="text-text-primary font-mono">{memory.id}</span>
+                          )}
                         </p>
                         <p>
                           <span className="text-text-tertiary">Type:</span>{' '}
@@ -445,16 +474,6 @@ function MemoriesTab({ neo4jStatus, fetchStatus: _fetchStatus }) {
                         <p>
                           <span className="text-text-tertiary">Source:</span>{' '}
                           <span className="text-text-primary">{memory.source || 'manual'}</span>
-                        </p>
-                        <p>
-                          <span className="text-text-tertiary">Relevance:</span>{' '}
-                          <span className="text-text-primary">
-                            {((memory.metrics?.relevance || 0.5) * 100).toFixed(0)}%
-                          </span>
-                        </p>
-                        <p>
-                          <span className="text-text-tertiary">Views:</span>{' '}
-                          <span className="text-text-primary">{memory.metrics?.views || 0}</span>
                         </p>
                       </div>
                       {memory.tags?.length > 0 && (

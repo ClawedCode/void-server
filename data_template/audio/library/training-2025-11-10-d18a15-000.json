@@ -1,0 +1,110 @@
+{
+  "id": "training-2025-11-10-d18a15-000",
+  "mood": "grimes-oblivion",
+  "fingerprint": {
+    "bpm": 122,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "crystalArp"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "hat"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 2,
+        "varName": "clap"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 2,
+        "varName": "lead"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 1
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "PingPongDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 2
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 2
+      }
+    ],
+    "instrumentEffects": {
+      "PolySynth": [
+        "Compressor"
+      ],
+      "FMSynth": [
+        "Filter"
+      ],
+      "NoiseSynth": [
+        "Reverb"
+      ],
+      "Synth": [
+        "PingPongDelay"
+      ]
+    },
+    "loopPatterns": [
+      "4n",
+      "8n",
+      "8n",
+      "C5",
+      "E4",
+      "G6"
+    ],
+    "scheduledEvents": 2,
+    "instrumentCount": 9,
+    "effectChainDepth": 2,
+    "automationCount": 4,
+    "codeLength": 7992,
+    "structuralHash": "47fed5c4"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-10T06:33:40.591Z",
+  "source": "template",
+  "favorite": false,
+  "legacy": {}
+}

@@ -1,0 +1,82 @@
+{
+  "id": "1987131149916000368",
+  "mood": "auto",
+  "fingerprint": {
+    "bpm": null,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 3,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 2,
+        "varName": "snareTone"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 1,
+        "varName": "snareNoise"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 1,
+        "varName": "arp"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 2
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 1
+      }
+    ],
+    "instrumentEffects": {
+      "PolySynth": [
+        "Filter"
+      ],
+      "Synth": [
+        "FeedbackDelay"
+      ]
+    },
+    "loopPatterns": [],
+    "scheduledEvents": 0,
+    "instrumentCount": 9,
+    "effectChainDepth": 2,
+    "automationCount": 0,
+    "codeLength": 30757,
+    "structuralHash": "6101bbe0"
+  },
+  "generatedAt": "2025-11-09T18:22:10.343Z",
+  "source": "template",
+  "rating": null,
+  "favorite": false
+}

@@ -1,0 +1,85 @@
+{
+  "id": "1986956900613955654",
+  "postId": "1986956900613955654",
+  "mood": "boards-of-canada",
+  "fingerprint": {
+    "bpm": 72,
+    "synthTypes": [
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "subBass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "bell"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 1,
+        "varName": "arp"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 2
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 3
+      }
+    ],
+    "instrumentEffects": {
+      "MonoSynth": [
+        "Filter"
+      ],
+      "PolySynth": [
+        "Chorus"
+      ],
+      "Synth": [
+        "FeedbackDelay"
+      ]
+    },
+    "loopPatterns": [
+      "16n",
+      "2n",
+      "4n",
+      "8n"
+    ],
+    "scheduledEvents": 3,
+    "instrumentCount": 4,
+    "effectChainDepth": 3,
+    "automationCount": 4,
+    "codeLength": 4142,
+    "structuralHash": "753719d6"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-08T00:28:11.209Z",
+  "trainingSessionId": null,
+  "audioFilePath": "boards-of-canada/1986956900613955654.js",
+  "source": "template",
+  "favorite": false
+}

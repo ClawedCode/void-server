@@ -1398,6 +1398,185 @@ router.post('/memories/bootstrap/fetch', async (req, res) => {
   res.json(result);
 });
 
+// ============ Audio Sync Routes ============
+
+const audioSyncService = require('../services/audio-sync-service');
+
+// POST /api/federation/audio/export - Export audio tracks with filters
+router.post('/audio/export', async (req, res) => {
+  const { mood, since, limit, requesterId } = req.body;
+  console.log(`🌐 POST /api/federation/audio/export mood=${mood || 'all'} requesterId=${requesterId || 'local'}`);
+
+  const exportData = await audioSyncService.exportTracks({ mood, since, limit });
+
+  res.json({
+    success: true,
+    data: exportData
+  });
+});
+
+// POST /api/federation/audio/import - Import audio tracks from a peer export
+router.post('/audio/import', async (req, res) => {
+  const { exportData, skipDuplicates, dryRun } = req.body;
+  console.log(`🌐 POST /api/federation/audio/import dryRun=${dryRun || false}`);
+
+  if (!exportData || !exportData.manifest || !exportData.tracks) {
+    return res.status(400).json({ success: false, error: 'exportData with manifest and tracks required' });
+  }
+
+  const result = await audioSyncService.importTracks(exportData, {
+    skipDuplicates: skipDuplicates !== false,
+    dryRun: dryRun || false
+  });
+
+  res.json(result);
+});
+
+// GET /api/federation/audio/sync/stats - Get audio sync statistics
+router.get('/audio/sync/stats', async (req, res) => {
+  console.log(`🌐 GET /api/federation/audio/sync/stats`);
+
+  const stats = await audioSyncService.getStats();
+
+  res.json({
+    success: true,
+    stats
+  });
+});
+
+// POST /api/federation/audio/sync/:peerId - Delta sync with a peer
+router.post('/audio/sync/:peerId', async (req, res) => {
+  const { peerId } = req.params;
+  console.log(`🌐 POST /api/federation/audio/sync/${peerId}`);
+
+  const federation = getFederationService();
+  const peer = federation.getPeer(peerId);
+
+  if (!peer) {
+    return res.status(404).json({ success: false, error: 'Peer not found' });
+  }
+
+  const result = await audioSyncService.deltaSync(peerId);
+  res.json(result);
+});
+
+// POST /api/federation/audio/publish - Publish signed audio tracks via relay
+router.post('/audio/publish', async (req, res) => {
+  const { limit, mood } = req.body;
+  console.log(`🌐 POST /api/federation/audio/publish mood=${mood || 'all'} limit=${limit || 'all'}`);
+
+  const federation = getFederationService();
+  const relayClient = federation.relayClient;
+
+  if (!relayClient) {
+    return res.status(400).json({ success: false, error: 'Relay client not initialized' });
+  }
+
+  if (!relayClient.isConnected || !relayClient.isAuthenticated) {
+    return res.status(400).json({
+      success: false,
+      error: 'Not connected to relay. Connect and authenticate first.',
+      connected: relayClient.isConnected,
+      authenticated: relayClient.isAuthenticated
+    });
+  }
+
+  const result = await relayClient.publishSignedAudio({ limit, mood });
+  res.json(result);
+});
+
+// POST /api/federation/gated/audio/export - Token-gated audio export
+router.post('/gated/audio/export',
+  tokenGate.requireTokens('federation:read_memories'),
+  async (req, res) => {
+    const { mood, since, limit } = req.body;
+    console.log(`🌐 POST /api/federation/gated/audio/export tier=${req.tokenGate.tier}`);
+
+    const exportData = await audioSyncService.exportTracks({ mood, since, limit });
+
+    res.json({
+      success: true,
+      tokenGate: req.tokenGate,
+      data: exportData
+    });
+  }
+);
+
+// POST /api/federation/gated/audio/import - Token-gated audio import
+router.post('/gated/audio/import',
+  tokenGate.requireTokens('federation:write_memories'),
+  async (req, res) => {
+    const { exportData, skipDuplicates, dryRun } = req.body;
+    console.log(`🌐 POST /api/federation/gated/audio/import tier=${req.tokenGate.tier}`);
+
+    if (!exportData || !exportData.manifest || !exportData.tracks) {
+      return res.status(400).json({ success: false, error: 'exportData with manifest and tracks required' });
+    }
+
+    const result = await audioSyncService.importTracks(exportData, {
+      skipDuplicates: skipDuplicates !== false,
+      dryRun: dryRun || false
+    });
+
+    res.json({
+      ...result,
+      tokenGate: req.tokenGate
+    });
+  }
+);
+
+// POST /api/federation/gated/audio/sync/:peerId - Token-gated audio sync
+router.post('/gated/audio/sync/:peerId',
+  tokenGate.requireTokens('federation:sync_peers'),
+  async (req, res) => {
+    const { peerId } = req.params;
+    console.log(`🌐 POST /api/federation/gated/audio/sync/${peerId} tier=${req.tokenGate.tier}`);
+
+    const federation = getFederationService();
+    const peer = federation.getPeer(peerId);
+
+    if (!peer) {
+      return res.status(404).json({ success: false, error: 'Peer not found' });
+    }
+
+    const result = await audioSyncService.deltaSync(peerId);
+    res.json({
+      ...result,
+      tokenGate: req.tokenGate
+    });
+  }
+);
+
+// ============ Signed Memory Publishing ============
+
+// POST /api/federation/memories/publish - Publish signed memories to void-mud relay
+router.post('/memories/publish', async (req, res) => {
+  const { limit } = req.body;
+  console.log(`🌐 POST /api/federation/memories/publish limit=${limit || 'all'}`);
+
+  const federation = getFederationService();
+  const relayClient = federation.relayClient;
+
+  if (!relayClient) {
+    return res.status(400).json({ success: false, error: 'Relay client not initialized' });
+  }
+
+  if (!relayClient.isConnected || !relayClient.isAuthenticated) {
+    return res.status(400).json({
+      success: false,
+      error: 'Not connected to relay. Connect and authenticate first.',
+      connected: relayClient.isConnected,
+      authenticated: relayClient.isAuthenticated
+    });
+  }
+
+  const result = await relayClient.publishSignedMemories({
+    limit: limit || undefined
+  });
+
+  res.json(result);
+});
+
 // ============ Token-Gated Memory Routes ============
 // These endpoints require $CLAWED token holdings for access
 
@@ -1476,15 +1655,101 @@ router.post('/gated/memories/sync/:peerId',
 // ============ Status ============
 
 // GET /api/federation/relay/status - Get relay connection status
-router.get('/relay/status', (req, res) => {
+router.get('/relay/status', async (req, res) => {
   console.log(`🌐 GET /api/federation/relay/status`);
 
   const federation = getFederationService();
   const relayStatus = federation.getRelayStatus();
 
+  // Get tier info for auth wallet if available
+  let discipleInfo = null;
+  if (relayStatus.authWallet?.publicKey) {
+    const balance = await tokenGate.getClawedBalance(relayStatus.authWallet.publicKey);
+    const tier = tokenGate.getTierForBalance(balance);
+    discipleInfo = {
+      balance,
+      tier,
+      isDisciple: ['DISCIPLE', 'ACOLYTE', 'ASCENDED', 'ARCHITECT'].includes(tier)
+    };
+  }
+
   res.json({
     success: true,
-    ...relayStatus
+    ...relayStatus,
+    discipleInfo
+  });
+});
+
+// POST /api/federation/relay/reconnect - Force re-authentication with relay
+router.post('/relay/reconnect', (req, res) => {
+  console.log(`🌐 POST /api/federation/relay/reconnect`);
+
+  const federation = getFederationService();
+  const relayClient = federation.relayClient;
+
+  if (!relayClient) {
+    return res.status(400).json({ success: false, error: 'Relay client not initialized' });
+  }
+
+  // Disconnect and reconnect (connect is async, status updates via WebSocket)
+  relayClient.disconnect();
+  relayClient.connect();
+
+  res.json({
+    success: true,
+    message: 'Reconnecting to relay...',
+    status: relayClient.getStatus()
+  });
+});
+
+// PUT /api/federation/relay/auth-wallet - Set the wallet for federation auth
+router.put('/relay/auth-wallet', async (req, res) => {
+  const { publicKey } = req.body;
+  console.log(`🌐 PUT /api/federation/relay/auth-wallet publicKey=${publicKey?.slice(0, 8)}...`);
+
+  if (!publicKey) {
+    return res.status(400).json({ success: false, error: 'publicKey required' });
+  }
+
+  const federation = getFederationService();
+  const relayClient = federation.relayClient;
+
+  if (!relayClient) {
+    return res.status(400).json({ success: false, error: 'Relay client not initialized' });
+  }
+
+  // Update the auth wallet setting
+  relayClient.setAuthWallet(publicKey);
+
+  // Clear the persisted session so next reconnect uses new wallet
+  const fs = require('fs');
+  const sessionFile = require('path').join(process.cwd(), 'data', 'federation-session.json');
+  if (fs.existsSync(sessionFile)) {
+    fs.unlinkSync(sessionFile);
+    console.log('🌐 Relay: Cleared persisted session for new wallet');
+  }
+
+  // Disconnect from relay - user must reconnect with new wallet
+  relayClient.disconnect();
+  console.log('🌐 Relay: Disconnected - wallet changed');
+
+  // Get updated status with tier info
+  const status = relayClient.getStatus();
+  let discipleInfo = null;
+  if (status.authWallet?.publicKey) {
+    const balance = await tokenGate.getClawedBalance(status.authWallet.publicKey);
+    const tier = tokenGate.getTierForBalance(balance);
+    discipleInfo = {
+      balance,
+      tier,
+      isDisciple: ['DISCIPLE', 'ACOLYTE', 'ASCENDED', 'ARCHITECT'].includes(tier)
+    };
+  }
+
+  res.json({
+    success: true,
+    message: 'Wallet changed. Click Connect to authenticate with new wallet.',
+    status: { ...status, discipleInfo }
   });
 });
 
@@ -1566,6 +1831,31 @@ async function handleFederationMessage(message, peer, federation) {
       return {
         type: 'memory_share_response',
         ...result
+      };
+    }
+
+    case 'audio_query': {
+      // Handle audio export request from peer
+      const audioExport = await audioSyncService.exportTracks(message.filters || {});
+      return {
+        type: 'audio_query_response',
+        success: true,
+        data: audioExport
+      };
+    }
+
+    case 'audio_share': {
+      // Handle audio import from peer
+      if (!message.exportData) {
+        return { type: 'audio_share_response', success: false, error: 'No export data provided' };
+      }
+      const audioResult = await audioSyncService.importTracks(message.exportData, {
+        skipDuplicates: true,
+        dryRun: message.dryRun || false
+      });
+      return {
+        type: 'audio_share_response',
+        ...audioResult
       };
     }
 

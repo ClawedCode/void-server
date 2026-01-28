@@ -1,0 +1,99 @@
+{
+  "id": "training-2025-11-09-9c3b86-000",
+  "postId": null,
+  "mood": "boards-of-canada",
+  "fingerprint": {
+    "bpm": 82,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "bell"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "hat"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 2,
+        "varName": "snare"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 1,
+        "varName": "lead"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 1
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 2
+      },
+      {
+        "type": "Filter",
+        "count": 4
+      }
+    ],
+    "instrumentEffects": {
+      "MembraneSynth": [
+        "Reverb"
+      ],
+      "PolySynth": [
+        "Filter"
+      ],
+      "FMSynth": [
+        "Chorus"
+      ]
+    },
+    "loopPatterns": [
+      "2m",
+      "4n",
+      "4n",
+      "8n"
+    ],
+    "scheduledEvents": 5,
+    "instrumentCount": 8,
+    "effectChainDepth": 4,
+    "automationCount": 2,
+    "codeLength": 6506,
+    "structuralHash": "3ab49df6"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-09T03:40:59.147Z",
+  "trainingSessionId": "training-2025-11-09-9c3b86",
+  "audioFilePath": "boards-of-canada/training-2025-11-09-9c3b86-000.js",
+  "source": "template",
+  "favorite": false
+}

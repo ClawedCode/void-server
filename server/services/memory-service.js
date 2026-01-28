@@ -216,6 +216,9 @@ async function saveToFile(memories) {
  * Load memories from file backup
  */
 async function loadFromFile() {
+  if (!fsSync.existsSync(MEMORIES_FILE)) {
+    return { version: '2.0', memories: [] };
+  }
   const data = await fs.readFile(MEMORIES_FILE, 'utf8');
   return JSON.parse(data);
 }
@@ -223,17 +226,34 @@ async function loadFromFile() {
 // ============ Public API ============
 
 /**
- * Get all memories
+ * Get all memories with sorting
  * @param {number} limit - Max memories to return (0 = no limit)
+ * @param {string} sort - Sort field: timestamp, importance, relevance, interactions
+ * @param {string} order - Sort order: DESC or ASC
  */
-async function getAllMemories(limit = 100) {
+async function getAllMemories(limit = 100, sort = 'timestamp', order = 'DESC') {
   const neo4j = getNeo4jService();
   const effectiveLimit = limit === 0 ? 10000 : limit;
 
   if (!await neo4j.isAvailable()) {
-    // Fallback to file
+    // Fallback to file with client-side sorting
     const data = await loadFromFile();
-    const memoriesToReturn = limit === 0 ? data.memories : data.memories.slice(0, limit);
+    let memories = [...data.memories];
+
+    // Sort by field
+    const sortKey = sort === 'timestamp' ? 'timestamp' :
+                    sort === 'importance' ? 'importance' :
+                    sort === 'relevance' ? 'metrics.relevance' :
+                    sort === 'interactions' ? 'metrics.interactions' : 'timestamp';
+
+    memories.sort((a, b) => {
+      const aVal = sortKey.includes('.') ? a.metrics?.[sortKey.split('.')[1]] : a[sortKey];
+      const bVal = sortKey.includes('.') ? b.metrics?.[sortKey.split('.')[1]] : b[sortKey];
+      if (order === 'ASC') return aVal > bVal ? 1 : -1;
+      return bVal > aVal ? 1 : -1;
+    });
+
+    const memoriesToReturn = limit === 0 ? memories : memories.slice(0, limit);
     return {
       memories: memoriesToReturn,
       statistics: calculateStatistics(data.memories),
@@ -242,7 +262,7 @@ async function getAllMemories(limit = 100) {
     };
   }
 
-  const result = await neo4j.getAllMemories(effectiveLimit);
+  const result = await neo4j.getAllMemories(effectiveLimit, sort, order);
   const memories = result.map(r => formatMemoryFromNeo4j(r.m));
 
   return {

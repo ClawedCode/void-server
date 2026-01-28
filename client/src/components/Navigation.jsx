@@ -255,6 +255,13 @@ function Navigation({ sidebarOpen, toggleSidebar, plugins = [] }) {
     });
 
     contentItems.push({
+      title: 'Audio',
+      icon: Music,
+      path: '/audio',
+      single: true,
+    });
+
+    contentItems.push({
       title: 'Browsers',
       icon: Globe,
       path: '/browsers',

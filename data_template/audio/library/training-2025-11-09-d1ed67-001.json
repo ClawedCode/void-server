@@ -1,0 +1,109 @@
+{
+  "id": "training-2025-11-09-d1ed67-001",
+  "postId": null,
+  "mood": "daft-punk-tron-legacy",
+  "fingerprint": {
+    "bpm": 112,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 2,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "bell"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "hat"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 2,
+        "varName": "snareNoise"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 1,
+        "varName": "arp"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 3
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 4
+      }
+    ],
+    "instrumentEffects": {
+      "MonoSynth": [
+        "Filter"
+      ],
+      "PolySynth": [
+        "Chorus"
+      ],
+      "MetalSynth": [
+        "Reverb"
+      ],
+      "NoiseSynth": [
+        "Compressor"
+      ],
+      "Synth": [
+        "FeedbackDelay"
+      ]
+    },
+    "loopPatterns": [
+      "1n",
+      "4n",
+      "8n",
+      "midi"
+    ],
+    "scheduledEvents": 6,
+    "instrumentCount": 9,
+    "effectChainDepth": 4,
+    "automationCount": 6,
+    "codeLength": 7167,
+    "structuralHash": "4286ddfa"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-09T03:26:54.730Z",
+  "trainingSessionId": "training-2025-11-09-d1ed67",
+  "audioFilePath": "daft-punk-(tron-legacy)/training-2025-11-09-d1ed67-001.js",
+  "source": "template",
+  "favorite": false
+}

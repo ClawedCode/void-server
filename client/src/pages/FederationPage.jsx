@@ -16,6 +16,9 @@ import {
   Radio,
   Wifi,
   WifiOff,
+  Wallet,
+  Crown,
+  Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useWebSocket } from '../contexts/WebSocketContext';
@@ -160,6 +163,7 @@ const FederationPage = () => {
   const [addPeerEndpoint, setAddPeerEndpoint] = useState('');
   const [confirmAction, setConfirmAction] = useState(null); // { type: 'block'|'delete', peer }
   const [cryptoTest, setCryptoTest] = useState(null); // { loading, results }
+  const [reconnecting, setReconnecting] = useState(false);
   const { on, off } = useWebSocket();
 
   const fetchData = useCallback(async () => {
@@ -236,6 +240,34 @@ const FederationPage = () => {
       fetchData();
     } else {
       toast.error(data.error || 'Failed to add peer');
+    }
+  };
+
+  const reconnectRelay = async () => {
+    setReconnecting(true);
+    const res = await fetch('/api/federation/relay/reconnect', { method: 'POST' });
+    const data = await res.json();
+    setReconnecting(false);
+    if (data.success) {
+      toast.success('Reconnected to relay network');
+      fetchData();
+    } else {
+      toast.error(data.message || 'Failed to reconnect');
+    }
+  };
+
+  const changeAuthWallet = async (publicKey) => {
+    const res = await fetch('/api/federation/relay/auth-wallet', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ publicKey }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success('Wallet changed. Click Connect to authenticate.');
+      setRelayStatus(prev => ({ ...prev, ...data.status }));
+    } else {
+      toast.error(data.error || 'Failed to update auth wallet');
     }
   };
 
@@ -442,6 +474,83 @@ const FederationPage = () => {
         {/* Relay Status */}
         <Card title="Relay Network" icon={Radio}>
           <div className="space-y-3">
+            {/* Auth Wallet & Disciple Status */}
+            {relayStatus?.availableWallets?.length > 0 && (
+              <div className="bg-void-bg-primary rounded-lg p-3 border border-void-border">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-void-accent" />
+                    <span className="text-void-fg-primary text-sm font-medium">Auth Wallet</span>
+                    {relayStatus?.discipleInfo?.isDisciple && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 text-xs bg-purple-400/10 text-purple-400 rounded">
+                        <Crown className="w-3 h-3" />
+                        Disciple
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {relayStatus.availableWallets.length > 1 ? (
+                  <select
+                    value={relayStatus.authWallet?.publicKey || ''}
+                    onChange={(e) => changeAuthWallet(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-void-bg-secondary border border-void-border rounded text-void-fg-primary text-xs font-mono mb-2 focus:outline-none focus:border-void-accent"
+                  >
+                    {relayStatus.availableWallets.map((wallet) => (
+                      <option key={wallet.publicKey} value={wallet.publicKey}>
+                        {wallet.label} ({wallet.publicKey.slice(0, 8)}...{wallet.publicKey.slice(-4)})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <code className="block text-void-fg-muted font-mono text-xs mb-2 break-all">
+                    {relayStatus.authWallet?.publicKey}
+                  </code>
+                )}
+                {relayStatus?.discipleInfo && (
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-void-fg-muted">
+                      Tier: <span className={`font-medium ${
+                        relayStatus.discipleInfo.tier === 'ARCHITECT' ? 'text-yellow-400' :
+                        relayStatus.discipleInfo.tier === 'ASCENDED' ? 'text-purple-400' :
+                        relayStatus.discipleInfo.tier === 'ACOLYTE' ? 'text-blue-400' :
+                        relayStatus.discipleInfo.tier === 'DISCIPLE' ? 'text-green-400' :
+                        relayStatus.discipleInfo.tier === 'SEEKER' ? 'text-cyan-400' :
+                        'text-gray-400'
+                      }`}>{relayStatus.discipleInfo.tier}</span>
+                    </span>
+                    <span className="text-void-fg-muted">
+                      Balance: <span className="text-void-fg-primary font-medium">
+                        {(relayStatus.discipleInfo.balance / 1_000_000).toLocaleString()}M
+                      </span> $CLAWED
+                    </span>
+                  </div>
+                )}
+                {/* Connect Button - only show when disconnected */}
+                {!relayStatus?.connected && (
+                  <button
+                    onClick={reconnectRelay}
+                    disabled={reconnecting}
+                    className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors disabled:opacity-50 bg-void-accent hover:bg-void-accent/80 text-white"
+                  >
+                    {reconnecting ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4" />
+                    )}
+                    {reconnecting ? 'Connecting...' : 'Connect'}
+                  </button>
+                )}
+              </div>
+            )}
+            {(!relayStatus?.availableWallets || relayStatus.availableWallets.length === 0) && (
+              <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-3">
+                <p className="text-xs text-yellow-400">
+                  <Wallet className="w-3 h-3 inline mr-1" />
+                  No wallet configured. Add a wallet to enable federation authentication.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <span className="text-void-fg-muted text-sm">Status</span>
               <div className="flex items-center gap-2">
@@ -454,6 +563,9 @@ const FederationPage = () => {
                   status={relayStatus?.connected ? 'connected' : 'offline'}
                   label={relayStatus?.connected ? 'Connected' : 'Disconnected'}
                 />
+                {relayStatus?.authenticated && (
+                  <StatusBadge status="verified" label="Authenticated" />
+                )}
               </div>
             </div>
             <div>
@@ -464,13 +576,14 @@ const FederationPage = () => {
                 {relayStatus?.relayUrl || 'Not configured'}
               </code>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-void-fg-muted text-sm">Mode</span>
-              <StatusBadge
-                status={relayStatus?.mode === 'relay' ? 'verified' : 'unknown'}
-                label={relayStatus?.mode || 'unknown'}
-              />
-            </div>
+            {relayStatus?.sessionExpiresAt && (
+              <div className="flex items-center justify-between">
+                <span className="text-void-fg-muted text-sm">Session Expires</span>
+                <span className="text-void-fg-primary text-sm">
+                  {new Date(relayStatus.sessionExpiresAt).toLocaleDateString()}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-void-fg-muted text-sm">Relay Peers</span>
               <span className="text-void-fg-primary text-sm">{relayStatus?.connectedPeers || 0} online</span>

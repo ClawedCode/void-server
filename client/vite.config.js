@@ -50,20 +50,20 @@ export default defineConfig({
     // Proxy API and WebSocket calls to Express server
     proxy: {
       '/api': {
-        target: 'http://localhost:4401',
+        target: 'http://localhost:4420',
         changeOrigin: true
       },
       '/socket.io': {
-        target: 'http://localhost:4401',
+        target: 'http://localhost:4420',
         ws: true
       },
       // Plugin APIs should hit the server (UI stays on Vite)
       '/wallet/api': {
-        target: 'http://localhost:4401',
+        target: 'http://localhost:4420',
         changeOrigin: true
       },
       '/wallet/socket.io': {
-        target: 'http://localhost:4401',
+        target: 'http://localhost:4420',
         ws: true
       }
     }

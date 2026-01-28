@@ -1,0 +1,87 @@
+{
+  "id": "training-2025-11-09-761dd6-001",
+  "mood": "moby-play-downtempo",
+  "fingerprint": {
+    "bpm": 92,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 2,
+        "varName": "piano"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "vocal"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "hat"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 1,
+        "varName": "snare"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 1
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 4
+      }
+    ],
+    "instrumentEffects": {
+      "PolySynth": [
+        "Filter"
+      ],
+      "MetalSynth": [
+        "Reverb"
+      ]
+    },
+    "loopPatterns": [
+      "1n",
+      "1n",
+      "8n"
+    ],
+    "scheduledEvents": 3,
+    "instrumentCount": 7,
+    "effectChainDepth": 4,
+    "automationCount": 3,
+    "codeLength": 7815,
+    "structuralHash": "142cf8d6"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-10T06:33:40.582Z",
+  "source": "template",
+  "favorite": false,
+  "legacy": {}
+}

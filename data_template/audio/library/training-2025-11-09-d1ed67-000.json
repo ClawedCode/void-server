@@ -1,0 +1,91 @@
+{
+  "id": "training-2025-11-09-d1ed67-000",
+  "postId": null,
+  "mood": "daft-punk-tron-legacy",
+  "fingerprint": {
+    "bpm": 118,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 2,
+        "varName": "lead"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "bell"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "hat"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 2,
+        "varName": "subBass"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 1
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 3
+      }
+    ],
+    "instrumentEffects": {
+      "PolySynth": [
+        "FeedbackDelay"
+      ],
+      "FMSynth": [
+        "Reverb"
+      ],
+      "Synth": [
+        "Compressor"
+      ]
+    },
+    "loopPatterns": [
+      "16n",
+      "1n",
+      "4n",
+      "8n"
+    ],
+    "scheduledEvents": 6,
+    "instrumentCount": 7,
+    "effectChainDepth": 3,
+    "automationCount": 6,
+    "codeLength": 6152,
+    "structuralHash": "1813c3cb"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-09T03:26:13.901Z",
+  "trainingSessionId": "training-2025-11-09-d1ed67",
+  "audioFilePath": "daft-punk-(tron-legacy)/training-2025-11-09-d1ed67-000.js",
+  "source": "template",
+  "favorite": false
+}

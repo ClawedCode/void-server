@@ -12,12 +12,37 @@ const path = require('path');
 const { broadcast } = require('../utils/broadcast');
 const { getPeerService } = require('./peer-service');
 const walletService = require('./wallet/wallet-service');
+const { getMemorySyncService } = require('./memory-sync-service');
 
 // Default relay URL
 const DEFAULT_RELAY_URL = 'https://void-mud.onrender.com';
 
 // Session token persistence file
 const SESSION_FILE = path.join(process.cwd(), 'data', 'federation-session.json');
+
+// Federation settings file (stores selected auth wallet, etc.)
+const SETTINGS_FILE = path.join(process.cwd(), 'data', 'federation-settings.json');
+
+/**
+ * Load federation settings from disk
+ */
+function loadFederationSettings() {
+  if (fs.existsSync(SETTINGS_FILE)) {
+    return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+  }
+  return {};
+}
+
+/**
+ * Save federation settings to disk
+ */
+function saveFederationSettings(settings) {
+  const dir = path.dirname(SETTINGS_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+}
 
 // Chunk size for large payloads (64KB)
 const CHUNK_SIZE = 64 * 1024;
@@ -212,6 +237,47 @@ class RelayClientService {
     this.socket.on('relay:broadcast', (payload) => {
       this.handleIncomingBroadcast(payload);
     });
+
+    // Memory updates from treasury
+    this.socket.on('relay:memories-updated', (data) => {
+      console.log(`🌐 Relay: New memories available (${data.count} new, ${data.total} total)`);
+      broadcast('federation:memories-available', {
+        count: data.count,
+        total: data.total,
+        timestamp: data.timestamp
+      });
+    });
+
+    // Audio updates from peers
+    this.socket.on('relay:audio-updated', (data) => {
+      console.log(`🌐 Relay: Audio tracks available (${data.count} new, ${data.total} total)`);
+      broadcast('federation:audio-available', {
+        count: data.count,
+        total: data.total,
+        timestamp: data.timestamp
+      });
+    });
+
+    // Register audio message handlers
+    this.onMessage('audio_query', (from, payload) => {
+      const audioSyncService = require('./audio-sync-service');
+      return audioSyncService.exportTracks(payload.filters || {}).then(data => ({
+        type: 'audio_query_response',
+        success: true,
+        data
+      }));
+    });
+
+    this.onMessage('audio_share', (from, payload) => {
+      const audioSyncService = require('./audio-sync-service');
+      if (!payload.exportData) {
+        return { type: 'audio_share_response', success: false, error: 'No export data' };
+      }
+      return audioSyncService.importTracks(payload.exportData, {
+        skipDuplicates: true,
+        dryRun: payload.dryRun || false
+      }).then(result => ({ type: 'audio_share_response', ...result }));
+    });
   }
 
   /**
@@ -233,15 +299,34 @@ class RelayClientService {
       return { success: true, cached: true };
     }
 
-    // Get primary wallet for signing
+    // Get wallet for signing (use selected wallet or fall back to first)
     const groups = walletService.getWalletGroups();
     if (!groups?.length || !groups[0].addresses?.length) {
       console.log('🌐 Relay: No wallet configured for federation auth');
       return { success: false, error: 'No wallet configured. Add a wallet to enable federation.' };
     }
 
-    const primaryWallet = groups[0].addresses[0];
-    const publicKey = primaryWallet.publicKey;
+    // Check for selected auth wallet in settings
+    const settings = loadFederationSettings();
+    let authWallet = null;
+
+    if (settings.authWalletPublicKey) {
+      // Find the selected wallet
+      for (const group of groups) {
+        const found = group.addresses?.find(a => a.publicKey === settings.authWalletPublicKey);
+        if (found) {
+          authWallet = found;
+          break;
+        }
+      }
+    }
+
+    // Fall back to first wallet if selected not found
+    if (!authWallet) {
+      authWallet = groups[0].addresses[0];
+    }
+
+    const publicKey = authWallet.publicKey;
 
     // Create auth message
     const message = JSON.stringify({
@@ -502,17 +587,143 @@ class RelayClientService {
   }
 
   /**
-   * Get relay status
+   * Get relay status including auth wallet info and available wallets
    */
   getStatus() {
+    const groups = walletService.getWalletGroups();
+    const settings = loadFederationSettings();
+
+    // Build list of all available wallets
+    const availableWallets = [];
+    for (const group of groups || []) {
+      for (const addr of group.addresses || []) {
+        availableWallets.push({
+          publicKey: addr.publicKey,
+          label: addr.label || group.name || 'Wallet'
+        });
+      }
+    }
+
+    // Determine current auth wallet (selected or first)
+    let authWallet = null;
+    if (settings.authWalletPublicKey) {
+      authWallet = availableWallets.find(w => w.publicKey === settings.authWalletPublicKey);
+    }
+    if (!authWallet && availableWallets.length > 0) {
+      authWallet = availableWallets[0];
+    }
+
     return {
       connected: this.isConnected,
       authenticated: this.isAuthenticated,
       sessionExpiresAt: this.sessionExpiresAt,
       relayUrl: this.relayUrl,
       connectedPeers: this.connectedPeers.size,
-      peers: this.getConnectedPeers()
+      peers: this.getConnectedPeers(),
+      authWallet,
+      availableWallets
     };
+  }
+
+  /**
+   * Set the wallet to use for federation auth
+   */
+  setAuthWallet(publicKey) {
+    const settings = loadFederationSettings();
+    settings.authWalletPublicKey = publicKey;
+    saveFederationSettings(settings);
+    console.log(`🌐 Relay: Auth wallet set to ${publicKey.slice(0, 8)}...`);
+    return { success: true };
+  }
+
+  /**
+   * Publish signed memories to void-mud relay
+   * Only treasury wallet can publish, but we try and let server validate
+   * @param {Object} options - Export options passed to memory sync service
+   */
+  async publishSignedMemories(options = {}) {
+    if (!this.isConnected || !this.isAuthenticated) {
+      return { success: false, error: 'Not connected or authenticated to relay' };
+    }
+
+    console.log('🌐 Relay: Preparing signed memories for publishing...');
+
+    // Get memory sync service and export signed memories
+    const syncService = getMemorySyncService();
+    const exportData = await syncService.exportMemories({
+      ...options,
+      sign: true,
+      limit: options.limit || 10000 // Default higher limit for initial publish
+    });
+
+    if (!exportData.memories?.length) {
+      return { success: false, error: 'No memories to publish' };
+    }
+
+    console.log(`🌐 Relay: Publishing ${exportData.memories.length} signed memories...`);
+
+    return new Promise((resolve) => {
+      this.socket.emit('relay:publish-memories', {
+        memories: exportData.memories,
+        manifest: exportData.manifest
+      }, (response) => {
+        if (response.success) {
+          console.log(`🌐 Relay: Published ${response.stored} memories (${response.skipped} duplicates)`);
+          broadcast('federation:memories-published', {
+            stored: response.stored,
+            skipped: response.skipped,
+            total: response.total
+          });
+        } else {
+          console.log(`🌐 Relay: Publish failed: ${response.error}`);
+        }
+        resolve(response);
+      });
+    });
+  }
+
+  /**
+   * Publish signed audio tracks to void-mud relay
+   * @param {Object} options - Export options { limit, mood }
+   */
+  async publishSignedAudio(options = {}) {
+    if (!this.isConnected || !this.isAuthenticated) {
+      return { success: false, error: 'Not connected or authenticated to relay' };
+    }
+
+    console.log('🌐 Relay: Preparing signed audio tracks for publishing...');
+
+    const audioSyncService = require('./audio-sync-service');
+    const exportData = await audioSyncService.exportTracks({
+      ...options,
+      sign: true,
+      limit: options.limit || 10000
+    });
+
+    if (!exportData.tracks?.length) {
+      return { success: false, error: 'No audio tracks to publish' };
+    }
+
+    console.log(`🌐 Relay: Publishing ${exportData.tracks.length} signed audio tracks...`);
+
+    return new Promise((resolve) => {
+      this.socket.emit('relay:publish-audio', {
+        tracks: exportData.tracks,
+        manifest: exportData.manifest
+      }, (response) => {
+        if (response.success) {
+          console.log(`🌐 Relay: Published ${response.stored} audio tracks (${response.skipped} duplicates)`);
+          broadcast('federation:audio-published', {
+            stored: response.stored,
+            skipped: response.skipped,
+            total: response.total
+          });
+        } else {
+          console.log(`🌐 Relay: Audio publish failed: ${response.error}`);
+        }
+        resolve(response);
+      });
+    });
   }
 
   /**

@@ -1,0 +1,87 @@
+{
+  "id": "1987325386288709900",
+  "postId": "1987325386288709900",
+  "mood": "french79-electro",
+  "fingerprint": {
+    "bpm": 72,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "bell"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "metal"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 2
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Distortion",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 3
+      }
+    ],
+    "instrumentEffects": {
+      "MonoSynth": [
+        "Distortion"
+      ],
+      "PolySynth": [
+        "Chorus"
+      ]
+    },
+    "loopPatterns": [
+      "2n",
+      "8n",
+      "8n"
+    ],
+    "scheduledEvents": 4,
+    "instrumentCount": 5,
+    "effectChainDepth": 3,
+    "automationCount": 4,
+    "codeLength": 4454,
+    "structuralHash": "42ac6daa"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-08T23:45:37.940Z",
+  "trainingSessionId": null,
+  "audioFilePath": "french79-electro/1987325386288709900.js",
+  "source": "template",
+  "favorite": false
+}

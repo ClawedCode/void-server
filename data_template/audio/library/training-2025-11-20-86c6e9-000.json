@@ -1,0 +1,88 @@
+{
+  "id": "training-2025-11-20-86c6e9-000",
+  "mood": "cinematic-downtempo",
+  "fingerprint": {
+    "bpm": 85,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 2,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 2,
+        "varName": "pad"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 2,
+        "varName": "snare"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 1,
+        "varName": "arp"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 3
+      },
+      {
+        "type": "FeedbackDelay",
+        "count": 1
+      },
+      {
+        "type": "PingPongDelay",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 4
+      }
+    ],
+    "instrumentEffects": {
+      "MembraneSynth": [
+        "Reverb"
+      ],
+      "PolySynth": [
+        "Filter"
+      ],
+      "Synth": [
+        "PingPongDelay"
+      ]
+    },
+    "loopPatterns": [
+      "2m",
+      "2n",
+      "8n"
+    ],
+    "scheduledEvents": 6,
+    "instrumentCount": 8,
+    "effectChainDepth": 4,
+    "automationCount": 4,
+    "codeLength": 6484,
+    "structuralHash": "7a3f7e71"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-20T05:31:56.806Z",
+  "source": "template",
+  "favorite": false,
+  "legacy": {}
+}

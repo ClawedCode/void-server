@@ -35,8 +35,12 @@ async function initialize() {
  * @returns {Object} Serialized memory with metadata
  */
 function serializeMemory(memory) {
+  const contentHash = crypto.createHash('sha256')
+    .update(JSON.stringify(memory.content))
+    .digest('hex');
+
   const content = {
-    version: '1.0',
+    version: '1.1', // Updated for federation signatures
     type: 'void-memory',
     memory: {
       id: memory.id,
@@ -51,10 +55,17 @@ function serializeMemory(memory) {
     },
     metadata: {
       pinnedAt: new Date().toISOString(),
-      contentHash: crypto.createHash('sha256')
-        .update(JSON.stringify(memory.content))
-        .digest('hex')
-    }
+      contentHash
+    },
+    // Include federation signature data if present
+    federation: memory.federation ? {
+      sourceServerId: memory.federation.sourceServerId,
+      contentHash: memory.federation.contentHash,
+      signature: memory.federation.signature,
+      signer: memory.federation.signer,
+      signedAt: memory.federation.signedAt,
+      version: memory.federation.version
+    } : null
   };
 
   return content;
@@ -89,15 +100,24 @@ async function pinMemory(memory, options = {}) {
   // Store CID in Neo4j for the memory
   const neo4j = getNeo4jService();
   if (await neo4j.isAvailable()) {
+    // Include federation signature data if present
+    const federationFields = memory.federation ? `,
+          m.federationSignature = $signature,
+          m.federationSigner = $signer,
+          m.federationSignedAt = $signedAt` : '';
+
     await neo4j.write(`
       MATCH (m:Memory {id: $memoryId})
       SET m.ipfsCid = $cid,
           m.ipfsPinnedAt = datetime(),
-          m.ipfsGatewayUrl = $gatewayUrl
+          m.ipfsGatewayUrl = $gatewayUrl${federationFields}
     `, {
       memoryId: memory.id,
       cid: pin.cid,
-      gatewayUrl: pin.gatewayUrl
+      gatewayUrl: pin.gatewayUrl,
+      signature: memory.federation?.signature || null,
+      signer: memory.federation?.signer || null,
+      signedAt: memory.federation?.signedAt || null
     });
   }
 

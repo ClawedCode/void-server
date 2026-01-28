@@ -14,6 +14,7 @@ const { getNeo4jService } = require('./neo4j-service');
 const { getFederationService } = require('./federation-service');
 const memoryService = require('./memory-service');
 const walletService = require('./wallet/wallet-service');
+const memorySigningService = require('./memory-signing-service');
 
 // Default void-mud relay URL
 const DEFAULT_RELAY_URL = 'https://void-mud.onrender.com';
@@ -114,6 +115,8 @@ class MemorySyncService {
    * @param {number} options.minImportance - Minimum importance threshold
    * @param {string} options.since - ISO timestamp for delta sync
    * @param {number} options.limit - Max memories to export
+   * @param {boolean} options.sign - Sign each memory with wallet (default: true)
+   * @param {string} options.signingWallet - Public key of signing wallet (optional)
    */
   async exportMemories(options = {}) {
     const federation = getFederationService();
@@ -152,13 +155,40 @@ class MemorySyncService {
     }
 
     // Normalize for export
-    const exportedMemories = memories.map(m => normalizeForExport(m, sourceServerId));
+    let exportedMemories = memories.map(m => normalizeForExport(m, sourceServerId));
+
+    // Sign memories if requested (default: true)
+    const shouldSign = options.sign !== false;
+    let signingWallet = options.signingWallet;
+    let signingErrors = [];
+
+    if (shouldSign) {
+      // Get signing wallet if not provided
+      if (!signingWallet) {
+        const groups = walletService.getWalletGroups();
+        if (groups?.length && groups[0].addresses?.length) {
+          signingWallet = groups[0].addresses[0].publicKey;
+        }
+      }
+
+      if (signingWallet) {
+        const signResult = memorySigningService.signMemoriesForExport(exportedMemories, signingWallet);
+        exportedMemories = signResult.signed;
+        signingErrors = signResult.errors;
+
+        if (signResult.errors.length > 0) {
+          console.log(`Memory export: ${signResult.errors.length} signing errors`);
+        }
+      }
+    }
 
     // Create export manifest
     const manifest = {
-      version: '1.0',
+      version: '1.1', // Updated for signed memories
       sourceServerId,
       sourcePublicKey: federation.identity.publicKey,
+      signingWallet: signingWallet || null,
+      signed: shouldSign && !!signingWallet,
       exportedAt: new Date().toISOString(),
       filters: options,
       count: exportedMemories.length,
@@ -171,7 +201,8 @@ class MemorySyncService {
     return {
       manifest,
       signature,
-      memories: exportedMemories
+      memories: exportedMemories,
+      signingErrors: signingErrors.length > 0 ? signingErrors : undefined
     };
   }
 
@@ -181,6 +212,7 @@ class MemorySyncService {
    * @param {Object} options - Import options
    * @param {boolean} options.skipDuplicates - Skip memories with matching content hash
    * @param {boolean} options.dryRun - Don't actually import, just check
+   * @param {boolean} options.requireSignatures - Require valid signatures (default: false for backwards compat)
    */
   async importMemories(exportData, options = {}) {
     const federation = getFederationService();
@@ -223,7 +255,8 @@ class MemorySyncService {
       imported: 0,
       skipped: 0,
       duplicates: [],
-      errors: []
+      errors: [],
+      signatureErrors: []
     };
 
     for (const memory of memories) {
@@ -236,6 +269,26 @@ class MemorySyncService {
           id: memory.id,
           contentHash,
           reason: 'Content already exists'
+        });
+        continue;
+      }
+
+      // Verify memory signature if present
+      if (memorySigningService.isSigned(memory)) {
+        const verification = memorySigningService.verifyMemorySignature(memory);
+        if (!verification.valid) {
+          results.signatureErrors.push({
+            id: memory.id,
+            error: verification.error || 'Invalid signature'
+          });
+          if (options.requireSignatures) {
+            continue; // Skip memories with invalid signatures
+          }
+        }
+      } else if (options.requireSignatures) {
+        results.signatureErrors.push({
+          id: memory.id,
+          error: 'Memory not signed'
         });
         continue;
       }
@@ -276,7 +329,8 @@ class MemorySyncService {
       success: true,
       dryRun: options.dryRun || false,
       source: manifest.sourceServerId,
-      ...results
+      ...results,
+      signatureErrors: results.signatureErrors.length > 0 ? results.signatureErrors : undefined
     };
   }
 

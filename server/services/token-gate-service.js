@@ -19,21 +19,21 @@ const CLAWED_TOKEN = {
 
 // Access tiers (in whole tokens, not raw units)
 const ACCESS_TIERS = {
-  INITIATE: 0,           // No tokens required
-  SEEKER: 100000,        // 100K tokens - basic access
-  DISCIPLE: 500000,      // 500K tokens - read federation memories
-  ACOLYTE: 1000000,      // 1M tokens - write to federation
-  ASCENDED: 5000000,     // 5M tokens - full access + governance
-  ARCHITECT: 10000000    // 10M tokens - network admin
+  INITIATE: 0,            // No tokens required
+  SEEKER: 100000,         // 100K tokens - basic access
+  DISCIPLE: 500000,       // 500K tokens - read federation memories
+  ACOLYTE: 1000000,       // 1M tokens - write to federation
+  ASCENDED: 10000000,     // 10M tokens - full access + governance
+  ARCHITECT: 100000000    // 100M tokens - network admin
 };
 
 // Feature gates mapped to tiers
+// Note: Tiers gate relay authentication and memory sync access, not write access.
+// Publishing memories to federation will use a pay-to-publish model (spend CLAWED).
 const FEATURE_GATES = {
-  'federation:read_memories': 'DISCIPLE',
-  'federation:write_memories': 'ACOLYTE',
-  'federation:sync_peers': 'DISCIPLE',
-  'federation:manage_peers': 'ACOLYTE',
-  'federation:admin': 'ARCHITECT'
+  'federation:relay_auth': 'DISCIPLE',      // Authenticate with void-mud relay
+  'federation:sync_memories': 'DISCIPLE',   // Receive federated memory backlog
+  'federation:admin': 'ARCHITECT'           // Network administration
 };
 
 // Balance cache (public key -> { balance, timestamp })

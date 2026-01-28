@@ -1,0 +1,81 @@
+{
+  "id": "1986135331129934111",
+  "mood": "smiths-melancholy",
+  "fingerprint": {
+    "bpm": 68,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "sub"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 2,
+        "varName": "pad1"
+      },
+      {
+        "type": "FMSynth",
+        "category": "fm_bell",
+        "count": 1,
+        "varName": "bell"
+      },
+      {
+        "type": "NoiseSynth",
+        "category": "noise_texture",
+        "count": 1,
+        "varName": "noise"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 3
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 3
+      }
+    ],
+    "instrumentEffects": {
+      "MembraneSynth": [
+        "Reverb"
+      ],
+      "MonoSynth": [
+        "Filter"
+      ]
+    },
+    "loopPatterns": [
+      "1n",
+      "1n",
+      "2n",
+      "2n"
+    ],
+    "scheduledEvents": 2,
+    "instrumentCount": 6,
+    "effectChainDepth": 3,
+    "automationCount": 5,
+    "codeLength": 11511,
+    "structuralHash": "2937548a"
+  },
+  "generatedAt": "2025-11-09T18:22:10.334Z",
+  "source": "template",
+  "rating": null,
+  "favorite": false
+}

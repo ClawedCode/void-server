@@ -564,13 +564,24 @@ class Neo4jService {
   }
 
   /**
-   * Get all memories
+   * Get all memories with sorting
+   * @param {number} limit - Max memories to return
+   * @param {string} sort - Sort field: timestamp, importance, relevance, interactions
+   * @param {string} order - Sort order: DESC or ASC
    */
-  async getAllMemories(limit = 100) {
+  async getAllMemories(limit = 100, sort = 'timestamp', order = 'DESC') {
+    // Validate sort field to prevent injection
+    const validSorts = ['timestamp', 'importance', 'relevance', 'interactions', 'category'];
+    const sortField = validSorts.includes(sort) ? sort : 'timestamp';
+    const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Use toString() for timestamp to normalize mixed datetime/string types
+    const sortExpr = sortField === 'timestamp' ? 'toString(m.timestamp)' : `m.${sortField}`;
+
     const cypher = `
       MATCH (m:Memory)
       RETURN m
-      ORDER BY m.timestamp DESC
+      ORDER BY ${sortExpr} ${sortOrder}
       LIMIT $limit
     `;
 

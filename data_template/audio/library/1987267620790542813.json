@@ -1,0 +1,91 @@
+{
+  "id": "1987267620790542813",
+  "postId": "1987267620790542813",
+  "mood": "content-aware",
+  "fingerprint": {
+    "bpm": 140,
+    "synthTypes": [
+      {
+        "type": "MembraneSynth",
+        "category": "kick/bass",
+        "count": 1,
+        "varName": "kick"
+      },
+      {
+        "type": "MonoSynth",
+        "category": "mono_lead",
+        "count": 1,
+        "varName": "bass"
+      },
+      {
+        "type": "PolySynth",
+        "category": "poly_chord",
+        "count": 1,
+        "varName": "pad"
+      },
+      {
+        "type": "MetalSynth",
+        "category": "metallic_perc",
+        "count": 1,
+        "varName": "hat"
+      },
+      {
+        "type": "Synth",
+        "category": "basic_synth",
+        "count": 1,
+        "varName": "lead"
+      }
+    ],
+    "effectTypes": [
+      {
+        "type": "Reverb",
+        "count": 1
+      },
+      {
+        "type": "Chorus",
+        "count": 1
+      },
+      {
+        "type": "Distortion",
+        "count": 1
+      },
+      {
+        "type": "Compressor",
+        "count": 1
+      },
+      {
+        "type": "Filter",
+        "count": 3
+      }
+    ],
+    "instrumentEffects": {
+      "MonoSynth": [
+        "Distortion"
+      ],
+      "MetalSynth": [
+        "Reverb"
+      ],
+      "Synth": [
+        "Chorus"
+      ]
+    },
+    "loopPatterns": [
+      "16n",
+      "2n",
+      "8n",
+      "8n"
+    ],
+    "scheduledEvents": 2,
+    "instrumentCount": 5,
+    "effectChainDepth": 3,
+    "automationCount": 4,
+    "codeLength": 3750,
+    "structuralHash": "d1a8b42"
+  },
+  "rating": null,
+  "generatedAt": "2025-11-08T20:49:20.737Z",
+  "trainingSessionId": null,
+  "audioFilePath": "content-aware/1987267620790542813.js",
+  "source": "template",
+  "favorite": false
+}

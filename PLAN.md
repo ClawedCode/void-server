@@ -10,86 +10,43 @@ This plan outlines improvements for void-server based on the existing architectu
 3. Federation Protocol (server-to-server communication)
 
 ---
+## Security Audit (Federation + Memory Sharing)
 
-## Phase 1: Federation Protocol Foundation ✅ COMPLETE
+Latest audit: **2026-01-28**. Full findings and remediation guidance:
+- `docs/SECURITY-AUDIT-FEDERATION-2026-01-28.md`
 
-Enable void-server instances to discover and communicate with each other.
+### Findings Summary
+- Critical: federation routes lack authN/authZ (peer tampering + memory exfil/injection)
+- Critical: token-gated endpoints bypassed due to feature-name mismatch
+- High: SSRF via peer add + DHT endpoints
+- High: DHT nodeId spoofing / routing table poisoning
+- Medium: challenge-response replay/signing oracle risk
+- Medium: memory sharing ignores trust and allows unsigned content by default
+- Medium: potential import/embedding DoS without limits
+- Low: wallet format not validated in token-gate middleware
 
-### 1.1 Server Identity & Discovery ✅
-- **File:** `server/services/federation-service.js`
-- Generate unique server identity using Ed25519 keypair (leverage existing tweetnacl)
-- Server manifest endpoint: `GET /api/federation/manifest`
-- Returns: serverId, publicKey, capabilities, neo4j version, plugin list
-
-### 1.2 DHT-Based Peer Discovery ✅
-- **File:** `server/services/dht-service.js`
-- Implement Kademlia-style DHT for decentralized peer discovery
-- Use libp2p or custom implementation with WebRTC/WebSocket transport
-- Bootstrap nodes for initial network entry
-- Peer announcement with server capabilities
-- NAT traversal support for home-hosted instances
-
-### 1.3 Peer Management ✅
-- **File:** `server/services/peer-service.js`
-- Store discovered peers in Neo4j (leverage graph for trust relationships)
-- Health checking with exponential backoff
-- Trust levels: `unknown`, `verified`, `trusted`
-- Automatic peer scoring based on uptime and response quality
-
-### 1.4 Secure Communication ✅
-- Use TweetNaCl box with ed2curve for encrypted peer-to-peer messages
-- Message signing for authenticity verification
-- Challenge-response for peer verification
-
-**Key Files to Modify:**
-- `server/index.js` (mount federation routes)
-- `server/routes/federation.js` (new)
+### Phase 2.5: Federation Security Hardening 🚧 NEW
+- [ ] Add federation auth middleware (admin vs peer vs local) for `/api/federation/*`
+- [ ] Fix token gate feature mapping; fail closed on unknown features
+- [ ] Validate/allowlist peer endpoints; block private IPs by default (SSRF protection)
+- [ ] DHT: verify `nodeId == sha256(publicKey)` and require signed announcements
+- [ ] Challenge-response: track issued challenges + TTL; reject replays
+- [ ] Trust gating: require verified/trusted peers for memory export/import
+- [ ] Require signed memories by default on import
+- [ ] Add payload size limits + rate limiting for federation routes
+- [ ] Validate wallet format in token gate middleware
 
 ---
 
-## Phase 2: Memory Sharing Network 🚧 IN PROGRESS
+## Phase 1: Federation Protocol Foundation ✅ COMPLETE
 
-Build on federation to enable cross-instance memory sharing with token economics.
+Completed. Details: `docs/ROADMAP-COMPLETED.md`.
 
-### 2.1 Memory Export/Import Protocol ✅
-- **File:** `server/services/memory-sync-service.js`
-- Standardized memory schema for cross-instance compatibility
-- Selective export by category, stage, or tag
-- Content hashing for deduplication
-- Delta sync support (only new/modified memories)
+---
 
-### 2.2 $CLAWED Token Integration ✅
-- **File:** `server/services/token-gate-service.js`
-- Balance verification via Solana RPC (Helius or public mainnet)
-- Tiered access: INITIATE → SEEKER → DISCIPLE → ACOLYTE → ASCENDED → ARCHITECT
-- Feature-based gating with configurable thresholds
+## Phase 2: Memory Sharing Network ✅ COMPLETE
 
-**Token Mechanics (Write-Gating Model):**
-| Action | Token Requirement |
-|--------|-------------------|
-| Read shared memories | 500K $CLAWED balance (disciple threshold) |
-| Write to egregore | Stake, burn, OR spend $CLAWED |
-| Report bad data | Slash contributor's stake |
-
-**Write Options:**
-- **Stake**: Lock tokens as collateral (recoverable if memory stays valid)
-- **Burn**: Permanently destroy tokens (strongest commitment signal)
-- **Spend**: Transfer tokens to network treasury (funds development)
-
-### 2.3 Memory Marketplace
-- **File:** `server/services/memory-marketplace-service.js` (new)
-- Memory quality scoring (based on usage, citations)
-- Contributor reputation tracking
-- Memory attribution chain (who shared what)
-
-### 2.4 IPFS for Memory Distribution
-- Leverage existing IPFS integration for decentralized storage
-- Pin high-value memories to IPFS for persistence
-- CID-based memory addressing for immutability
-
-**Key Files to Modify:**
-- `server/services/memory-service.js` (add export/import methods)
-- `plugins/void-plugin-wallet/` (add balance check API)
+Completed. Details: `docs/ROADMAP-COMPLETED.md`.
 
 ---
 
@@ -183,27 +140,31 @@ Enhance the client experience.
 
 ## Implementation Order (Recommended)
 
-1. **Federation Foundation** (Phase 1.1-1.4)
+1. **Federation Security Hardening** (Phase 2.5)
+   - Address current security gaps before expanding usage
+   - Files: federation routes + token gate + DHT + memory sync + wallet routes
+
+2. **Federation Foundation** (Phase 1.1-1.4)
    - Establishes the network primitives needed for everything else
    - Files: ~3 new services, route additions
 
-2. **AI Enhancements - RAG** (Phase 3.1-3.2)
+3. **AI Enhancements - RAG** (Phase 3.1-3.2)
    - Immediate value improvement for existing users
    - Files: 2 new services, modify existing
 
-3. **Memory Sharing Core** (Phase 2.1)
+4. **Memory Sharing Core** (Phase 2.1)
    - Basic export/import without token gating
    - Files: 1 new service, modify memory-service
 
-4. **Token Integration** (Phase 2.2-2.3)
+5. **Token Integration** (Phase 2.2-2.3)
    - Add economic layer once sharing works
    - Files: 2 new services, wallet plugin changes
 
-5. **Multi-Model & Orchestration** (Phase 3.3-3.4)
+6. **Multi-Model & Orchestration** (Phase 3.3-3.4)
    - Enhanced AI capabilities
    - Files: 1 new service, provider modifications
 
-6. **Plugin Marketplace** (Phase 4.1-4.2)
+7. **Plugin Marketplace** (Phase 4.1-4.2)
    - Community growth features
    - Files: 1 new service, plugin system enhancements
 
@@ -257,97 +218,9 @@ Enhance the client experience.
 
 ---
 
-## Current Progress
+## Completed Milestones
 
-### Completed
-- [x] Plan created and approved
-- [x] Phase 1.1: Server Identity & Discovery
-  - Created `federation-service.js` with Ed25519 keypairs
-  - Created `federation.js` routes
-  - Mounted routes in `server/index.js`
-  - Added Cucumber tests for federation endpoints
-  - All federation endpoints tested and working
-- [x] Phase 1.2: DHT-Based Peer Discovery
-  - Created `dht-service.js` with Kademlia-style DHT
-  - 256-bit node IDs from SHA-256 of public key
-  - K-buckets (K=20) with XOR distance metric
-  - Bootstrap node configuration
-  - Iterative FIND_NODE lookup
-  - Automatic node announcement
-  - Periodic routing table refresh
-  - DHT routes integrated into federation API
-
-- [x] Phase 1.3: Peer Management (Neo4j)
-  - Created `peer-service.js` with Neo4j integration
-  - Trust levels: unknown, seen, verified, trusted, blocked
-  - Health checking with scoring and exponential decay
-  - Trust graph queries for visualization
-  - Trust score calculation based on network position
-  - CRUD operations for peers in Neo4j
-  - Trust relationship management
-  - Periodic health checks with automatic scoring
-  - Added Cucumber tests for Neo4j peer endpoints
-  - All peer management endpoints tested and working
-
-- [x] Phase 1.4: Secure Communication
-  - Added ed2curve for proper Ed25519 to Curve25519 key conversion
-  - TweetNaCl box encryption for peer-to-peer messages
-  - Message signing with Ed25519 for authenticity verification
-  - Challenge-response protocol for peer verification
-  - `sendSecureMessage()` method for encrypted communication
-  - `verifyPeer()` method for mutual authentication
-  - Crypto self-test endpoint for debugging
-  - Added Cucumber tests for secure communication
-
-### Phase 1 Complete!
-Federation Protocol Foundation is now complete with:
-- Server identity (Ed25519 keypairs)
-- DHT-based peer discovery (Kademlia-style)
-- Neo4j peer management with trust graphs
-- Secure encrypted communication
-
-### Phase 2.1 Complete!
-Memory Export/Import Protocol is now complete with:
-- Memory sync service with standardized schema
-- SHA-256 content hashing for deduplication
-- Selective export/import by category, stage, tags
-- Delta sync support
-- Signature verification
-
-### Phase 2.2 Complete!
-$CLAWED Token Integration is now complete with:
-- Balance verification via Solana RPC
-- 6 access tiers (INITIATE → ARCHITECT)
-- Feature-based gating middleware
-- Balance caching for performance
-
-### Phase 2.3 Complete!
-Memory Marketplace is now complete with:
-- Quality scoring (views, interactions, citations, votes)
-- Contributor reputation system (5 tiers)
-- Attribution chains for provenance
-- Neo4j storage for marketplace data
-
-### Phase 2.4 Complete!
-IPFS Memory Distribution is now complete with:
-- Memory pinning to IPFS with CID-based addressing
-- Collection pinning for batch memory storage
-- Auto-pin for high-quality memories
-- Import memories from IPFS by CID
-- Pinata integration for wider distribution
-
-### Phase 2 Complete! 🎉
-Memory Sharing Network is fully implemented:
-- Memory Export/Import Protocol
-- $CLAWED Token Integration
-- Memory Marketplace
-- IPFS Distribution
-
-### Bootstrap Node Deployment ✅
-- void-mud hosts federation bootstrap at `/api/federation/*`
-- void-server BOOTSTRAP_MODE for lightweight DHT-only deployments
-- render.yaml for one-click Render.com deployment
-- Default bootstrap nodes configured in dht-service.js
+Completed milestones have been moved to `docs/ROADMAP-COMPLETED.md` to keep this plan focused on active work.
 
 ---
 
@@ -373,48 +246,6 @@ app.use('/api/federation', federation.routes)
 - Shared codebase between void-server, void-mud, and third-party apps
 - Versioned identity management
 - Standardized federation protocol
-
----
-
-### v0.17.0 Token-Gated Federation Auth ✅
-Federation authentication now requires CLAWED token holdings:
-
-**void-mud Changes:**
-- `server/services/signature-service.js` - Ed25519 signature verification
-- `server/services/token-service.js` - CLAWED balance checking with 5-min cache
-- `server/services/session-service.js` - Stateless 7-day HMAC session tokens
-- `server/services/auth-service.js` - Auth orchestration with rate limiting
-- `server/services/relay-service.js` - Auth requirement before registration
-- `server/routes/federation.js` - REST auth endpoint + bootstrap memory endpoints
-
-**void-server Changes:**
-- `server/services/wallet/` - Wallet migrated from plugin to core
-- `server/services/relay-client-service.js` - Auth + session persistence to disk
-- `server/services/memory-sync-service.js` - Bootstrap push/fetch methods
-- `server/routes/federation.js` - Bootstrap memory routes
-
-**Session Persistence:**
-- Sessions are stateless (no server-side storage in void-mud)
-- Token contains: publicKey, serverId, expiresAt, HMAC signature
-- void-mud can restart without losing sessions (tokens self-verify)
-- void-server persists token to `data/federation-session.json`
-- 7-day token lifetime with automatic re-auth on expiry
-
-**Auth Flow:**
-1. void-server connects to void-mud relay
-2. Checks for cached session in `data/federation-session.json`
-3. If valid cached session → use it, skip to step 7
-4. Signs auth message with wallet
-5. void-mud verifies signature + checks 500K+ CLAWED balance
-6. Returns 7-day session token (void-server persists to disk)
-7. void-server registers with session token
-
-**Configuration:**
-- CLAWED mint: `ELusVXzUPHyAuPB3M7qemr2Y2KshiWnGXauK17XYpump`
-- Treasury: `HHj6pCU5Y7ThymSAwqJmJrvAb9YvmEyf8ghr2jFFyv13`
-- Threshold: 500,000 CLAWED
-
----
 
 ### Next Up
 - [ ] Phase 3: AI Enhancements (RAG, embeddings, multi-model)

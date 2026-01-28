@@ -1,6 +1,147 @@
 # Changelog
 
-## [Unreleased]
+## [0.17.0]
+
+### New Features
+
+- **Audio Moods System** - LLM-generated Tone.js audio compositions with training workflow
+  - 45 mood presets seeded from void-private (ambient, cinematic, electronic, etc.)
+  - Mood files stored as markdown with YAML frontmatter (category, tags, energy level)
+  - Real-time audio preview via sandboxed Tone.js iframe player
+  - Audio fingerprint extraction (BPM, synth types, effects, loop patterns)
+  - Training workflow: generate batches, rate samples, provide feedback
+  - AI-powered refinement suggestions based on ratings and feedback
+  - Track library with filtering by mood, usage, and favorites
+  - Deep-linkable routes: `/audio/moods`, `/audio/moods/:slug/train`, `/audio/library`
+- **Audio Library table view** - Table-based track browser matching void-private layout
+  - Inline play/stop per track with lazy-loaded iframe (efficient for many tracks)
+  - Real-time AudioTimeline progress bar per track row
+  - Inline mood reclassification via dropdown
+  - Track ID links to detail page with full player, fingerprint, and code viewer
+  - Copy code and delete actions per row
+  - Filters: search by ID, mood, usage status, favorites only
+  - Cleared all existing ratings (shipping without ratings)
+- **Federation Wallet Selection** - Choose which wallet to use for relay authentication
+  - Dropdown selector when multiple wallets are available
+  - Persists selection in `data/federation-settings.json`
+  - Changing wallet disconnects from relay (requires re-authentication)
+  - Connect button only appears when disconnected
+
+- **Disciple Status Display** - Show token tier and balance on Federation page
+  - Displays current tier (INITIATE → SEEKER → DISCIPLE → ACOLYTE → ASCENDED → ARCHITECT)
+  - Shows $CLAWED balance for selected wallet
+  - "Disciple" badge for DISCIPLE tier and above
+
+- **Signed Memory Publishing** - Cryptographically sign and publish memories to federation
+  - Ed25519 wallet signatures on memory content hashes
+  - Memory signing service (`server/services/memory-signing-service.js`)
+  - Sign all memories on export with configurable wallet
+  - Signature verification on import (optional `requireSignatures` flag)
+  - `POST /api/federation/memories/publish` - Publish signed memories to relay
+  - IPFS serialization includes federation signature data (schema v1.1)
+
+- **void-mud Memory Storage** - Persistent signed memory storage on relay hub
+  - File-based batch storage (`server/data/memories/batches/`)
+  - Content hash deduplication and signature verification
+  - Treasury wallet authorization for publishing
+  - `GET /api/federation/memories` - Paginated memory fetch for disciples
+  - `GET /api/federation/memories/since/:timestamp` - Delta sync endpoint
+  - `GET /api/federation/memories/stats` - Storage statistics
+  - `relay:publish-memories` socket event for real-time publishing
+  - `relay:memories-updated` broadcast when new memories available
+
+- **Audio Bootstrap Templates** - New installations get a starter audio library
+  - 5 representative tracks across 5 moods (boards-of-canada, chromatics-noir, kavinsky-outrun, cinematic-downtempo, daft-punk-tron-legacy)
+  - Copy-on-first-access pattern from `data_template/audio/library/`
+  - Template tracks include full metadata, fingerprints, and Tone.js audio code
+  - `ensureLibrary()` bootstrap in `audio-library-service.js`
+
+- **Federated Audio Sharing** - Share audio tracks between void-server instances
+  - Content hash deduplication using SHA-256 of musical fingerprints (mood, structuralHash, BPM, synth/effect types)
+  - Export/import with Ed25519 signing via existing memory signing service
+  - Delta sync support (only new tracks since last sync)
+  - Provenance tracking on imported tracks (`fed_{source}_{originalId}`)
+  - `POST /api/federation/audio/export` - Export tracks with mood/since/limit filters
+  - `POST /api/federation/audio/import` - Import with dedup and signature verification
+  - `GET /api/federation/audio/sync/stats` - Federated track count and sync states
+  - `POST /api/federation/audio/sync/:peerId` - Delta sync with specific peer
+  - `POST /api/federation/audio/publish` - Publish signed tracks via relay
+  - Token-gated variants for all audio sync endpoints
+  - `audio_query` and `audio_share` peer message handlers
+  - Audio sharing UI at `/audio/sharing` with sync status, export, import, and peer sync
+
+### Changes
+
+- **Updated Tier Thresholds** - Adjusted token requirements
+  - ASCENDED: 5M → 10M tokens
+  - ARCHITECT: 10M → 100M tokens
+
+- **Clarified Token Gate Model** - Tiers gate relay access, not write access
+  - DISCIPLE (500K+) required for relay authentication and memory sync
+  - Publishing memories will use pay-to-publish model (spend CLAWED to ClawedCode wallet)
+  - Removed write/read tier restrictions from feature gates
+
+- **Memory Export Schema** - Updated to v1.1 with signature fields
+  - Added `federation.signature`, `federation.signer`, `federation.signedAt`
+  - IPFS pinning now stores signature data in Neo4j
+
+### New Files
+
+```
+server/
+├── routes/audio.js              # /api/audio/* endpoints
+├── services/mood-loader.js      # Load mood markdown files with frontmatter
+├── services/audio-library-service.js  # Track library CRUD
+└── utils/audio-fingerprint.js   # Extract synths/effects from Tone.js code
+
+client/src/
+├── pages/AudioPage.jsx          # Main page with tabs/routing
+├── components/audio/
+│   ├── MoodManager.jsx          # Mood list + detail view with tabs
+│   ├── MoodTraining.jsx         # Training workflow UI
+│   ├── AudioPreviewPlayer.jsx   # Tone.js iframe player (lazy iframe creation)
+│   ├── AudioTimeline.jsx        # Playback progress bar
+│   └── TrackLibrary.jsx         # Table-based track library with inline controls
+└── utils/audioFingerprintExtractor.js  # Client-side fingerprint extraction
+
+server/
+└── services/audio-sync-service.js  # Federated audio export/import/sync
+
+client/src/
+└── components/audio/AudioSharing.jsx  # Audio federation UI (/audio/sharing)
+
+data_template/audio/library/
+├── index.json                   # Template index with 5 starter tracks
+├── {trackId}.json               # Track metadata (5 files)
+└── {trackId}.js                 # Tone.js audio code (5 files)
+
+data/audio/
+├── moods/*.md                   # 45 mood definition files
+├── library/index.json           # Track metadata index
+└── sync-state.json              # Federation sync state per peer
+```
+
+### API Endpoints
+
+- `GET /api/audio/moods` - List all moods with metadata
+- `GET /api/audio/moods/categories` - Moods grouped by category
+- `GET /api/audio/moods/:slug/preview` - Get Tone.js preview code
+- `POST /api/audio/moods/content` - Get mood file content
+- `POST /api/audio/moods/update` - Update mood file
+- `GET /api/audio/library` - List tracks with filters
+- `GET /api/audio/library/:trackId` - Get track details
+- `POST /api/audio/library/:trackId/update` - Update track metadata
+- `DELETE /api/audio/library/:trackId` - Delete track
+- `POST /api/audio/training/generate-batch` - Start batch generation
+- `POST /api/audio/training/generate-track` - Generate single track (LLM)
+- `POST /api/audio/training/save-track` - Save to library
+- `POST /api/audio/training/feedback` - Save rating/feedback
+- `POST /api/audio/training/analyze` - Analyze feedback for refinements
+- `POST /api/audio/training/apply-suggestions` - Apply refinements to mood file
+
+### Dependencies
+
+- Added `gray-matter` for YAML frontmatter parsing
 
 ---
 
@@ -79,7 +220,7 @@
 - **$CLAWED Token Gate** - Token-based access control for federation
   - Balance verification via Solana RPC
   - Tiered access levels (INITIATE → SEEKER → DISCIPLE → ACOLYTE → ASCENDED → ARCHITECT)
-  - Feature-based gating (read at 500K, write at 1M tokens)
+  - Relay authentication gated at DISCIPLE tier (500K+ tokens)
   - Balance caching for performance (1 minute TTL)
   - Token gate configuration and check endpoints
   - Token-gated memory export/import/sync endpoints

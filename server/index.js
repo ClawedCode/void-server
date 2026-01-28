@@ -27,7 +27,7 @@ const walletRoutes = require('./services/wallet/routes');
 let aiProvider, aiProvidersRoutes, promptExecutor, promptsRoutes, chatRoutes;
 let memoriesRoutes, backupRoutes, browsersRoutes, browserService, ffmpegService;
 let versionRoutes, versionService, ipfsRoutes, ollamaRoutes, ollamaService;
-let setIO;
+let audioRoutes, setIO;
 
 if (!BOOTSTRAP_MODE) {
   // Provider system
@@ -63,6 +63,9 @@ if (!BOOTSTRAP_MODE) {
   // Ollama management
   ollamaRoutes = require('./routes/ollama');
   ollamaService = require('./services/ollama-service');
+
+  // Audio management
+  audioRoutes = require('./routes/audio');
 }
 
 const app = express();
@@ -264,6 +267,9 @@ if (!BOOTSTRAP_MODE) {
 
   // Ollama API
   app.use('/api/ollama', ollamaRoutes);
+
+  // Audio API
+  app.use('/api/audio', audioRoutes);
 }
 
 // Plugins API
