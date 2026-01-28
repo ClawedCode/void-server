@@ -13,6 +13,11 @@ const router = express.Router();
 const { getFederationService } = require('../services/federation-service');
 const { getDHTService } = require('../services/dht-service');
 const { getPeerService } = require('../services/peer-service');
+const { requireFederationAuth, requireFederationRole } = require('../middleware/federation-auth');
+
+const FEDERATION_PUBLIC_PATHS = new Set(['/manifest', '/identity', '/ping']);
+
+router.use(requireFederationAuth({ allowPaths: FEDERATION_PUBLIC_PATHS }));
 
 // GET /api/federation/manifest - Get this server's public manifest
 router.get('/manifest', (req, res) => {
@@ -65,7 +70,7 @@ router.get('/peers', (req, res) => {
 });
 
 // POST /api/federation/peers - Add a new peer
-router.post('/peers', async (req, res) => {
+router.post('/peers', requireFederationRole('admin'), async (req, res) => {
   const { endpoint } = req.body;
   console.log(`🌐 POST /api/federation/peers endpoint=${endpoint}`);
 
@@ -117,7 +122,7 @@ router.post('/peers', async (req, res) => {
 });
 
 // DELETE /api/federation/peers/:serverId - Remove a peer
-router.delete('/peers/:serverId', (req, res) => {
+router.delete('/peers/:serverId', requireFederationRole('admin'), (req, res) => {
   const { serverId } = req.params;
   console.log(`🌐 DELETE /api/federation/peers/${serverId}`);
 
@@ -387,7 +392,7 @@ router.get('/dht/nodes', (req, res) => {
 });
 
 // POST /api/federation/dht/bootstrap - Bootstrap the DHT
-router.post('/dht/bootstrap', async (req, res) => {
+router.post('/dht/bootstrap', requireFederationRole('admin'), async (req, res) => {
   console.log(`🌐 POST /api/federation/dht/bootstrap`);
 
   const dht = ensureDHTInitialized();
@@ -462,7 +467,7 @@ router.post('/dht/find-node', (req, res) => {
 });
 
 // POST /api/federation/dht/bootstrap-nodes - Add a bootstrap node
-router.post('/dht/bootstrap-nodes', (req, res) => {
+router.post('/dht/bootstrap-nodes', requireFederationRole('admin'), (req, res) => {
   const { endpoint, name } = req.body;
   console.log(`🌐 POST /api/federation/dht/bootstrap-nodes endpoint=${endpoint}`);
 
@@ -552,7 +557,7 @@ function ensurePeerServiceInitialized() {
 }
 
 // POST /api/federation/peers/neo4j - Add/update a peer in Neo4j
-router.post('/peers/neo4j', async (req, res) => {
+router.post('/peers/neo4j', requireFederationRole('admin'), async (req, res) => {
   const { serverId, publicKey, endpoint, version, capabilities, plugins, trustLevel } = req.body;
   console.log(`🌐 POST /api/federation/peers/neo4j serverId=${serverId}`);
 
@@ -582,7 +587,7 @@ router.post('/peers/neo4j', async (req, res) => {
 });
 
 // DELETE /api/federation/peers/neo4j/:serverId - Delete a peer from Neo4j
-router.delete('/peers/neo4j/:serverId', async (req, res) => {
+router.delete('/peers/neo4j/:serverId', requireFederationRole('admin'), async (req, res) => {
   const { serverId } = req.params;
   console.log(`🌐 DELETE /api/federation/peers/neo4j/${serverId}`);
 
@@ -704,7 +709,7 @@ router.get('/peers/neo4j/:serverId/trust-score', async (req, res) => {
 });
 
 // PUT /api/federation/peers/neo4j/:serverId/trust - Update peer trust level
-router.put('/peers/neo4j/:serverId/trust', async (req, res) => {
+router.put('/peers/neo4j/:serverId/trust', requireFederationRole('admin'), async (req, res) => {
   const { serverId } = req.params;
   const { trustLevel } = req.body;
   console.log(`🌐 PUT /api/federation/peers/neo4j/${serverId}/trust level=${trustLevel}`);
@@ -731,7 +736,7 @@ router.put('/peers/neo4j/:serverId/trust', async (req, res) => {
 });
 
 // POST /api/federation/peers/neo4j/:serverId/block - Block a peer
-router.post('/peers/neo4j/:serverId/block', async (req, res) => {
+router.post('/peers/neo4j/:serverId/block', requireFederationRole('admin'), async (req, res) => {
   const { serverId } = req.params;
   const { reason } = req.body;
   console.log(`🌐 POST /api/federation/peers/neo4j/${serverId}/block`);
@@ -750,7 +755,7 @@ router.post('/peers/neo4j/:serverId/block', async (req, res) => {
 });
 
 // POST /api/federation/peers/neo4j/:serverId/unblock - Unblock a peer
-router.post('/peers/neo4j/:serverId/unblock', async (req, res) => {
+router.post('/peers/neo4j/:serverId/unblock', requireFederationRole('admin'), async (req, res) => {
   const { serverId } = req.params;
   console.log(`🌐 POST /api/federation/peers/neo4j/${serverId}/unblock`);
 
@@ -768,7 +773,7 @@ router.post('/peers/neo4j/:serverId/unblock', async (req, res) => {
 });
 
 // POST /api/federation/peers/neo4j/:serverId/trust-relationship - Create trust relationship
-router.post('/peers/neo4j/:serverId/trust-relationship', async (req, res) => {
+router.post('/peers/neo4j/:serverId/trust-relationship', requireFederationRole('admin'), async (req, res) => {
   const { serverId } = req.params;
   const { targetServerId } = req.body;
   console.log(`🌐 POST /api/federation/peers/neo4j/${serverId}/trust-relationship -> ${targetServerId}`);
@@ -788,7 +793,7 @@ router.post('/peers/neo4j/:serverId/trust-relationship', async (req, res) => {
 });
 
 // POST /api/federation/peers/neo4j/sync - Sync peers from memory to Neo4j
-router.post('/peers/neo4j/sync', async (req, res) => {
+router.post('/peers/neo4j/sync', requireFederationRole('admin'), async (req, res) => {
   console.log(`🌐 POST /api/federation/peers/neo4j/sync`);
 
   const peerService = ensurePeerServiceInitialized();
@@ -803,7 +808,7 @@ router.post('/peers/neo4j/sync', async (req, res) => {
 });
 
 // POST /api/federation/peers/neo4j/health-check - Run health checks
-router.post('/peers/neo4j/health-check', async (req, res) => {
+router.post('/peers/neo4j/health-check', requireFederationRole('admin'), async (req, res) => {
   console.log(`🌐 POST /api/federation/peers/neo4j/health-check`);
 
   const peerService = ensurePeerServiceInitialized();
@@ -818,7 +823,7 @@ router.post('/peers/neo4j/health-check', async (req, res) => {
 });
 
 // POST /api/federation/peers/neo4j/cleanup - Clean up duplicate peers
-router.post('/peers/neo4j/cleanup', async (req, res) => {
+router.post('/peers/neo4j/cleanup', requireFederationRole('admin'), async (req, res) => {
   console.log(`🌐 POST /api/federation/peers/neo4j/cleanup`);
 
   const peerService = ensurePeerServiceInitialized();
@@ -883,7 +888,7 @@ router.get('/token-gate/check', async (req, res) => {
 });
 
 // POST /api/federation/token-gate/clear-cache - Clear balance cache
-router.post('/token-gate/clear-cache', (req, res) => {
+router.post('/token-gate/clear-cache', requireFederationRole('admin'), (req, res) => {
   const { wallet } = req.body;
   console.log(`🌐 POST /api/federation/token-gate/clear-cache wallet=${wallet || 'all'}`);
 
@@ -1681,7 +1686,7 @@ router.get('/relay/status', async (req, res) => {
 });
 
 // POST /api/federation/relay/reconnect - Force re-authentication with relay
-router.post('/relay/reconnect', (req, res) => {
+router.post('/relay/reconnect', requireFederationRole('admin'), (req, res) => {
   console.log(`🌐 POST /api/federation/relay/reconnect`);
 
   const federation = getFederationService();
@@ -1703,7 +1708,7 @@ router.post('/relay/reconnect', (req, res) => {
 });
 
 // PUT /api/federation/relay/auth-wallet - Set the wallet for federation auth
-router.put('/relay/auth-wallet', async (req, res) => {
+router.put('/relay/auth-wallet', requireFederationRole('admin'), async (req, res) => {
   const { publicKey } = req.body;
   console.log(`🌐 PUT /api/federation/relay/auth-wallet publicKey=${publicKey?.slice(0, 8)}...`);
 
