@@ -9,14 +9,74 @@
  */
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const { getFederationService } = require('../services/federation-service');
-const { getDHTService } = require('../services/dht-service');
+const { getDHTService, generateNodeId } = require('../services/dht-service');
 const { getPeerService } = require('../services/peer-service');
-const { requireFederationAuth, requireFederationRole } = require('../middleware/federation-auth');
+const { getNeo4jService } = require('../services/neo4j-service');
+const { requireFederationAuth, requireFederationRole, requirePeerTrustLevel } = require('../middleware/federation-auth');
+const { validateFederationEndpoint } = require('../utils/endpoint-validation');
+
+// Rate limiting configuration (can be overridden via environment variables)
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.FEDERATION_RATE_LIMIT_WINDOW_MS || '60000', 10); // 1 minute
+const RATE_LIMIT_MAX = parseInt(process.env.FEDERATION_RATE_LIMIT_MAX || '60', 10); // 60 requests per window
+const RATE_LIMIT_MEMORY_MAX = parseInt(process.env.FEDERATION_RATE_LIMIT_MEMORY_MAX || '10', 10); // 10 memory ops per window
+
+// Body size limits (in bytes)
+const MAX_BODY_SIZE = parseInt(process.env.FEDERATION_MAX_BODY_SIZE || String(5 * 1024 * 1024), 10); // 5MB default
+const MAX_MEMORY_IMPORT_SIZE = parseInt(process.env.FEDERATION_MAX_MEMORY_IMPORT_SIZE || String(10 * 1024 * 1024), 10); // 10MB for imports
+
+// General rate limiter for federation routes
+// Uses default IP-based key generator which handles IPv6 properly
+const federationRateLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log(`⚠️ Federation rate limit exceeded for ${req.ip}`);
+    res.status(429).json({
+      success: false,
+      error: 'Too many requests. Please slow down.',
+      retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)
+    });
+  }
+});
+
+// Stricter rate limiter for memory operations
+const memoryOperationRateLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MEMORY_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log(`⚠️ Memory operation rate limit exceeded for ${req.ip}`);
+    res.status(429).json({
+      success: false,
+      error: 'Too many memory operations. Please slow down.',
+      retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)
+    });
+  }
+});
+
+// Body size limit middleware
+const bodyLimitMiddleware = (maxSize) => (req, res, next) => {
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+  if (contentLength > maxSize) {
+    return res.status(413).json({
+      success: false,
+      error: `Request body too large. Maximum size: ${Math.round(maxSize / 1024 / 1024)}MB`
+    });
+  }
+  next();
+};
 
 const FEDERATION_PUBLIC_PATHS = new Set(['/manifest', '/identity', '/ping']);
 
+// Apply rate limiting and auth middleware to all routes
+router.use(federationRateLimiter);
+router.use(bodyLimitMiddleware(MAX_BODY_SIZE));
 router.use(requireFederationAuth({ allowPaths: FEDERATION_PUBLIC_PATHS }));
 
 // GET /api/federation/manifest - Get this server's public manifest
@@ -76,6 +136,11 @@ router.post('/peers', requireFederationRole('admin'), async (req, res) => {
 
   if (!endpoint) {
     return res.status(400).json({ success: false, error: 'endpoint required' });
+  }
+
+  const endpointCheck = validateFederationEndpoint(endpoint);
+  if (!endpointCheck.ok) {
+    return res.status(400).json({ success: false, error: endpointCheck.reason });
   }
 
   // Fetch manifest from peer
@@ -141,7 +206,8 @@ router.post('/verify/challenge', (req, res) => {
   console.log(`🌐 POST /api/federation/verify/challenge`);
 
   const federation = getFederationService();
-  const challenge = federation.createChallenge();
+  const { serverId } = req.body || {};
+  const challenge = federation.createChallenge(serverId);
 
   res.json({
     success: true,
@@ -187,7 +253,7 @@ router.post('/verify/complete', (req, res) => {
     return res.status(404).json({ success: false, error: 'Peer not found' });
   }
 
-  const isValid = federation.verifyChallenge(challenge, response, peer.publicKey);
+  const isValid = federation.verifyChallenge(challenge, response, peer.publicKey, serverId);
 
   if (isValid) {
     federation.setTrustLevel(serverId, 'verified');
@@ -403,7 +469,7 @@ router.post('/dht/bootstrap', requireFederationRole('admin'), async (req, res) =
 
 // POST /api/federation/dht/announce - Announce this node to the network
 router.post('/dht/announce', async (req, res) => {
-  const { nodeId, endpoint, publicKey, serverId, capabilities } = req.body;
+  const { nodeId, endpoint, publicKey, serverId, capabilities, timestamp, signature } = req.body;
 
   // If called without body, announce ourselves
   if (!nodeId) {
@@ -420,8 +486,31 @@ router.post('/dht/announce', async (req, res) => {
     return res.status(400).json({ success: false, error: 'endpoint and publicKey required' });
   }
 
+  const endpointCheck = validateFederationEndpoint(endpoint);
+  if (!endpointCheck.ok) {
+    return res.status(400).json({ success: false, error: endpointCheck.reason });
+  }
+
+  if (nodeId && generateNodeId(publicKey) !== nodeId.toLowerCase()) {
+    return res.status(400).json({ success: false, error: 'nodeId does not match publicKey' });
+  }
+
   const dht = ensureDHTInitialized();
-  const added = dht.handleAnnounce(nodeId, endpoint, publicKey, serverId, capabilities);
+
+  // Verify signed announcement if signature is present
+  const requireSignedAnnouncements = process.env.DHT_REQUIRE_SIGNED_ANNOUNCEMENTS !== 'false';
+  if (signature || requireSignedAnnouncements) {
+    if (!signature) {
+      return res.status(400).json({ success: false, error: 'Signed announcement required' });
+    }
+    const verification = dht.verifySignedAnnouncement(req.body);
+    if (!verification.valid) {
+      console.log(`❌ DHT announce rejected: ${verification.error}`);
+      return res.status(400).json({ success: false, error: verification.error });
+    }
+  }
+
+  const added = dht.handleAnnounce(req.body);
 
   res.json({
     success: true,
@@ -432,15 +521,38 @@ router.post('/dht/announce', async (req, res) => {
 
 // POST /api/federation/dht/peer-push - Receive push notification of new peer
 router.post('/dht/peer-push', (req, res) => {
-  const { nodeId, endpoint, publicKey, serverId, capabilities } = req.body;
+  const { nodeId, endpoint, publicKey, serverId, capabilities, timestamp, signature } = req.body;
   console.log(`🌐 POST /api/federation/dht/peer-push from=${serverId}`);
 
   if (!nodeId || !endpoint || !publicKey || !serverId) {
     return res.status(400).json({ success: false, error: 'nodeId, endpoint, publicKey, and serverId required' });
   }
 
+  const endpointCheck = validateFederationEndpoint(endpoint);
+  if (!endpointCheck.ok) {
+    return res.status(400).json({ success: false, error: endpointCheck.reason });
+  }
+
+  if (generateNodeId(publicKey) !== nodeId.toLowerCase()) {
+    return res.status(400).json({ success: false, error: 'nodeId does not match publicKey' });
+  }
+
   const dht = ensureDHTInitialized();
-  const added = dht.handlePeerPush(nodeId, endpoint, publicKey, serverId, capabilities);
+
+  // Verify signed announcement if signature is present
+  const requireSignedAnnouncements = process.env.DHT_REQUIRE_SIGNED_ANNOUNCEMENTS !== 'false';
+  if (signature || requireSignedAnnouncements) {
+    if (!signature) {
+      return res.status(400).json({ success: false, error: 'Signed announcement required' });
+    }
+    const verification = dht.verifySignedAnnouncement(req.body);
+    if (!verification.valid) {
+      console.log(`❌ DHT peer-push rejected: ${verification.error}`);
+      return res.status(400).json({ success: false, error: verification.error });
+    }
+  }
+
+  const added = dht.handlePeerPush(req.body);
 
   res.json({
     success: true,
@@ -455,6 +567,17 @@ router.post('/dht/find-node', (req, res) => {
 
   if (!targetId) {
     return res.status(400).json({ success: false, error: 'targetId required' });
+  }
+
+  if (fromEndpoint) {
+    const endpointCheck = validateFederationEndpoint(fromEndpoint);
+    if (!endpointCheck.ok) {
+      return res.status(400).json({ success: false, error: endpointCheck.reason });
+    }
+  }
+
+  if (fromNodeId && fromPublicKey && generateNodeId(fromPublicKey) !== fromNodeId.toLowerCase()) {
+    return res.status(400).json({ success: false, error: 'fromNodeId does not match fromPublicKey' });
   }
 
   const dht = ensureDHTInitialized();
@@ -473,6 +596,11 @@ router.post('/dht/bootstrap-nodes', requireFederationRole('admin'), (req, res) =
 
   if (!endpoint) {
     return res.status(400).json({ success: false, error: 'endpoint required' });
+  }
+
+  const endpointCheck = validateFederationEndpoint(endpoint);
+  if (!endpointCheck.ok) {
+    return res.status(400).json({ success: false, error: endpointCheck.reason });
   }
 
   const dht = ensureDHTInitialized();
@@ -563,6 +691,11 @@ router.post('/peers/neo4j', requireFederationRole('admin'), async (req, res) => 
 
   if (!serverId || !publicKey || !endpoint) {
     return res.status(400).json({ success: false, error: 'serverId, publicKey, and endpoint required' });
+  }
+
+  const endpointCheck = validateFederationEndpoint(endpoint);
+  if (!endpointCheck.ok) {
+    return res.status(400).json({ success: false, error: endpointCheck.reason });
   }
 
   const peerService = ensurePeerServiceInitialized();
@@ -882,6 +1015,9 @@ router.get('/token-gate/check', async (req, res) => {
     result.allowed = access.allowed;
     result.required = access.required;
     result.requiredTier = access.requiredTier;
+    if (access.error) {
+      result.error = access.error;
+    }
   }
 
   res.json(result);
@@ -1240,46 +1376,57 @@ function ensureMemorySyncServiceInitialized() {
 }
 
 // POST /api/federation/memories/export - Export memories with filters
-router.post('/memories/export', async (req, res) => {
-  const { category, stage, tags, minImportance, since, limit, requesterId } = req.body;
-  console.log(`🌐 POST /api/federation/memories/export requesterId=${requesterId || 'local'}`);
+// Requires verified or trusted peer for trust-gated operations
+router.post('/memories/export',
+  requireFederationRole('peer'),
+  requirePeerTrustLevel(['verified', 'trusted']),
+  async (req, res) => {
+    const { category, stage, tags, minImportance, since, limit, requesterId } = req.body;
+    console.log(`🌐 POST /api/federation/memories/export requesterId=${requesterId || 'local'} trustLevel=${req.federationPeer?.trustLevel || 'local'}`);
 
-  const syncService = ensureMemorySyncServiceInitialized();
-  const exportData = await syncService.exportMemories({
-    category,
-    stage,
-    tags,
-    minImportance,
-    since,
-    limit
-  });
+    const syncService = ensureMemorySyncServiceInitialized();
+    const exportData = await syncService.exportMemories({
+      category,
+      stage,
+      tags,
+      minImportance,
+      since,
+      limit
+    });
 
-  res.json({
-    success: true,
-    data: exportData
+    res.json({
+      success: true,
+      data: exportData
+    });
   });
-});
 
 // POST /api/federation/memories/import - Import memories from a peer export
-router.post('/memories/import', async (req, res) => {
-  const { exportData, skipDuplicates, dryRun } = req.body;
-  console.log(`🌐 POST /api/federation/memories/import dryRun=${dryRun || false}`);
+// Requires verified or trusted peer for trust-gated operations
+// Applies stricter rate limiting for memory operations
+router.post('/memories/import',
+  memoryOperationRateLimiter,
+  bodyLimitMiddleware(MAX_MEMORY_IMPORT_SIZE),
+  requireFederationRole('peer'),
+  requirePeerTrustLevel(['verified', 'trusted']),
+  async (req, res) => {
+    const { exportData, skipDuplicates, dryRun, requesterId } = req.body;
+    console.log(`🌐 POST /api/federation/memories/import dryRun=${dryRun || false} trustLevel=${req.federationPeer?.trustLevel || 'local'}`);
 
-  if (!exportData || !exportData.manifest || !exportData.memories) {
-    return res.status(400).json({ success: false, error: 'exportData with manifest and memories required' });
-  }
+    if (!exportData || !exportData.manifest || !exportData.memories) {
+      return res.status(400).json({ success: false, error: 'exportData with manifest and memories required' });
+    }
 
-  const syncService = ensureMemorySyncServiceInitialized();
-  const result = await syncService.importMemories(exportData, {
-    skipDuplicates: skipDuplicates !== false,
-    dryRun: dryRun || false
+    const syncService = ensureMemorySyncServiceInitialized();
+    const result = await syncService.importMemories(exportData, {
+      skipDuplicates: skipDuplicates !== false,
+      dryRun: dryRun || false
+    });
+
+    res.json(result);
   });
 
-  res.json(result);
-});
-
 // GET /api/federation/memories/sync/stats - Get memory sync statistics
-router.get('/memories/sync/stats', async (req, res) => {
+router.get('/memories/sync/stats', requireFederationRole('peer'), async (req, res) => {
   console.log(`🌐 GET /api/federation/memories/sync/stats`);
 
   const syncService = ensureMemorySyncServiceInitialized();
@@ -1292,7 +1439,7 @@ router.get('/memories/sync/stats', async (req, res) => {
 });
 
 // GET /api/federation/memories/sync/states - Get all sync states
-router.get('/memories/sync/states', async (req, res) => {
+router.get('/memories/sync/states', requireFederationRole('peer'), async (req, res) => {
   console.log(`🌐 GET /api/federation/memories/sync/states`);
 
   const syncService = ensureMemorySyncServiceInitialized();
@@ -1305,7 +1452,7 @@ router.get('/memories/sync/states', async (req, res) => {
 });
 
 // GET /api/federation/memories/sync/:peerId - Get sync state for a specific peer
-router.get('/memories/sync/:peerId', async (req, res) => {
+router.get('/memories/sync/:peerId', requireFederationRole('peer'), async (req, res) => {
   const { peerId } = req.params;
   console.log(`🌐 GET /api/federation/memories/sync/${peerId}`);
 
@@ -1320,38 +1467,46 @@ router.get('/memories/sync/:peerId', async (req, res) => {
 });
 
 // POST /api/federation/memories/sync/:peerId - Perform delta sync with a peer
-router.post('/memories/sync/:peerId', async (req, res) => {
-  const { peerId } = req.params;
-  console.log(`🌐 POST /api/federation/memories/sync/${peerId}`);
+// Requires verified or trusted peer for trust-gated operations
+router.post('/memories/sync/:peerId',
+  requireFederationRole('peer'),
+  requirePeerTrustLevel(['verified', 'trusted']),
+  async (req, res) => {
+    const { peerId } = req.params;
+    console.log(`🌐 POST /api/federation/memories/sync/${peerId} trustLevel=${req.federationPeer?.trustLevel || 'local'}`);
 
-  const syncService = ensureMemorySyncServiceInitialized();
-  const federation = getFederationService();
-  const peer = federation.getPeer(peerId);
+    const syncService = ensureMemorySyncServiceInitialized();
+    const federation = getFederationService();
+    const peer = federation.getPeer(peerId);
 
-  if (!peer) {
-    return res.status(404).json({ success: false, error: 'Peer not found' });
-  }
+    if (!peer) {
+      return res.status(404).json({ success: false, error: 'Peer not found' });
+    }
 
-  const result = await syncService.deltaSync(peerId);
-  res.json(result);
-});
-
-// POST /api/federation/memories/sync/:peerId/preview - Preview what would be imported
-router.post('/memories/sync/:peerId/preview', async (req, res) => {
-  const { peerId } = req.params;
-  const { category, stage, tags, minImportance } = req.body;
-  console.log(`🌐 POST /api/federation/memories/sync/${peerId}/preview`);
-
-  const syncService = ensureMemorySyncServiceInitialized();
-  const result = await syncService.previewImport(peerId, {
-    category,
-    stage,
-    tags,
-    minImportance
+    const result = await syncService.deltaSync(peerId);
+    res.json(result);
   });
 
-  res.json(result);
-});
+// POST /api/federation/memories/sync/:peerId/preview - Preview what would be imported
+// Requires verified or trusted peer for trust-gated operations
+router.post('/memories/sync/:peerId/preview',
+  requireFederationRole('peer'),
+  requirePeerTrustLevel(['verified', 'trusted']),
+  async (req, res) => {
+    const { peerId } = req.params;
+    const { category, stage, tags, minImportance } = req.body;
+    console.log(`🌐 POST /api/federation/memories/sync/${peerId}/preview trustLevel=${req.federationPeer?.trustLevel || 'local'}`);
+
+    const syncService = ensureMemorySyncServiceInitialized();
+    const result = await syncService.previewImport(peerId, {
+      category,
+      stage,
+      tags,
+      minImportance
+    });
+
+    res.json(result);
+  });
 
 // ============ Bootstrap Memory Routes (void-mud) ============
 

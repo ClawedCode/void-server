@@ -27,16 +27,29 @@ Implementation plan:
 - Medium: potential import/embedding DoS without limits
 - Low: wallet format not validated in token-gate middleware
 
-### Phase 2.5: Federation Security Hardening 🚧 NEW
-- [ ] Add federation auth middleware (admin vs peer vs local) for `/api/federation/*`
-- [ ] Fix token gate feature mapping; fail closed on unknown features
-- [ ] Validate/allowlist peer endpoints; block private IPs by default (SSRF protection)
-- [ ] DHT: verify `nodeId == sha256(publicKey)` and require signed announcements
-- [ ] Challenge-response: track issued challenges + TTL; reject replays
-- [ ] Trust gating: require verified/trusted peers for memory export/import
-- [ ] Require signed memories by default on import
-- [ ] Add payload size limits + rate limiting for federation routes
-- [ ] Validate wallet format in token gate middleware
+### Phase 2.5: Federation Security Hardening ✅ COMPLETE
+- [x] Add federation auth middleware (admin vs peer vs local) for `/api/federation/*`
+- [x] Fix token gate feature mapping; fail closed on unknown features
+- [x] Validate/allowlist peer endpoints; block private IPs by default (SSRF protection)
+- [x] DHT: verify `nodeId == sha256(publicKey)` on announce/push/lookup
+- [x] DHT: require signed announcements (with timestamp + signature verification)
+- [x] Challenge-response: track issued challenges + TTL; reject replays
+- [x] Trust gating: require verified/trusted peers for memory export/import/sync
+- [x] Require signed memories by default on import (`FEDERATION_REQUIRE_SIGNATURES`)
+- [x] Add payload size limits + rate limiting for federation routes
+- [x] Validate wallet format in token gate middleware
+- [x] Add federation E2E regression coverage + coverage reporting workflow
+- [x] Add hardening-specific E2E tests (SSRF, signatures, trust gating, rate limits)
+
+**Configuration:**
+- `DHT_REQUIRE_SIGNED_ANNOUNCEMENTS`: Set to `false` to allow unsigned announcements (default: true)
+- `FEDERATION_TRUST_GATING`: Set to `false` to disable trust level checks (default: true)
+- `FEDERATION_REQUIRE_SIGNATURES`: Set to `false` to allow unsigned memory imports (default: true)
+- `FEDERATION_RATE_LIMIT_WINDOW_MS`: Rate limit window in ms (default: 60000)
+- `FEDERATION_RATE_LIMIT_MAX`: Max requests per window (default: 60)
+- `FEDERATION_RATE_LIMIT_MEMORY_MAX`: Max memory ops per window (default: 10)
+- `FEDERATION_MAX_BODY_SIZE`: Max body size in bytes (default: 5MB)
+- `FEDERATION_MAX_MEMORY_IMPORT_SIZE`: Max import body size (default: 10MB)
 
 ---
 

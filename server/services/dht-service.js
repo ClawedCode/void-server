@@ -11,6 +11,9 @@ const fs = require('fs');
 const path = require('path');
 const { broadcast } = require('../utils/broadcast');
 
+// DHT announcement signature validity window (5 minutes)
+const ANNOUNCEMENT_TTL_MS = 5 * 60 * 1000;
+
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const DHT_DIR = path.join(DATA_DIR, 'federation');
 const DHT_STATE_PATH = path.join(DHT_DIR, 'dht-state.json');
@@ -647,6 +650,66 @@ class DHTService {
   }
 
   /**
+   * Create a signed announcement payload
+   * @returns {Object} Announcement payload with signature
+   */
+  createSignedAnnouncement() {
+    const timestamp = Date.now();
+    const payload = {
+      nodeId: this.nodeId,
+      endpoint: this.getLocalEndpoint(),
+      publicKey: this.federationService.identity.publicKey,
+      serverId: this.federationService.identity.serverId,
+      capabilities: this.federationService.capabilities,
+      timestamp
+    };
+
+    // Sign the announcement using federation service
+    const signature = this.federationService.sign(payload);
+
+    return { ...payload, signature };
+  }
+
+  /**
+   * Verify a signed announcement from a peer
+   * @param {Object} announcement - The announcement payload
+   * @returns {{valid: boolean, error?: string}}
+   */
+  verifySignedAnnouncement(announcement) {
+    const { nodeId, endpoint, publicKey, serverId, capabilities, timestamp, signature } = announcement;
+
+    // Check required fields
+    if (!nodeId || !endpoint || !publicKey || !timestamp || !signature) {
+      return { valid: false, error: 'Missing required fields for signed announcement' };
+    }
+
+    // Verify nodeId matches publicKey
+    if (generateNodeId(publicKey) !== nodeId.toLowerCase()) {
+      return { valid: false, error: 'nodeId does not match publicKey' };
+    }
+
+    // Check timestamp freshness
+    const age = Date.now() - timestamp;
+    if (age > ANNOUNCEMENT_TTL_MS) {
+      return { valid: false, error: `Announcement expired (age: ${Math.round(age / 1000)}s)` };
+    }
+    if (age < -60000) { // Allow 1 minute clock skew
+      return { valid: false, error: 'Announcement timestamp is in the future' };
+    }
+
+    // Reconstruct the payload that was signed (without signature)
+    const payloadToVerify = { nodeId, endpoint, publicKey, serverId, capabilities, timestamp };
+
+    // Verify signature
+    const isValid = this.federationService.verify(payloadToVerify, signature, publicKey);
+    if (!isValid) {
+      return { valid: false, error: 'Invalid signature' };
+    }
+
+    return { valid: true };
+  }
+
+  /**
    * Announce this node to the network
    */
   async announce() {
@@ -661,18 +724,15 @@ class DHTService {
 
     let announced = 0;
 
+    // Create signed announcement once for all peers
+    const signedAnnouncement = this.createSignedAnnouncement();
+
     const announcePromises = nodes.map(async node => {
       const url = `${node.endpoint.replace(/\/$/, '')}/api/federation/dht/announce`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nodeId: this.nodeId,
-          endpoint: this.getLocalEndpoint(),
-          publicKey: this.federationService.identity.publicKey,
-          serverId: this.federationService.identity.serverId,
-          capabilities: this.federationService.capabilities
-        }),
+        body: JSON.stringify(signedAnnouncement),
         signal: AbortSignal.timeout(10000)
       }).catch(() => null);
 
@@ -726,8 +786,12 @@ class DHTService {
 
   /**
    * Handle incoming announcement
+   * @param {Object} announcement - The full announcement payload (may include signature)
+   * @returns {boolean} Whether the node was added
    */
-  handleAnnounce(nodeId, endpoint, publicKey, serverId, capabilities) {
+  handleAnnounce(announcement) {
+    const { nodeId, endpoint, publicKey, serverId, capabilities } = announcement;
+
     const node = new DHTNode(nodeId, endpoint, publicKey, serverId);
     node.capabilities = capabilities;
 
@@ -744,7 +808,8 @@ class DHTService {
       }, endpoint);
 
       // Push the new peer to other known nodes (helps discovery)
-      this.pushPeerToNetwork(node);
+      // Pass the original signed announcement for relay
+      this.pushPeerToNetwork(node, announcement.signature ? announcement : null);
     }
 
     return added;
@@ -753,8 +818,9 @@ class DHTService {
   /**
    * Push a new peer announcement to all known nodes
    * This helps nodes discover each other faster than waiting for refresh
+   * Note: We relay the original signed announcement from the peer
    */
-  async pushPeerToNetwork(newNode) {
+  async pushPeerToNetwork(newNode, originalAnnouncement = null) {
     const allNodes = this.routingTable.getAllNodes();
     const otherNodes = allNodes.filter(n => n.nodeId !== newNode.nodeId);
 
@@ -762,47 +828,52 @@ class DHTService {
 
     console.log(`🌐 Pushing new peer ${newNode.serverId} to ${otherNodes.length} nodes...`);
 
+    // Use original signed announcement if available, otherwise create unsigned (legacy)
+    const pushPayload = originalAnnouncement || {
+      nodeId: newNode.nodeId,
+      endpoint: newNode.endpoint,
+      publicKey: newNode.publicKey,
+      serverId: newNode.serverId,
+      capabilities: newNode.capabilities || [],
+      timestamp: Date.now()
+    };
+
     // Push new node to all existing nodes
     const pushPromises = otherNodes.map(async node => {
       const url = `${node.endpoint.replace(/\/$/, '')}/api/federation/dht/peer-push`;
       await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nodeId: newNode.nodeId,
-          endpoint: newNode.endpoint,
-          publicKey: newNode.publicKey,
-          serverId: newNode.serverId,
-          capabilities: newNode.capabilities || []
-        }),
+        body: JSON.stringify(pushPayload),
         signal: AbortSignal.timeout(5000)
       }).catch(() => null);
     });
 
-    // Also push all existing nodes to the new node (bidirectional discovery)
-    const reversePromises = otherNodes.map(async existingNode => {
+    // Create our own signed announcement for reverse push
+    const ourSignedAnnouncement = this.createSignedAnnouncement();
+
+    // Also push ourselves to the new node (bidirectional discovery)
+    const reversePushPromise = (async () => {
       const url = `${newNode.endpoint.replace(/\/$/, '')}/api/federation/dht/peer-push`;
       await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nodeId: existingNode.nodeId,
-          endpoint: existingNode.endpoint,
-          publicKey: existingNode.publicKey,
-          serverId: existingNode.serverId,
-          capabilities: existingNode.capabilities || []
-        }),
+        body: JSON.stringify(ourSignedAnnouncement),
         signal: AbortSignal.timeout(5000)
       }).catch(() => null);
-    });
+    })();
 
-    await Promise.all([...pushPromises, ...reversePromises]);
+    await Promise.all([...pushPromises, reversePushPromise]);
   }
 
   /**
    * Handle incoming peer push (notification of new peer from bootstrap node)
+   * @param {Object} announcement - The full announcement payload (may include signature)
+   * @returns {boolean} Whether the node was added
    */
-  handlePeerPush(nodeId, endpoint, publicKey, serverId, capabilities) {
+  handlePeerPush(announcement) {
+    const { nodeId, endpoint, publicKey, serverId, capabilities } = announcement;
+
     // Skip if it's ourselves
     if (nodeId === this.nodeId) return false;
 
@@ -1074,5 +1145,6 @@ module.exports = {
   xorDistance,
   getBucketIndex,
   K,
-  ALPHA
+  ALPHA,
+  ANNOUNCEMENT_TTL_MS
 };

@@ -21,6 +21,7 @@
     "test": "npm run test:native",
     "test:native": "cross-env TEST_ENV=native npx cucumber-js",
     "test:docker": "cross-env TEST_ENV=docker npx cucumber-js",
+    "test:docker:api": "cross-env TEST_ENV=docker TEST_NO_BROWSER=true npx cucumber-js --tags \"not @ui\"",
     "test:ci": "cross-env TEST_ENV=ci npx cucumber-js --format json:tests/e2e/reports/results.json",
     "test:e2e": "cross-env TEST_ENV=native npx cucumber-js",
     "test:e2e:smoke": "cross-env TEST_ENV=native npx cucumber-js --tags @smoke",
@@ -28,7 +29,8 @@
     "test:env:stop": "bash ./scripts/test-env.sh stop",
     "test:env:status": "bash ./scripts/test-env.sh status",
     "test:seed": "node ./scripts/seed-test-data.js seed",
-    "test:install": "npx playwright install chromium"
+    "test:install": "npx playwright install chromium",
+    "test:coverage:report": "node ./scripts/coverage-remap.js && c8 report --temp-directory=coverage/v8 --reporter=text --reporter=html --report-dir coverage"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.0",
@@ -42,6 +44,7 @@
     "ed25519-hd-key": "^1.3.0",
     "ed2curve": "^0.3.0",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.2.1",
     "gray-matter": "^4.0.3",
     "http-proxy-middleware": "^3.0.5",
     "neo4j-driver": "^6.0.1",
@@ -54,6 +57,7 @@
     "@cucumber/cucumber": "^10.9.0",
     "@playwright/test": "^1.57.0",
     "@types/node": "^22.0.0",
+    "c8": "^9.1.0",
     "cross-env": "^7.0.3",
     "pm2": "^5.3.0",
     "ts-node": "^10.9.2",

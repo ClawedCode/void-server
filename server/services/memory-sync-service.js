@@ -212,11 +212,14 @@ class MemorySyncService {
    * @param {Object} options - Import options
    * @param {boolean} options.skipDuplicates - Skip memories with matching content hash
    * @param {boolean} options.dryRun - Don't actually import, just check
-   * @param {boolean} options.requireSignatures - Require valid signatures (default: false for backwards compat)
+   * @param {boolean} options.requireSignatures - Require valid signatures (default: true)
    */
   async importMemories(exportData, options = {}) {
     const federation = getFederationService();
     const { manifest, signature, memories } = exportData;
+    // Default to requiring signatures for security; disable only if explicitly set to 'false'
+    const requireSignatures = options.requireSignatures ?? (process.env.FEDERATION_REQUIRE_SIGNATURES !== 'false');
+    const requireVerifiedPeers = process.env.FEDERATION_REQUIRE_VERIFIED_PEERS === 'true';
 
     // Allow self-import (for testing and local memory backup/restore)
     const isSelfImport = manifest.sourceServerId === federation.identity.serverId;
@@ -228,6 +231,13 @@ class MemorySyncService {
         return {
           success: false,
           error: `Unknown source server: ${manifest.sourceServerId}. Add as peer first.`
+        };
+      }
+
+      if (requireVerifiedPeers && !['verified', 'trusted'].includes(peer.trustLevel)) {
+        return {
+          success: false,
+          error: `Peer ${manifest.sourceServerId} is not verified or trusted`
         };
       }
 
@@ -281,11 +291,11 @@ class MemorySyncService {
             id: memory.id,
             error: verification.error || 'Invalid signature'
           });
-          if (options.requireSignatures) {
+          if (requireSignatures) {
             continue; // Skip memories with invalid signatures
           }
         }
-      } else if (options.requireSignatures) {
+      } else if (requireSignatures) {
         results.signatureErrors.push({
           id: memory.id,
           error: 'Memory not signed'

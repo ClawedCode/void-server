@@ -2,6 +2,43 @@
 
 ## [0.17.0]
 
+### Security Hardening (Phase 2.5)
+
+- **DHT Signed Announcements** - Cryptographically signed DHT network announcements
+  - Announcements include timestamp, nodeId, endpoint, publicKey, serverId, and signature
+  - 5-minute TTL to prevent replay attacks
+  - Signature verification on `/dht/announce` and `/dht/peer-push` routes
+  - Configurable via `DHT_REQUIRE_SIGNED_ANNOUNCEMENTS` env var (default: true)
+
+- **Trust Gating for Memory Operations** - Require verified/trusted peers for sensitive operations
+  - New `requirePeerTrustLevel` middleware for federation routes
+  - Memory export, import, and sync now require `verified` or `trusted` peer trust level
+  - Local/admin requests bypass trust checks for administrative access
+  - Configurable via `FEDERATION_TRUST_GATING` env var (default: true)
+
+- **Signed Memories by Default** - Memory imports now require signatures by default
+  - Changed default for `requireSignatures` from `false` to `true`
+  - Prevents unsigned content injection from untrusted peers
+  - Configurable via `FEDERATION_REQUIRE_SIGNATURES` env var (default: true)
+
+- **Rate Limiting + Payload Size Limits** - DoS protection for federation routes
+  - General rate limit: 60 requests/minute per IP (configurable)
+  - Memory operation rate limit: 10 ops/minute per IP (stricter)
+  - Body size limit: 5MB default, 10MB for memory imports
+  - Configurable via environment variables:
+    - `FEDERATION_RATE_LIMIT_WINDOW_MS` (default: 60000)
+    - `FEDERATION_RATE_LIMIT_MAX` (default: 60)
+    - `FEDERATION_RATE_LIMIT_MEMORY_MAX` (default: 10)
+    - `FEDERATION_MAX_BODY_SIZE` (default: 5MB)
+    - `FEDERATION_MAX_MEMORY_IMPORT_SIZE` (default: 10MB)
+
+- **Hardening E2E Tests** - 12 new test scenarios for security features
+  - SSRF protection tests (private IP, localhost blocking)
+  - DHT signature verification tests (missing, expired signatures)
+  - Trust gating tests (requesterId required, unknown/untrusted peer rejection)
+  - Body size limit enforcement tests
+  - Challenge replay rejection tests
+
 ### New Features
 
 - **Audio Moods System** - LLM-generated Tone.js audio compositions with training workflow
@@ -141,6 +178,7 @@ data/audio/
 
 ### Dependencies
 
+- Added `express-rate-limit` for federation route rate limiting
 - Added `gray-matter` for YAML frontmatter parsing
 
 ---

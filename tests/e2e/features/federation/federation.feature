@@ -65,6 +65,12 @@ Feature: Federation System
   Scenario: DHT find-node requires targetId
     When I POST to "/api/federation/dht/find-node" with empty body
     Then the response status should be 400
+    And the response should contain "targetId required"
+
+  Scenario: DHT announce rejects mismatched nodeId
+    When I POST to "/api/federation/dht/announce" with invalid nodeId
+    Then the response status should be 400
+    And the response should contain "nodeId does not match publicKey"
 
   # Neo4j Peer Management Tests
 
@@ -190,6 +196,11 @@ Feature: Federation System
     Then the response should be successful
     And the response should contain access information
 
+  Scenario: Token gate check with unknown feature
+    When I GET "/api/federation/token-gate/check?wallet=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&feature=federation:unknown_feature"
+    Then the response should be successful
+    And the response should indicate feature is unknown
+
   Scenario: Gated endpoint requires wallet
     When I POST to "/api/federation/gated/memories/export" with empty body
     Then the response status should be 401
@@ -237,9 +248,9 @@ Feature: Federation System
     Then the response should be successful
 
   Scenario: Vote on memory requires valid vote
-    When I POST to "/api/federation/marketplace/memory/test-memory-002/vote" with empty body
+    When I POST to "/api/federation/marketplace/memory/test-memory-002/vote" with vote 2 from "void-voter-test"
     Then the response status should be 400
-    And the response should contain "Vote must be 1 or -1"
+    And the response should contain "vote must be 1, -1, or 0"
 
   Scenario: Vote on memory with voter
     When I POST to "/api/federation/marketplace/memory/test-memory-003/vote" with vote 1 from "void-voter-test"
@@ -254,7 +265,7 @@ Feature: Federation System
   Scenario: Get memory attribution chain
     When I GET "/api/federation/marketplace/memory/test-memory-001/attribution"
     Then the response should be successful
-    And the response should have "chain" array
+    And the response should have "attributionChain" array
 
   Scenario: Record citation between memories
     When I POST to "/api/federation/marketplace/memory/test-memory-004/cite" with citing memory "test-memory-005"
@@ -309,3 +320,79 @@ Feature: Federation System
   Scenario: Connect by node ID with nonexistent ID
     When I POST to "/api/federation/peers/connect-by-id" with nodeId "nonexistent123"
     Then the response status should be 404
+
+  # ============================================
+  # Security Hardening Tests
+  # ============================================
+
+  @hardening
+  Scenario: Endpoint validation blocks private IP addresses
+    When I POST to "/api/federation/peers" with private IP endpoint
+    Then the response status should be 400
+    And the response should contain "private IP"
+
+  @hardening
+  Scenario: Endpoint validation blocks localhost
+    When I POST to "/api/federation/dht/bootstrap-nodes" with localhost endpoint
+    Then the response status should be 400
+    And the response should contain "private IP"
+
+  @hardening
+  Scenario: DHT announce rejects missing signature when required
+    When I POST to "/api/federation/dht/announce" with unsigned announcement
+    Then the response status should be 400
+    And the response should contain "Signed announcement required"
+
+  @hardening
+  Scenario: DHT announce rejects expired signature
+    When I POST to "/api/federation/dht/announce" with expired signature
+    Then the response status should be 400
+    And the response should contain "expired"
+
+  @hardening
+  Scenario: DHT peer-push rejects missing signature when required
+    When I POST to "/api/federation/dht/peer-push" with unsigned announcement
+    Then the response status should be 400
+    And the response should contain "Signed announcement required"
+
+  @hardening
+  Scenario: Memory export requires requesterId for trust gating
+    When I POST to "/api/federation/memories/export" without requesterId
+    Then the response status should be 400
+    And the response should contain "requesterId required"
+
+  @hardening
+  Scenario: Memory export rejects unknown peer
+    When I POST to "/api/federation/memories/export" with unknown requesterId
+    Then the response status should be 403
+    And the response should contain "Unknown peer"
+
+  @hardening
+  Scenario: Memory export rejects untrusted peer
+    When I create a test peer "void-untrusted-test" in Neo4j with trust level "unknown"
+    And I POST to "/api/federation/memories/export" with requesterId "void-untrusted-test"
+    Then the response status should be 403
+    And the response should contain "Insufficient trust level"
+    When I delete peer "void-untrusted-test" from Neo4j
+    Then the response should be successful
+
+  @hardening
+  Scenario: Memory import with invalid signature is rejected
+    When I POST to "/api/federation/memories/export" with limit 1
+    And I modify the exported memories with invalid signature
+    And I import the modified memories
+    Then the response should contain "signatureErrors"
+
+  @hardening
+  Scenario: Request body size limit is enforced
+    When I POST to "/api/federation/memories/import" with oversized body
+    Then the response status should be 413
+    And the response should contain "too large"
+
+  @hardening
+  Scenario: Challenge replay is rejected
+    When I request a federation challenge
+    And I store the challenge
+    And I verify the challenge successfully
+    And I attempt to reuse the same challenge
+    Then the verification should fail

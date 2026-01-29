@@ -1,5 +1,15 @@
 const DEFAULT_ALLOW_PATHS = new Set(['/manifest', '/identity', '/ping']);
 
+// Lazy load federation service to avoid circular dependencies
+let federationServiceInstance = null;
+function getFederationServiceLazy() {
+  if (!federationServiceInstance) {
+    const { getFederationService } = require('../services/federation-service');
+    federationServiceInstance = getFederationService();
+  }
+  return federationServiceInstance;
+}
+
 function isLoopbackAddress(ip) {
   if (!ip) return false;
   if (ip === '127.0.0.1' || ip === '::1') return true;
@@ -75,15 +85,87 @@ function requireFederationRole(role) {
     if (mode === 'off') return next();
 
     const currentRole = req.federationAuth?.role;
-    if (role === 'admin' && currentRole !== 'admin') {
+    if (role === 'admin' && currentRole !== 'admin' && currentRole !== 'local') {
       return res.status(403).json({ success: false, error: 'Admin role required' });
+    }
+
+    if (role === 'peer' && !['peer', 'admin', 'local'].includes(currentRole)) {
+      return res.status(403).json({ success: false, error: 'Peer role required' });
     }
 
     return next();
   };
 }
 
+/**
+ * Middleware to require a minimum peer trust level for memory operations.
+ * Trust levels in order: unknown < seen < verified < trusted
+ *
+ * @param {string|string[]} requiredLevels - Required trust level(s), e.g., 'verified' or ['verified', 'trusted']
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.allowAdmin - Allow admin role to bypass trust check (default: true)
+ * @param {boolean} options.allowLocal - Allow local requests to bypass trust check (default: true)
+ */
+function requirePeerTrustLevel(requiredLevels, options = {}) {
+  const allowAdmin = options.allowAdmin !== false;
+  const allowLocal = options.allowLocal !== false;
+  const levels = Array.isArray(requiredLevels) ? requiredLevels : [requiredLevels];
+
+  return (req, res, next) => {
+    // Check if trust gating is disabled
+    const trustGatingEnabled = process.env.FEDERATION_TRUST_GATING !== 'false';
+    if (!trustGatingEnabled) {
+      return next();
+    }
+
+    // Allow admin to bypass if configured
+    if (allowAdmin && req.federationAuth?.role === 'admin') {
+      return next();
+    }
+
+    // Allow local requests to bypass if configured
+    if (allowLocal && req.federationAuth?.isLocal) {
+      return next();
+    }
+
+    // Get requester ID from body or header
+    const requesterId = req.body?.requesterId || req.headers['x-federation-server-id'];
+
+    if (!requesterId) {
+      return res.status(400).json({
+        success: false,
+        error: 'requesterId required for trust-gated operations'
+      });
+    }
+
+    // Look up the peer's trust level
+    const federation = getFederationServiceLazy();
+    const peer = federation.getPeer(requesterId);
+
+    if (!peer) {
+      return res.status(403).json({
+        success: false,
+        error: `Unknown peer: ${requesterId}. Add as peer first.`
+      });
+    }
+
+    const peerTrustLevel = peer.trustLevel || 'unknown';
+
+    if (!levels.includes(peerTrustLevel)) {
+      return res.status(403).json({
+        success: false,
+        error: `Insufficient trust level. Required: ${levels.join(' or ')}. Current: ${peerTrustLevel}`
+      });
+    }
+
+    // Attach peer info to request for downstream use
+    req.federationPeer = peer;
+    return next();
+  };
+}
+
 module.exports = {
   requireFederationAuth,
-  requireFederationRole
+  requireFederationRole,
+  requirePeerTrustLevel
 };
