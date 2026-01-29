@@ -574,9 +574,20 @@ class PeerService {
     let totalHealth = 0;
 
     for (const s of stats) {
-      byTrustLevel[s.level] = { count: s.count, avgHealth: s.avgHealth };
-      total += s.count;
-      totalHealth += s.avgHealth * s.count;
+      const count = typeof s.count === 'bigint'
+        ? Number(s.count)
+        : typeof s.count?.toNumber === 'function'
+          ? s.count.toNumber()
+          : Number(s.count || 0);
+      const avgHealth = typeof s.avgHealth === 'bigint'
+        ? Number(s.avgHealth)
+        : typeof s.avgHealth?.toNumber === 'function'
+          ? s.avgHealth.toNumber()
+          : Number(s.avgHealth || 0);
+
+      byTrustLevel[s.level] = { count, avgHealth };
+      total += count;
+      totalHealth += avgHealth * count;
     }
 
     return {

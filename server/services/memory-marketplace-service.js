@@ -161,10 +161,10 @@ class MemoryMarketplaceService {
       MERGE (voter)-[v:VOTED]->(m)
       SET v.value = $vote,
           v.updatedAt = datetime()
-      SET m.upvotes = COALESCE(m.upvotes, 0) + CASE WHEN $vote = 1 AND $previousVote != 1 THEN 1 ELSE 0 END
-                                              - CASE WHEN $previousVote = 1 AND $vote != 1 THEN 1 ELSE 0 END,
-          m.downvotes = COALESCE(m.downvotes, 0) + CASE WHEN $vote = -1 AND $previousVote != -1 THEN 1 ELSE 0 END
-                                                  - CASE WHEN $previousVote = -1 AND $vote != -1 THEN 1 ELSE 0 END
+      SET m.upvotes = COALESCE(m.upvotes, 0) + CASE WHEN $vote = 1 AND $previousVote <> 1 THEN 1 ELSE 0 END
+                                              - CASE WHEN $previousVote = 1 AND $vote <> 1 THEN 1 ELSE 0 END,
+          m.downvotes = COALESCE(m.downvotes, 0) + CASE WHEN $vote = -1 AND $previousVote <> -1 THEN 1 ELSE 0 END
+                                                  - CASE WHEN $previousVote = -1 AND $vote <> -1 THEN 1 ELSE 0 END
     `, { memoryId, voterId, vote, previousVote });
 
     return { success: true, previousVote, newVote: vote };

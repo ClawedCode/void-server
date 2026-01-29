@@ -1,3 +1,14 @@
+const os = require('os');
+if (process.platform === 'darwin' && process.arch === 'arm64' && !process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE) {
+  const major = parseInt(os.release().split('.')[0], 10);
+  let macVersion = 'mac15';
+  if (major < 18) macVersion = 'mac10.13';
+  else if (major === 18) macVersion = 'mac10.14';
+  else if (major === 19) macVersion = 'mac10.15';
+  else macVersion = `mac${Math.min(major - 9, 15)}`;
+  process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE = `${macVersion}-arm64`;
+}
+
 const { Before, After, BeforeAll, AfterAll, setDefaultTimeout, Status } = require('@cucumber/cucumber');
 const { chromium, request } = require('@playwright/test');
 const { startMockLmStudio, stopMockLmStudio, MOCK_PORT } = require('./mocks/lmstudio');
@@ -10,35 +21,41 @@ let apiContext = null;
 setDefaultTimeout(30000);
 
 const TEST_ENV = process.env.TEST_ENV || 'native';
-const APP_URL = process.env.TEST_APP_URL || 'http://localhost:4420';
+const APP_URL = process.env.TEST_APP_URL || (TEST_ENV === 'docker' ? 'http://localhost:4430' : 'http://localhost:4420');
+const TEST_NO_BROWSER = process.env.TEST_NO_BROWSER === 'true';
 // When app runs in Docker, use host.docker.internal to reach mock on host
 const MOCK_HOST = TEST_ENV === 'docker' ? 'host.docker.internal' : 'localhost';
 
 BeforeAll(async function () {
-  // Start mock LM Studio server
-  await startMockLmStudio();
+  if (TEST_ENV !== 'docker') {
+    // Start mock LM Studio server (native mode)
+    await startMockLmStudio();
 
-  // Configure void-server to use mock LM Studio
-  apiContext = await request.newContext({ baseURL: APP_URL });
-  const configResponse = await apiContext.get('/api/ai-providers');
-  const config = await configResponse.json();
-  originalLmStudioEndpoint = config.providers?.lmstudio?.endpoint;
+    // Configure void-server to use mock LM Studio
+    apiContext = await request.newContext({ baseURL: APP_URL });
+    const configResponse = await apiContext.get('/api/ai-providers');
+    const config = await configResponse.json();
+    originalLmStudioEndpoint = config.providers?.lmstudio?.endpoint;
 
-  // Update LM Studio to use mock endpoint
-  // Use host.docker.internal when app is in Docker so it can reach mock on host
-  await apiContext.put('/api/ai-providers/lmstudio', {
-    data: { endpoint: `http://${MOCK_HOST}:${MOCK_PORT}/v1`, enabled: true }
-  });
-  console.log(`Configured LM Studio to use mock at ${MOCK_HOST}:${MOCK_PORT}`);
+    // Update LM Studio to use mock endpoint
+    await apiContext.put('/api/ai-providers/lmstudio', {
+      data: { endpoint: `http://${MOCK_HOST}:${MOCK_PORT}/v1`, enabled: true }
+    });
+    console.log(`Configured LM Studio to use mock at ${MOCK_HOST}:${MOCK_PORT}`);
+  }
 
-  browser = await chromium.launch({
-    args: ['--remote-debugging-port=0'],
-  });
-  console.log('Browser launched');
+  if (!TEST_NO_BROWSER) {
+    browser = await chromium.launch({
+      args: ['--remote-debugging-port=0'],
+    });
+    console.log('Browser launched');
+  } else {
+    console.log('Browser launch skipped (TEST_NO_BROWSER=true)');
+  }
 });
 
 AfterAll(async function () {
-  // Restore original LM Studio endpoint
+  // Restore original LM Studio endpoint (native mode)
   if (apiContext && originalLmStudioEndpoint) {
     await apiContext.put('/api/ai-providers/lmstudio', {
       data: { endpoint: originalLmStudioEndpoint }
@@ -47,20 +64,30 @@ AfterAll(async function () {
   }
   await apiContext?.dispose();
 
-  await browser?.close();
-  console.log('Browser closed');
+  if (browser) {
+    await browser.close();
+    console.log('Browser closed');
+  }
 
-  await stopMockLmStudio();
+  if (TEST_ENV !== 'docker') {
+    await stopMockLmStudio();
+  }
 });
 
 Before(async function () {
-  this.context = await browser.newContext({
-    baseURL: this.config.appUrl,
-  });
-  this.page = await this.context.newPage();
-  // Set default timeout for locators/expects to 1s (fast fail)
-  // Use explicit longer timeouts for async operations
-  this.page.setDefaultTimeout(1000);
+  if (browser) {
+    this.context = await browser.newContext({
+      baseURL: this.config.appUrl,
+    });
+    this.page = await this.context.newPage();
+    // Set default timeout for locators/expects to 1s (fast fail)
+    // Use explicit longer timeouts for async operations
+    this.page.setDefaultTimeout(1000);
+  } else {
+    this.context = null;
+    this.page = null;
+  }
+
   this.request = await request.newContext({
     baseURL: this.config.appUrl,
   });
@@ -98,6 +125,18 @@ Before({ tags: '@requires-neo4j' }, async function () {
   const response = await this.request.get(`${this.config.appUrl}/api/memories/status`);
   const status = await response.json();
   if (!status.neo4j?.connected) {
+    return 'skipped';
+  }
+});
+
+Before({ tags: '@ui' }, async function () {
+  if (TEST_NO_BROWSER) {
+    return 'skipped';
+  }
+});
+
+Before({ tags: '@automation' }, async function () {
+  if (TEST_NO_BROWSER) {
     return 'skipped';
   }
 });

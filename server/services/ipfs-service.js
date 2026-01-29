@@ -100,7 +100,10 @@ async function initialize() {
 async function loadConfig() {
   await initialize();
   const content = await fs.readFile(CONFIG_PATH, 'utf8');
-  return { ...DEFAULT_CONFIG, ...JSON.parse(content) };
+  const envOverrides = {};
+  if (process.env.IPFS_API_URL) envOverrides.apiUrl = process.env.IPFS_API_URL;
+  if (process.env.IPFS_GATEWAY_URL) envOverrides.gateway = process.env.IPFS_GATEWAY_URL;
+  return { ...DEFAULT_CONFIG, ...JSON.parse(content), ...envOverrides };
 }
 
 /**

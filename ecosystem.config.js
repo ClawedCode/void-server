@@ -12,20 +12,20 @@ module.exports = {
       watch_delay: 1000,
       env: {
         NODE_ENV: 'development',
-        PORT: 4420,
+        PORT: process.env.PORT || 4420,
         // Neo4j (Docker on localhost)
-        NEO4J_URI: 'bolt://localhost:7687',
-        NEO4J_USER: 'neo4j',
-        NEO4J_PASSWORD: 'voidserver',
+        NEO4J_URI: process.env.NEO4J_URI || 'bolt://localhost:7687',
+        NEO4J_USER: process.env.NEO4J_USER || 'neo4j',
+        NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || 'voidserver',
         // IPFS (Docker on localhost)
-        IPFS_API_URL: 'http://localhost:5001',
-        IPFS_GATEWAY_URL: 'http://localhost:8080',
+        IPFS_API_URL: process.env.IPFS_API_URL || 'http://localhost:5001',
+        IPFS_GATEWAY_URL: process.env.IPFS_GATEWAY_URL || 'http://localhost:8080',
         // Ollama (native on localhost)
-        OLLAMA_URL: 'http://localhost:11434/v1'
+        OLLAMA_URL: process.env.OLLAMA_URL || 'http://localhost:11434/v1'
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: 4401
+        PORT: process.env.PORT || 4401
       },
       error_file: './logs/server-error.log',
       out_file: './logs/server-out.log',

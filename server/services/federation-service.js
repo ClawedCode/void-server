@@ -190,6 +190,16 @@ class FederationService {
     this.capabilities = [];
     this.dht = null;
     this.relayClient = null;
+    this.challengeStore = new Map();
+  }
+
+  cleanupChallenges() {
+    const now = Date.now();
+    for (const [challenge, record] of this.challengeStore.entries()) {
+      if (record.used || record.expiresAt <= now) {
+        this.challengeStore.delete(challenge);
+      }
+    }
   }
 
   /**
@@ -538,8 +548,21 @@ class FederationService {
   /**
    * Generate a verification challenge
    */
-  createChallenge() {
-    return generateChallenge();
+  createChallenge(requesterId = null) {
+    this.cleanupChallenges();
+    const challenge = generateChallenge();
+    const ttlMs = parseInt(process.env.FEDERATION_CHALLENGE_TTL_MS || '60000', 10);
+    const issuedAt = Date.now();
+    const expiresAt = issuedAt + (Number.isNaN(ttlMs) ? 60000 : ttlMs);
+
+    this.challengeStore.set(challenge, {
+      requesterId: requesterId || null,
+      issuedAt,
+      expiresAt,
+      used: false
+    });
+
+    return challenge;
   }
 
   /**
@@ -552,8 +575,31 @@ class FederationService {
   /**
    * Verify a challenge response from a peer
    */
-  verifyChallenge(challenge, response, peerPublicKey) {
-    return verifyChallengeResponse(challenge, response, peerPublicKey);
+  verifyChallenge(challenge, response, peerPublicKey, requesterId = null) {
+    const record = this.challengeStore.get(challenge);
+    if (!record) {
+      return false;
+    }
+
+    if (record.used || record.expiresAt <= Date.now()) {
+      this.challengeStore.delete(challenge);
+      return false;
+    }
+
+    if (record.requesterId && requesterId && record.requesterId !== requesterId) {
+      return false;
+    }
+
+    const ttlMs = parseInt(process.env.FEDERATION_CHALLENGE_TTL_MS || '60000', 10);
+    const maxAge = Number.isNaN(ttlMs) ? 60000 : ttlMs;
+    const isValid = verifyChallengeResponse(challenge, response, peerPublicKey, maxAge);
+
+    if (isValid) {
+      record.used = true;
+      this.challengeStore.set(challenge, record);
+    }
+
+    return isValid;
   }
 
   /**

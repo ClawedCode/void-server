@@ -141,16 +141,22 @@ start_docker() {
   print_step "Starting Docker test environment..."
 
   setup_test_data
+  rm -rf "$PROJECT_DIR/coverage/v8"
+  mkdir -p "$PROJECT_DIR/coverage/v8"
 
   cd "$PROJECT_DIR"
   docker compose -f docker-compose.test.yml up -d --build
 
   print_step "Waiting for void-server to be healthy..."
-  wait_for_service "void-server" "http://localhost:4420/health" 120
+  wait_for_service "void-server" "http://localhost:4430/health" 120
+
+  print_step "Seeding test data..."
+  NEO4J_URI="bolt://localhost:4432" NEO4J_USER="neo4j" NEO4J_PASSWORD="$NEO4J_PASSWORD" \
+    node "$PROJECT_DIR/scripts/seed-test-data.js" seed >/dev/null 2>&1 || print_warning "Test data seeding failed"
 
   print_step "Docker test environment ready!"
   echo ""
-  echo "  App: http://localhost:4420"
+  echo "  App: http://localhost:4430"
   echo ""
 }
 

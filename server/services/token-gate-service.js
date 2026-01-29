@@ -33,6 +33,9 @@ const ACCESS_TIERS = {
 const FEATURE_GATES = {
   'federation:relay_auth': 'DISCIPLE',      // Authenticate with void-mud relay
   'federation:sync_memories': 'DISCIPLE',   // Receive federated memory backlog
+  'federation:read_memories': 'DISCIPLE',   // Read shared memories
+  'federation:write_memories': 'ACOLYTE',   // Write/import shared memories
+  'federation:sync_peers': 'DISCIPLE',      // Sync with peers
   'federation:admin': 'ARCHITECT'           // Network administration
 };
 
@@ -111,8 +114,7 @@ async function checkAccess(publicKey, feature) {
   const requiredTier = FEATURE_GATES[feature];
 
   if (!requiredTier) {
-    // Feature not gated, allow access
-    return { allowed: true, tier: 'NONE', balance: 0, required: 0 };
+    return { allowed: false, tier: 'UNKNOWN', balance: 0, required: 0, requiredTier: null, error: 'Unknown feature' };
   }
 
   const balance = await getClawedBalance(publicKey);
@@ -160,12 +162,16 @@ function requireTokens(feature, options = {}) {
       });
     }
 
+    if (!isValidWallet(walletAddress)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet address format' });
+    }
+
     const result = await checkAccess(walletAddress, feature);
 
     if (!result.allowed) {
       return res.status(403).json({
         success: false,
-        error: `Insufficient $CLAWED balance`,
+        error: result.error || 'Insufficient $CLAWED balance',
         details: {
           feature,
           required: result.required,

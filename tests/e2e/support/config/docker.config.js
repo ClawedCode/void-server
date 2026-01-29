@@ -1,16 +1,16 @@
 module.exports = {
   dockerConfig: {
-    appUrl: 'http://localhost:4420',
+    appUrl: 'http://localhost:4430',
     services: {
       neo4j: {
-        uri: 'bolt://localhost:4422',
+        uri: 'bolt://localhost:4432',
         user: 'neo4j',
         password: 'testpassword',
         mock: false,
       },
       ipfs: {
-        url: 'http://localhost:4423',
-        gateway: 'http://localhost:4424/ipfs',
+        url: 'http://localhost:4433',
+        gateway: 'http://localhost:4434/ipfs',
         mock: false,
       },
       lmstudio: {

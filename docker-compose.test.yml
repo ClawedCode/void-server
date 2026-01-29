@@ -9,9 +9,10 @@ services:
       dockerfile: Dockerfile
     container_name: void-server-test
     ports:
-      - "4420:4401"
+      - "4430:4401"
     environment:
       - NODE_ENV=production
+      - NODE_V8_COVERAGE=/app/coverage/v8
       - PORT=4401
       - NEO4J_URI=bolt://neo4j-test:7687
       - NEO4J_USER=neo4j
@@ -24,6 +25,7 @@ services:
       - IPFS_GATEWAY_URL=http://ipfs-test:8080
     volumes:
       - ./test-data:/app/data
+      - ./coverage:/app/coverage
     depends_on:
       neo4j-test:
         condition: service_healthy
@@ -47,8 +49,8 @@ services:
     image: neo4j:5-community
     container_name: void-neo4j-test
     ports:
-      - "4421:7474"
-      - "4422:7687"
+      - "4431:7474"
+      - "4432:7687"
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-testpassword}
       - NEO4J_PLUGINS=["apoc"]
@@ -71,8 +73,8 @@ services:
     image: ipfs/kubo:latest
     container_name: void-ipfs-test
     ports:
-      - "4423:5001"
-      - "4424:8080"
+      - "4433:5001"
+      - "4434:8080"
     environment:
       - IPFS_PROFILE=test
     volumes:
@@ -107,7 +109,7 @@ services:
     image: ollama/ollama:latest
     container_name: void-ollama-test
     ports:
-      - "4425:11434"
+      - "4435:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0
     volumes:
@@ -115,7 +117,7 @@ services:
     networks:
       - test-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 5

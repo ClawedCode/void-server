@@ -32,7 +32,7 @@ module.exports = {
     ...common,
     paths: ['tests/e2e/features/**/*.feature'],
     worldParameters: {
-      appUrl: 'http://localhost:4420',
+      appUrl: 'http://localhost:4430',
       environment: 'docker',
     },
   },
