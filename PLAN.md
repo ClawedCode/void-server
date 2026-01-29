@@ -12,10 +12,9 @@ This plan outlines improvements for void-server based on the existing architectu
 ---
 ## Security Audit (Federation + Memory Sharing)
 
-Latest audit: **2026-01-28**. Full findings and remediation guidance:
-- `docs/SECURITY-AUDIT-FEDERATION-2026-01-28.md`
-Implementation plan:
-- `docs/SECURITY-HARDENING-PLAN.md`
+Latest audit: **2026-01-28**. Full findings in `docs/SECURITY-AUDIT-FEDERATION-2026-01-28.md`.
+
+**Status: ✅ All findings remediated** (Phase 2.5 complete)
 
 ### Findings Summary
 - Critical: federation routes lack authN/authZ (peer tampering + memory exfil/injection)
