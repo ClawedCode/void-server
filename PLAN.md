@@ -263,3 +263,29 @@ app.use('/api/federation', federation.routes)
 
 ### Next Up
 - [ ] Phase 3: AI Enhancements (RAG, embeddings, multi-model)
+
+---
+
+## Test Coverage Improvement Plan
+
+**Current Coverage:** 48.78% statements, 56% branches, 44.39% functions
+**Target:** 70% statements, 65% branches, 60% functions
+
+Full analysis: `docs/TEST-COVERAGE-GAPS.md`
+
+### Critical Gaps (< 25% coverage)
+| Service | Coverage | Action |
+|---------|----------|--------|
+| backup-service.js | 10.3% | Add backup/restore E2E tests |
+| audio-fingerprint.js | 15.85% | Add audio dedup tests (requires ffmpeg) |
+| audio-sync-service.js | 20.71% | Add federated audio sync tests |
+| ffmpeg-service.js | 23.03% | Add video/audio processing tests |
+| audio-library-service.js | 24.6% | Add template library tests |
+
+### Phase 2.6: Test Coverage Expansion
+- [ ] Add backup/restore E2E tests (`tests/e2e/features/backup/`)
+- [ ] Add memory CRUD E2E tests (`tests/e2e/features/memories/`)
+- [ ] Add wallet operation tests (`tests/e2e/features/wallet/`)
+- [ ] Add audio system tests (`tests/e2e/features/audio/`) - requires ffmpeg
+- [ ] Add Neo4j integration tests (for @requires-neo4j scenarios)
+- [ ] Add IPFS integration tests (for @requires-ipfs scenarios)
