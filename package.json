@@ -30,7 +30,8 @@
     "test:env:status": "bash ./scripts/test-env.sh status",
     "test:seed": "node ./scripts/seed-test-data.js seed",
     "test:install": "npx playwright install chromium",
-    "test:coverage:report": "node ./scripts/coverage-remap.js && c8 report --temp-directory=coverage/v8 --reporter=text --reporter=html --report-dir coverage"
+    "test:coverage": "bash ./scripts/test-coverage.sh",
+    "test:coverage:report": "node ./scripts/coverage-remap.js && c8 report --temp-directory=coverage/v8 --include=server/** --reporter=text --reporter=html --report-dir coverage"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.0",

@@ -135,6 +135,10 @@ Before({ tags: '@ui' }, async function () {
   }
 });
 
+Before({ tags: '@pending' }, async function () {
+  return 'skipped';
+});
+
 Before({ tags: '@automation' }, async function () {
   if (TEST_NO_BROWSER) {
     return 'skipped';

@@ -1,5 +1,9 @@
 const { When, Then } = require('@cucumber/cucumber');
 const { expect } = require('@playwright/test');
+const crypto = require('crypto');
+
+// Generate nodeId from publicKey (same as server does)
+const generateNodeId = (publicKey) => crypto.createHash('sha256').update(publicKey).digest('hex');
 
 When('I POST to {string} with empty body', async function (endpoint) {
   const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
@@ -457,11 +461,13 @@ When('I POST to {string} with localhost endpoint', async function (endpoint) {
 });
 
 When('I POST to {string} with unsigned announcement', async function (endpoint) {
+  const publicKey = 'test-public-key-for-unsigned';
+  const nodeId = generateNodeId(publicKey);
   const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
     data: {
-      nodeId: 'a'.repeat(64),
+      nodeId,
       endpoint: 'https://example.com',
-      publicKey: 'test-public-key',
+      publicKey,
       serverId: 'void-e2e-test',
       capabilities: ['memory'],
       timestamp: Date.now()
@@ -475,11 +481,13 @@ When('I POST to {string} with unsigned announcement', async function (endpoint) 
 When('I POST to {string} with expired signature', async function (endpoint) {
   // Create announcement with timestamp 10 minutes in the past
   const oldTimestamp = Date.now() - (10 * 60 * 1000);
+  const publicKey = 'test-public-key-for-expired';
+  const nodeId = generateNodeId(publicKey);
   const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
     data: {
-      nodeId: 'b'.repeat(64),
+      nodeId,
       endpoint: 'https://example.com',
-      publicKey: 'test-public-key',
+      publicKey,
       serverId: 'void-e2e-test',
       capabilities: ['memory'],
       timestamp: oldTimestamp,

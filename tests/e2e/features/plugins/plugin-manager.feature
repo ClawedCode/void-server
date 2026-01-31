@@ -14,12 +14,12 @@ Feature: Plugin Manager
 
   @smoke
   Scenario: View installed plugins
-    Then I should see "void-plugin-wallet" in the list
-    And I should see "void-plugin-ascii" in the list
+    Then I should see "void-plugin-ascii" in the list
     And I should see "void-plugin-verify" in the list
+    And I should see "void-plugin-videodownload" in the list
 
   Scenario: Built-in plugins have badge
-    Then the "void-plugin-wallet" should have a "built-in" badge
+    Then the "void-plugin-ascii" should have a "built-in" badge
 
   Scenario: Toggle plugin enabled state
     When I toggle the "void-plugin-ascii" plugin
@@ -33,7 +33,7 @@ Feature: Plugin Manager
 
   @api
   Scenario: API - Cannot uninstall built-in plugin
-    When I try to DELETE "/api/plugins/void-plugin-wallet"
+    When I try to DELETE "/api/plugins/void-plugin-ascii"
     Then the response should indicate failure
 
   @api
@@ -44,7 +44,7 @@ Feature: Plugin Manager
 
   @api
   Scenario: API - Plugin install rejects already installed
-    When I POST plugin install with name "void-plugin-wallet"
+    When I POST plugin install with name "void-plugin-ascii"
     Then the response should indicate failure
     And the response should mention already installed
 

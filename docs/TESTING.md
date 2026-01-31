@@ -26,7 +26,24 @@ npm run test:docker:api
 bash scripts/test-env.sh stop docker
 ```
 
-## Coverage (Server-side, Docker E2E)
+## Coverage (Native)
+
+Run E2E tests with server-side code coverage:
+
+```bash
+npm run test:coverage
+```
+
+This:
+1. Starts the server with c8 on port 4450 (isolated from dev environment)
+2. Runs the full E2E test suite
+3. Generates coverage report
+
+Outputs:
+- Text summary in the terminal
+- HTML report at `coverage/index.html`
+
+## Coverage (Docker E2E)
 
 The server writes V8 coverage data to `coverage/v8` during Docker E2E runs.
 
@@ -37,11 +54,6 @@ The server writes V8 coverage data to `coverage/v8` during Docker E2E runs.
 npm run test:coverage:report
 ```
 
-Outputs:
-- Text summary in the terminal.
-- HTML report at `coverage/index.html`.
-
 Notes:
 - Coverage reflects server-side Node.js execution during E2E tests.
 - The report command remaps Docker paths (e.g., `/app/...`) to your local repo before generating coverage.
-- If you want coverage for native runs, start the server with `NODE_V8_COVERAGE=coverage/v8` and then generate the report the same way.
