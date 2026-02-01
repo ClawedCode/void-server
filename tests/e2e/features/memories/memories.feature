@@ -61,3 +61,107 @@ Feature: Memories System
     When I click the "Settings" tab
     Then I should see the memory toggle switch
     And the toggle should reflect the current memory state
+
+  # ============ API Tests (don't require Neo4j) ============
+
+  @api @smoke
+  Scenario: API - Get Neo4j connection status
+    When I GET "/api/memories/status"
+    Then the response should be successful
+    And the response should have "neo4j" object
+
+  @api @smoke
+  Scenario: API - Get Neo4j configuration
+    When I GET "/api/memories/config"
+    Then the response should be successful
+    And the response should have "config" object
+
+  @api
+  Scenario: API - Get embedding service status
+    When I GET "/api/memories/embedding/status"
+    Then the response should be successful
+    And the response should have embedding status
+
+  @api
+  Scenario: API - List embedding models
+    When I GET "/api/memories/embedding/models"
+    Then the response should be successful
+
+  @api
+  Scenario: API - Search requires query parameter
+    When I GET "/api/memories/search"
+    Then the response status should be 400
+    And the response should contain "required"
+
+  @api
+  Scenario: API - Search with query
+    When I GET "/api/memories/search?q=test"
+    Then the response should be successful
+    And the response should have "memories" array
+
+  @api
+  Scenario: API - Filter memories
+    When I GET "/api/memories/filter?category=General"
+    Then the response should be successful
+    And the response should have "memories" array
+
+  @api
+  Scenario: API - Get graph data
+    When I GET "/api/memories/graph"
+    Then the response should be successful
+    And the response should have graph data
+
+  @api
+  Scenario: API - Get context memories
+    When I GET "/api/memories/context?message=hello"
+    Then the response should be successful
+    And the response should have "memories" array
+
+  @api
+  Scenario: API - Bulk delete requires ids array
+    When I POST to "/api/memories/maintenance/bulk-delete" with empty body
+    Then the response status should be 400
+    And the response should contain "ids array required"
+
+  @api
+  Scenario: API - Smart connect requires ids array
+    When I POST to "/api/memories/maintenance/smart-connect" with empty body
+    Then the response status should be 400
+    And the response should contain "ids array required"
+
+  @api
+  Scenario: API - Switch embedding provider
+    When I PUT to "/api/memories/embedding/provider" with provider "auto"
+    Then the response should be successful
+
+  @api
+  Scenario: API - Invalid embedding provider rejected
+    When I PUT to "/api/memories/embedding/provider" with provider "invalid"
+    Then the response status should be 400
+    And the response should contain "Invalid provider"
+
+  @api @requires-neo4j
+  Scenario: API - Get memory by non-existent ID
+    When I GET "/api/memories/non-existent-id"
+    Then the response status should be 404
+
+  @api @requires-neo4j
+  Scenario: API - Sync memories to Neo4j
+    When I POST to "/api/memories/sync"
+    Then the response should be successful
+
+  @api @requires-neo4j
+  Scenario: API - Get maintenance data
+    When I GET "/api/memories/maintenance/all"
+    Then the response should be successful
+
+  @api @requires-neo4j
+  Scenario: API - Preview auto-fix suggestions
+    When I POST to "/api/memories/maintenance/auto-fix/preview"
+    Then the response should be successful
+
+  @api @requires-neo4j
+  Scenario: API - Apply auto-fix requires fixes array
+    When I POST to "/api/memories/maintenance/auto-fix/apply" with empty body
+    Then the response status should be 400
+    And the response should contain "fixes array required"

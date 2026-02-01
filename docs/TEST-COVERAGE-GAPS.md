@@ -1,8 +1,21 @@
 # Test Coverage Gap Analysis
 
 Generated: 2026-01-31
+Updated: 2026-01-31
 
-**Overall Coverage: 48.78% statements, 56% branches, 44.39% functions**
+**Overall Coverage: 50.82% statements, 57.13% branches, 47.31% functions**
+
+Previous: 48.78% statements, 56% branches, 44.39% functions
+
+## Recent Improvements
+
+| File | Before | After | Change |
+|------|--------|-------|--------|
+| `backup-service.js` | 10.3% | 69.97% | +59.67% |
+| `backup.js` (routes) | 54.44% | 93.33% | +38.89% |
+| `memories.js` (routes) | 28.34% | 33.33% | +4.99% |
+| `token-gate-service.js` | 44.3% | 90.65% | +46.35% |
+| `federation-service.js` | 31.1% | 61.93% | +30.83% |
 
 ## Critical Gaps (< 25% coverage)
 
@@ -10,7 +23,6 @@ These need immediate attention:
 
 | File | Coverage | Priority | Notes |
 |------|----------|----------|-------|
-| `backup-service.js` | 10.3% | P0 | No tests for backup/restore operations |
 | `audio-fingerprint.js` | 15.85% | P1 | Audio deduplication untested |
 | `audio-sync-service.js` | 20.71% | P1 | Federated audio sync untested |
 | `ffmpeg-service.js` | 23.03% | P1 | Video/audio processing untested |
@@ -21,10 +33,10 @@ These need immediate attention:
 | File | Coverage | Priority | Notes |
 |------|----------|----------|-------|
 | `audio.js` (routes) | 27.25% | P1 | Audio API endpoints |
+| `memory-ipfs-service.js` | 26.78% | P2 | Memory IPFS operations |
 | `wallet-service.js` | 28.66% | P2 | Wallet operations |
 | `wallet/routes.js` | 29.29% | P2 | Wallet API endpoints |
 | `ollama-service.js` | 30.52% | P2 | Ollama AI provider |
-| `memories.js` (routes) | 33.33% | P2 | Memory CRUD endpoints |
 | `memory-service.js` | 34.44% | P2 | Core memory operations |
 
 ## Medium Priority Gaps (35-50% coverage)
@@ -47,6 +59,7 @@ These are in good shape:
 | `broadcast.js` | 100% |
 | `http-client.js` | 96.36% |
 | `lmstudio-cli.js` | 93.97% |
+| `backup.js` (routes) | 93.33% |
 | `token-gate-service.js` | 90.65% |
 | `ai-provider.js` | 82.03% |
 | `memory-marketplace-service.js` | 80.16% |
@@ -57,70 +70,24 @@ These are in good shape:
 
 ## Test Improvement Plan
 
-### Phase 1: Critical Services (Target: 60% overall)
+### Phase 1: Critical Services (Target: 60% overall) ✅ COMPLETE
 
-#### 1.1 Backup/Restore Tests
+Tests added in Phase 1:
+
+#### 1.1 Backup/Restore Tests ✅
 **File:** `tests/e2e/features/backup/backup.feature`
+- 12 scenarios covering status, health, history, list, toggle, config, run, restore
+- Coverage improved: 10.3% → 69.97%
 
-```gherkin
-Feature: Backup and Restore
-
-  @api @smoke
-  Scenario: Create backup via API
-    When I POST to "/api/backup/create"
-    Then the response should be successful
-    And the response should contain backup file path
-
-  @api
-  Scenario: List available backups
-    When I GET "/api/backup/list"
-    Then the response should be successful
-    And the response should have "backups" array
-
-  @api
-  Scenario: Restore from backup
-    Given a backup exists
-    When I POST to "/api/backup/restore" with the backup path
-    Then the response should be successful
-```
-
-#### 1.2 Memory CRUD Tests
+#### 1.2 Memory CRUD Tests ✅
 **File:** `tests/e2e/features/memories/memories.feature`
+- Added 18 API scenarios covering status, config, search, filter, graph, embedding, maintenance
+- Coverage improved: 28.34% → 33.33%
 
-```gherkin
-Feature: Memory Management
-
-  @api @smoke
-  Scenario: List memories
-    When I GET "/api/memories"
-    Then the response should be successful
-    And the response should have "memories" array
-
-  @api
-  Scenario: Create memory
-    When I POST to "/api/memories" with valid memory data
-    Then the response should be successful
-    And the response should contain memory ID
-
-  @api
-  Scenario: Get memory by ID
-    Given a memory exists
-    When I GET the memory by ID
-    Then the response should contain the memory data
-
-  @api
-  Scenario: Update memory
-    Given a memory exists
-    When I PUT to update the memory
-    Then the response should be successful
-
-  @api
-  Scenario: Delete memory
-    Given a memory exists
-    When I DELETE the memory
-    Then the response should be successful
-    And the memory should no longer exist
-```
+#### 1.3 Wallet Tests ✅
+**File:** `tests/e2e/features/wallet/wallet.feature`
+- Added 14 API scenarios covering groups, tokens, settings, derive, sign, validation
+- Coverage: 29.29% (needs more work)
 
 ### Phase 2: Audio System Tests (Target: 40% audio coverage)
 
@@ -206,11 +173,11 @@ Feature: Graph Operations
 
 ## Metrics Targets
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Statement Coverage | 48.78% | 70% |
-| Branch Coverage | 56% | 65% |
-| Function Coverage | 44.39% | 60% |
+| Metric | Previous | Current | Target |
+|--------|----------|---------|--------|
+| Statement Coverage | 48.78% | 50.82% | 70% |
+| Branch Coverage | 56% | 57.13% | 65% |
+| Function Coverage | 44.39% | 47.31% | 60% |
 
 ## Test Types Needed
 

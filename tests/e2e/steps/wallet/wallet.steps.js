@@ -65,3 +65,25 @@ When('I complete the wallet creation', async function () {
 Then('a wallet should be created', async function () {
   await expect(this.page.locator('text=Test Wallet').first()).toBeVisible({ timeout: 10000 });
 });
+
+// ============ API Tests ============
+
+When('I PATCH {string} with empty body', async function (endpoint) {
+  const response = await this.request.patch(`${this.config.appUrl}${endpoint}`, {
+    data: {},
+  });
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
+});
+
+When('I POST to {string} with empty settings', async function (endpoint) {
+  const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
+    data: {
+      heliusApiKey: null,
+      jupiterApiKey: null,
+      rpcUrl: null,
+    },
+  });
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
+});

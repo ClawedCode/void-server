@@ -88,24 +88,26 @@ When('I POST to {string} with enabled false', async function (endpoint) {
   const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
     data: { enabled: false },
   });
-  this.testData.response = await response.json();
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
 });
 
 When('I POST to {string} with enabled true', async function (endpoint) {
   const response = await this.request.post(`${this.config.appUrl}${endpoint}`, {
     data: { enabled: true },
   });
-  this.testData.response = await response.json();
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
 });
 
 Then('the response should indicate memory is disabled', async function () {
-  expect(this.testData.response.success).toBe(true);
-  expect(this.testData.response.memoryEnabled).toBe(false);
+  expect(this.testData.lastResponse.success).toBe(true);
+  expect(this.testData.lastResponse.memoryEnabled).toBe(false);
 });
 
 Then('the response should indicate memory is enabled', async function () {
-  expect(this.testData.response.success).toBe(true);
-  expect(this.testData.response.memoryEnabled).toBe(true);
+  expect(this.testData.lastResponse.success).toBe(true);
+  expect(this.testData.lastResponse.memoryEnabled).toBe(true);
 });
 
 Then('I should see the memory toggle switch', async function () {
@@ -116,4 +118,29 @@ Then('the toggle should reflect the current memory state', async function () {
   // The toggle should be present in the settings tab
   const toggle = this.page.locator('input[type="checkbox"]').first();
   await expect(toggle).toBeVisible({ timeout: 5000 });
+});
+
+// ============ API Tests ============
+
+Then('the response should have embedding status', async function () {
+  const response = this.testData.lastResponse;
+  expect(response.success).toBe(true);
+  expect(response).toHaveProperty('api');
+});
+
+Then('the response should have graph data', async function () {
+  const response = this.testData.lastResponse;
+  expect(response.success).toBe(true);
+  expect(response).toHaveProperty('nodes');
+  expect(response).toHaveProperty('edges');
+  expect(Array.isArray(response.nodes)).toBe(true);
+  expect(Array.isArray(response.edges)).toBe(true);
+});
+
+When('I PUT to {string} with provider {string}', async function (endpoint, provider) {
+  const response = await this.request.put(`${this.config.appUrl}${endpoint}`, {
+    data: { provider },
+  });
+  this.testData.lastResponse = await response.json();
+  this.testData.lastStatus = response.status();
 });
