@@ -46,6 +46,9 @@ config/prompts/*.json
 # Plugins should write user data here (e.g., data/my-plugin/)
 data/*
 !data/.gitkeep
+!data/audio/
+data/audio/*
+!data/audio/moods/
 
 # Legacy backups directory (migrated to data/backups in v0.8.0)
 backups/*
