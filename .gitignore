@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Local PM2 home (isolated from global PM2)
+.pm2/
+
 # Build outputs
 client/dist/
 

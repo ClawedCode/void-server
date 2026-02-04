@@ -131,8 +131,6 @@ export default function AudioPreviewPlayer({ toneJsCode, compact = false, onProg
         });
       }
     });
-
-    window.parent.postMessage({ type: 'loaded' }, '*');
   ${'<'}/script>
 </body>
 </html>
@@ -184,22 +182,8 @@ export default function AudioPreviewPlayer({ toneJsCode, compact = false, onProg
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onProgressUpdate]);
+  }, [onProgressUpdate, toneJsCode]);
 
-  // Send init when iframe loads
-  useEffect(() => {
-    if (!iframeLoaded || !toneJsCode) return;
-
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const handleLoad = () => {
-      iframe.contentWindow?.postMessage({ type: 'init', code: toneJsCode }, '*');
-    };
-
-    iframe.addEventListener('load', handleLoad);
-    return () => iframe.removeEventListener('load', handleLoad);
-  }, [toneJsCode, iframeLoaded]);
 
   const handlePlay = () => {
     if (isPlaying) {
@@ -235,6 +219,11 @@ export default function AudioPreviewPlayer({ toneJsCode, compact = false, onProg
     }, 100);
   };
 
+  const handleIframeLoad = useCallback(() => {
+    // Send init with Tone.js code once iframe is loaded
+    iframeRef.current?.contentWindow?.postMessage({ type: 'init', code: toneJsCode }, '*');
+  }, [toneJsCode]);
+
   if (!toneJsCode) return null;
 
   const iframeElement = iframeLoaded && (
@@ -243,8 +232,9 @@ export default function AudioPreviewPlayer({ toneJsCode, compact = false, onProg
       srcDoc={generateIframeContent()}
       className="audio-preview-iframe hidden"
       style={{ width: 0, height: 0, border: 'none', position: 'absolute' }}
-      sandbox="allow-scripts"
+      sandbox="allow-scripts allow-same-origin"
       title="Audio Preview"
+      onLoad={handleIframeLoad}
     />
   );
 
