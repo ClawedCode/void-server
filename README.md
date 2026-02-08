@@ -110,11 +110,14 @@ See [docs/REMOTE-ACCESS.md](docs/REMOTE-ACCESS.md) for detailed setup instructio
 
 ## Features
 
+- **Memory System** - Neo4j-powered knowledge graph with semantic search and embeddings
+- **Federation Network** - Share memories across void-server instances with trust-based access
+- **Audio Moods** - LLM-generated Tone.js compositions with training workflow and library management
 - **Plugin System** - Install, enable/disable, and configure plugins via UI or CLI
-- **Git Submodule Support** - Manage plugins as git submodules for reproducible builds
+- **Conversation Loom** - Branch chat conversations into explorable tree structures
 - **Real-time Logs** - WebSocket-powered server log viewer in the browser
-- **Dynamic Navigation** - Automatically builds nav from installed plugins
-- **Security Hooks** - Pre-commit scanning for secrets
+- **IPFS Integration** - Decentralized content pinning with optional Pinata publishing
+- **Security Hardening** - Signed DHT announcements, trust gating, rate limiting
 
 ## Documentation
 
@@ -127,8 +130,10 @@ See [docs/REMOTE-ACCESS.md](docs/REMOTE-ACCESS.md) for detailed setup instructio
 | [Data Directory](docs/DATA.md) | User data storage, plugin data conventions |
 | [Chat System](docs/CHAT.md) | AI chat configuration and usage |
 | [Memories](docs/MEMORIES.md) | Neo4j memory system and knowledge graph |
+| [Federation](docs/FEDERATION.md) | Peer discovery, memory sharing, trust levels |
+| [Security](docs/SECURITY.md) | Encryption, secret scanning, federation security |
+| [Testing](docs/TESTING.md) | E2E tests and coverage reporting |
 | [Remote Access](docs/REMOTE-ACCESS.md) | Tailscale setup for mobile/remote access |
-| [HTTP Client](docs/HTTP-CLIENT.md) | Server-side HTTP request utilities |
 
 ## Commands
 

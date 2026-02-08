@@ -86,6 +86,59 @@ curl http://localhost:4420/api/federation/relay/status
 | `RELAY_URL` | `https://void-mud.onrender.com` | Custom relay hub URL |
 | `FEDERATION_MODE` | `relay` | Set to `dht` for legacy DHT mode |
 
+## Security Hardening (v0.17.0+)
+
+Federation includes multiple security layers to protect against malicious peers and attacks.
+
+### DHT Security
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DHT_REQUIRE_SIGNED_ANNOUNCEMENTS` | `true` | Require Ed25519 signed DHT announcements |
+
+When enabled, all DHT announcements must include:
+- Timestamp (max 5 minutes old)
+- Node ID matching `sha256(publicKey)`
+- Valid Ed25519 signature
+
+### Trust Gating
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEDERATION_TRUST_GATING` | `true` | Require trusted peers for memory operations |
+
+When enabled, memory export/import/sync operations require the requesting peer to have `verified` or `trusted` trust level. Local and admin requests bypass this check.
+
+### Memory Signing
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEDERATION_REQUIRE_SIGNATURES` | `true` | Require signed memories on import |
+
+When enabled, imported memories must have valid Ed25519 signatures. Unsigned or improperly signed memories are rejected.
+
+### Rate Limiting
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEDERATION_RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window in milliseconds |
+| `FEDERATION_RATE_LIMIT_MAX` | `60` | Max requests per window |
+| `FEDERATION_RATE_LIMIT_MEMORY_MAX` | `10` | Max memory operations per window |
+
+### Payload Size Limits
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEDERATION_MAX_BODY_SIZE` | `5242880` | Max body size (5MB) |
+| `FEDERATION_MAX_MEMORY_IMPORT_SIZE` | `10485760` | Max import size (10MB) |
+
+### SSRF Protection
+
+Outbound peer requests automatically block:
+- Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+- Localhost (127.x.x.x)
+- Link-local addresses (169.254.x.x)
+
 ## DHT Mode (Legacy)
 
 DHT (Distributed Hash Table) mode requires peers to have public URLs and direct connectivity. Use this if you're running servers with static public IPs.

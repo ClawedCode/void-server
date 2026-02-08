@@ -152,34 +152,31 @@ Enhance the client experience.
 
 ---
 
-## Implementation Order (Recommended)
+## Implementation Order
 
-1. **Federation Security Hardening** (Phase 2.5)
-   - Address current security gaps before expanding usage
-   - Files: federation routes + token gate + DHT + memory sync + wallet routes
+### Completed ✅
 
-2. **Federation Foundation** (Phase 1.1-1.4)
-   - Establishes the network primitives needed for everything else
-   - Files: ~3 new services, route additions
+1. **Federation Protocol Foundation** (Phase 1) - v0.16.0
+2. **Memory Sharing Network** (Phase 2) - v0.16.0
+3. **Federation Security Hardening** (Phase 2.5) - v0.17.0
 
-3. **AI Enhancements - RAG** (Phase 3.1-3.2)
-   - Immediate value improvement for existing users
+### In Progress
+
+4. **Test Coverage Expansion** (Phase 2.6)
+   - Improving E2E coverage for audio, Neo4j, and IPFS features
+
+### Upcoming
+
+5. **AI Enhancements - RAG** (Phase 3.1-3.2)
+   - Hybrid search, embedding improvements
    - Files: 2 new services, modify existing
 
-4. **Memory Sharing Core** (Phase 2.1)
-   - Basic export/import without token gating
-   - Files: 1 new service, modify memory-service
-
-5. **Token Integration** (Phase 2.2-2.3)
-   - Add economic layer once sharing works
-   - Files: 2 new services, wallet plugin changes
-
 6. **Multi-Model & Orchestration** (Phase 3.3-3.4)
-   - Enhanced AI capabilities
+   - Model routing, fallback chains
    - Files: 1 new service, provider modifications
 
 7. **Plugin Marketplace** (Phase 4.1-4.2)
-   - Community growth features
+   - Discovery registry, version compatibility
    - Files: 1 new service, plugin system enhancements
 
 ---
@@ -262,6 +259,7 @@ app.use('/api/federation', federation.routes)
 - Standardized federation protocol
 
 ### Next Up
+- [ ] Complete test coverage expansion (Phase 2.6)
 - [ ] Phase 3: AI Enhancements (RAG, embeddings, multi-model)
 
 ---

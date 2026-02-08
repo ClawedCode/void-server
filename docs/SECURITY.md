@@ -79,14 +79,50 @@ Keys can also be provided via environment variables:
 
 ## Federation Security
 
-Federation authentication uses:
+Federation implements defense-in-depth with multiple security layers.
+
+### Authentication & Authorization
 
 - **Wallet Signatures**: Ed25519 signatures verify wallet ownership
 - **Token Gating**: 500K+ CLAWED balance required for network participation
 - **Session Tokens**: Stateless HMAC-signed tokens (7-day expiry)
 - **Replay Prevention**: Auth messages expire after 5 minutes
+- **Trust Gating**: Memory operations require `verified` or `trusted` peer trust level
 
-See [FEDERATION.md](./FEDERATION.md) for details.
+### DHT Security (v0.17.0+)
+
+- **Signed Announcements**: All DHT announcements require Ed25519 signatures
+- **Node ID Verification**: `nodeId` must equal `sha256(publicKey)` to prevent spoofing
+- **Timestamp Validation**: 5-minute TTL on announcements prevents replay attacks
+- **SSRF Protection**: Private IP ranges blocked on outbound peer requests
+
+### Rate Limiting & DoS Protection
+
+| Resource | Limit | Configuration |
+|----------|-------|---------------|
+| General federation | 60 req/min | `FEDERATION_RATE_LIMIT_MAX` |
+| Memory operations | 10 ops/min | `FEDERATION_RATE_LIMIT_MEMORY_MAX` |
+| Body size | 5MB | `FEDERATION_MAX_BODY_SIZE` |
+| Memory imports | 10MB | `FEDERATION_MAX_MEMORY_IMPORT_SIZE` |
+
+### Memory Signing
+
+Memories shared via federation are cryptographically signed:
+
+- **Algorithm**: Ed25519 over SHA-256 content hash
+- **Verification**: Import rejects memories with invalid signatures by default
+- **Configuration**: `FEDERATION_REQUIRE_SIGNATURES=true` (default)
+
+### Security Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DHT_REQUIRE_SIGNED_ANNOUNCEMENTS` | `true` | Require signed DHT announcements |
+| `FEDERATION_TRUST_GATING` | `true` | Require trusted peers for memory ops |
+| `FEDERATION_REQUIRE_SIGNATURES` | `true` | Require signed memories on import |
+| `FEDERATION_RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
+
+See [FEDERATION.md](./FEDERATION.md) for full configuration details.
 
 ## File Permissions
 
