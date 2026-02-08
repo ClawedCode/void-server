@@ -40,7 +40,7 @@ export class PluginManagerPage extends BasePage {
     await this.availableTab.click();
   }
 
-  async getPluginCard(pluginName: string): Locator {
+  getPluginCard(pluginName: string): Locator {
     return this.page.locator(`[data-plugin="${pluginName}"], :has-text("${pluginName}")`).first();
   }
 

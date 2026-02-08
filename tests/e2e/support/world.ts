@@ -3,6 +3,7 @@ import { Page, BrowserContext, APIRequestContext } from '@playwright/test';
 import { dockerConfig } from './config/docker.config';
 import { ciConfig } from './config/ci.config';
 import { nativeConfig } from './config/native.config';
+import { TestData } from './types';
 
 export interface VoidWorldParameters {
   appUrl: string;
@@ -17,7 +18,7 @@ export class VoidWorld extends World<VoidWorldParameters> {
   context!: BrowserContext;
   request!: APIRequestContext;
   config: TestConfig;
-  testData: Record<string, unknown> = {};
+  testData: TestData = {};
 
   constructor(options: IWorldOptions<VoidWorldParameters>) {
     super(options);
@@ -64,6 +65,14 @@ export class VoidWorld extends World<VoidWorldParameters> {
 
   async apiDelete(endpoint: string): Promise<void> {
     await this.request.delete(`${this.config.appUrl}${endpoint}`);
+  }
+
+  /**
+   * Skip the current scenario. In Cucumber.js, this is done by returning 'skipped'
+   * from a step or hook. This method throws to exit the current step.
+   */
+  skip(): never {
+    throw new Error('SKIPPED');
   }
 }
 

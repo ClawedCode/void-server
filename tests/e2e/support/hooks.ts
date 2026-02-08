@@ -8,6 +8,7 @@ import {
 } from '@cucumber/cucumber';
 import { chromium, Browser, request } from '@playwright/test';
 import { VoidWorld } from './world';
+import { MemoryStatusResponse, IPFSStatusResponse } from './types';
 
 let browser: Browser;
 
@@ -65,7 +66,7 @@ Before({ tags: '@requires-neo4j' }, async function (this: VoidWorld) {
     return 'skipped';
   }
   const response = await this.request.get(`${this.config.appUrl}/api/memories/status`);
-  const status = await response.json();
+  const status: MemoryStatusResponse = await response.json();
   if (!status.neo4j?.connected) {
     return 'skipped';
   }
@@ -86,7 +87,7 @@ Before({ tags: '@requires-ipfs' }, async function (this: VoidWorld) {
     return 'skipped';
   }
   const response = await this.request.get(`${this.config.appUrl}/api/ipfs/status`);
-  const status = await response.json();
+  const status: IPFSStatusResponse = await response.json();
   if (!status.online) {
     return 'skipped';
   }
