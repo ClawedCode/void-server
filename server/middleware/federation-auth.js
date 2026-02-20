@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const DEFAULT_ALLOW_PATHS = new Set(['/manifest', '/identity', '/ping']);
 
 // Lazy load federation service to avoid circular dependencies
@@ -8,6 +10,12 @@ function getFederationServiceLazy() {
     federationServiceInstance = getFederationService();
   }
   return federationServiceInstance;
+}
+
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 function isLoopbackAddress(ip) {
@@ -60,9 +68,9 @@ function requireFederationAuth(options = {}) {
     const peerToken = process.env.FEDERATION_AUTH_TOKEN || adminToken;
 
     let role = null;
-    if (adminToken && token === adminToken) {
+    if (adminToken && safeEqual(token, adminToken)) {
       role = 'admin';
-    } else if (peerToken && token === peerToken) {
+    } else if (peerToken && safeEqual(token, peerToken)) {
       role = 'peer';
     }
 
@@ -98,8 +106,38 @@ function requireFederationRole(role) {
 }
 
 /**
+ * Verify a peer's identity signature.
+ * Peers must sign {serverId, timestamp} with their Ed25519 private key.
+ * We verify using the peer's known public key to prevent identity spoofing.
+ *
+ * @param {string} serverId - The claimed peer server ID
+ * @param {string} signature - Base58-encoded Ed25519 signature
+ * @param {string} timestamp - ISO timestamp or unix ms from the request
+ * @param {string} publicKey - The peer's known public key (base58)
+ * @param {number} maxAgeMs - Maximum age of the signature (default: 5 minutes)
+ * @returns {boolean}
+ */
+function verifyPeerIdentity(serverId, signature, timestamp, publicKey, maxAgeMs = 300000) {
+  if (!serverId || !signature || !publicKey) return false;
+
+  const federation = getFederationServiceLazy();
+
+  // Verify the signature matches the message {serverId, timestamp}
+  const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) || Date.now() : (timestamp || Date.now());
+  const age = Math.abs(Date.now() - ts);
+  if (age > maxAgeMs) return false;
+
+  const message = { serverId, timestamp: ts };
+  return federation.verify(message, signature, publicKey);
+}
+
+/**
  * Middleware to require a minimum peer trust level for memory operations.
  * Trust levels in order: unknown < seen < verified < trusted
+ *
+ * When FEDERATION_AUTH_MODE is enabled, peers must provide a signed identity proof
+ * via x-federation-signature and x-federation-timestamp headers (or body fields)
+ * to prevent identity spoofing through self-reported requesterIds.
  *
  * @param {string|string[]} requiredLevels - Required trust level(s), e.g., 'verified' or ['verified', 'trusted']
  * @param {Object} options - Configuration options
@@ -138,7 +176,7 @@ function requirePeerTrustLevel(requiredLevels, options = {}) {
       });
     }
 
-    // Look up the peer's trust level
+    // Look up the peer
     const federation = getFederationServiceLazy();
     const peer = federation.getPeer(requesterId);
 
@@ -147,6 +185,27 @@ function requirePeerTrustLevel(requiredLevels, options = {}) {
         success: false,
         error: `Unknown peer: ${requesterId}. Add as peer first.`
       });
+    }
+
+    // When auth mode is active, require cryptographic identity proof
+    const authMode = process.env.FEDERATION_AUTH_MODE || 'off';
+    if (authMode !== 'off' && peer.publicKey) {
+      const signature = req.headers['x-federation-signature'] || req.body?.requesterSignature;
+      const timestamp = req.headers['x-federation-timestamp'] || req.body?.requesterTimestamp;
+
+      if (!signature) {
+        return res.status(401).json({
+          success: false,
+          error: 'Peer identity signature required (x-federation-signature header)'
+        });
+      }
+
+      if (!verifyPeerIdentity(requesterId, signature, timestamp, peer.publicKey)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Invalid peer identity signature — requesterId does not match signing key'
+        });
+      }
     }
 
     const peerTrustLevel = peer.trustLevel || 'unknown';
@@ -158,7 +217,7 @@ function requirePeerTrustLevel(requiredLevels, options = {}) {
       });
     }
 
-    // Attach peer info to request for downstream use
+    // Attach verified peer info to request for downstream use
     req.federationPeer = peer;
     return next();
   };

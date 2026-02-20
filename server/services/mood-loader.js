@@ -11,6 +11,8 @@ const matter = require('gray-matter');
 
 const MOODS_DIR = path.join(__dirname, '../../data/audio/moods');
 
+const VALID_SLUG = /^[a-z0-9][a-z0-9-]*$/;
+
 const CATEGORY_NAMES = {
   synthwave: 'Synthwave / Outrun',
   cinematic: 'Cinematic / Epic',
@@ -98,6 +100,7 @@ async function loadCategories() {
  * @returns {Promise<string|null>} - Mood file content or null if not found
  */
 async function getMoodContent(slug) {
+  if (!slug || !VALID_SLUG.test(slug)) return null;
   const moodPath = path.join(MOODS_DIR, `${slug}.md`);
   const exists = await fs.access(moodPath).then(() => true).catch(() => false);
   if (!exists) {
@@ -113,6 +116,7 @@ async function getMoodContent(slug) {
  * @returns {Promise<boolean>} - Success
  */
 async function updateMoodContent(slug, content) {
+  if (!slug || !VALID_SLUG.test(slug)) return false;
   const moodPath = path.join(MOODS_DIR, `${slug}.md`);
   const exists = await fs.access(moodPath).then(() => true).catch(() => false);
   if (!exists) {

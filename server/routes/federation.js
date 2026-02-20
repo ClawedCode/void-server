@@ -148,7 +148,7 @@ router.post('/peers', requireFederationRole('admin'), async (req, res) => {
 
   const response = await fetch(manifestUrl, {
     headers: { 'Accept': 'application/json' },
-    timeout: 10000
+    signal: AbortSignal.timeout(10000)
   }).catch(err => ({ ok: false, error: err.message }));
 
   if (!response.ok) {

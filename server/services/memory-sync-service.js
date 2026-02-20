@@ -19,6 +19,21 @@ const memorySigningService = require('./memory-signing-service');
 // Default void-mud relay URL
 const DEFAULT_RELAY_URL = 'https://void-mud.onrender.com';
 
+/**
+ * Generate signed identity headers for outbound trust-gated requests.
+ * Signs {serverId, timestamp} with our Ed25519 private key so the
+ * receiving peer can verify we are who we claim to be.
+ */
+function signedIdentityHeaders(federation) {
+  const timestamp = Date.now();
+  const signature = federation.sign({ serverId: federation.identity.serverId, timestamp });
+  return {
+    'x-federation-server-id': federation.identity.serverId,
+    'x-federation-signature': signature,
+    'x-federation-timestamp': String(timestamp)
+  };
+}
+
 // Sync metadata stored in Neo4j
 const SYNC_NODE_LABEL = 'MemorySyncState';
 
@@ -472,11 +487,11 @@ class MemorySyncService {
     const syncState = await this.getSyncState(peerId);
     const since = syncState?.lastSync || null;
 
-    // Request export from peer
+    // Request export from peer with signed identity proof
     const url = `${peer.endpoint.replace(/\/$/, '')}/api/federation/memories/export`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...signedIdentityHeaders(federation) },
       body: JSON.stringify({
         since,
         requesterId: federation.identity.serverId
@@ -543,11 +558,11 @@ class MemorySyncService {
       return { success: false, error: 'Peer not found' };
     }
 
-    // Request export from peer
+    // Request export from peer with signed identity proof
     const url = `${peer.endpoint.replace(/\/$/, '')}/api/federation/memories/export`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...signedIdentityHeaders(federation) },
       body: JSON.stringify({
         ...options,
         requesterId: federation.identity.serverId

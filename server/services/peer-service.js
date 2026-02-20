@@ -462,6 +462,12 @@ class PeerService {
    * Create a trust relationship between peers
    */
   async createTrustRelationship(fromServerId, toServerId, trustType = 'TRUSTS') {
+    const VALID_TRUST_TYPES = ['TRUSTS', 'VERIFIED', 'BLOCKED'];
+    if (!VALID_TRUST_TYPES.includes(trustType)) {
+      console.log(`⚠️ Invalid trust type: ${trustType}, defaulting to TRUSTS`);
+      trustType = 'TRUSTS';
+    }
+
     if (!await this.isNeo4jAvailable()) {
       return false;
     }

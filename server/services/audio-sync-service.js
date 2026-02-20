@@ -19,6 +19,19 @@ const memorySigningService = require('./memory-signing-service');
 const SYNC_STATE_PATH = path.join(process.cwd(), 'data', 'audio', 'sync-state.json');
 
 /**
+ * Generate signed identity headers for outbound trust-gated requests.
+ */
+function signedIdentityHeaders(federation) {
+  const timestamp = Date.now();
+  const signature = federation.sign({ serverId: federation.identity.serverId, timestamp });
+  return {
+    'x-federation-server-id': federation.identity.serverId,
+    'x-federation-signature': signature,
+    'x-federation-timestamp': String(timestamp)
+  };
+}
+
+/**
  * Generate content hash for deduplication
  * Uses SHA-256 of fingerprint data (musical structure, not raw code)
  */
@@ -305,7 +318,7 @@ async function deltaSync(peerId) {
   const url = `${peer.endpoint.replace(/\/$/, '')}/api/federation/audio/export`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...signedIdentityHeaders(federation) },
     body: JSON.stringify({
       since,
       requesterId: federation.identity.serverId
