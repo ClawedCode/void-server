@@ -2,6 +2,29 @@
 
 ## [0.17.0]
 
+### Security Fixes (Code Audit)
+
+- **Command injection fix** - Replace `exec()` with `execFile()` in backup service disk usage calculation
+- **Path traversal protection** - Sanitize filenames in backup restore, IPFS file upload, and IPFS directory pin routes
+- **CORS restriction** - Replace wildcard `origin: "*"` with configurable allowlist (`ALLOWED_ORIGINS` env var)
+- **Security headers** - Add X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
+- **Admin endpoint protection** - Add `requireLocalOrAdmin` middleware to plugin install/remove/update/config and server restart
+- **Federation auth bypass fix** - Reject peers with no public key when auth mode is active (previously skipped verification)
+- **Cryptographic stream IDs** - Replace `Math.random()` with `crypto.randomBytes()` for PM2 log stream identifiers
+- **Input validation hardening** - Add bounds checking on all numeric query parameters (limit, minHealth, threshold, port)
+- **Environment variable bounds** - Clamp federation rate limit and body size env vars to safe ranges
+- **XSS fix** - Remove `innerHTML` usage in WalletPage token image fallback
+
+### Bug Fixes (Code Audit)
+
+- **Relay message handler async fix** - Properly await async message handlers before sending ack callback
+- **Relay broadcast error handling** - Catch and log errors from async broadcast handlers
+- **Relay wallet null safety** - Guard against missing wallet addresses in federation auth flow
+- **Relay re-auth error handling** - Add catch handler for authentication retry promise chain
+- **HTTP client JSON parse safety** - Handle non-JSON responses gracefully instead of crashing
+- **Chat branch null safety** - Guard against null `tipMessageId` and filter undefined messages in `getBranchMessages`
+- **Sort/order injection prevention** - Whitelist allowed sort fields and order directions in memories API
+
 ### Security Hardening (Phase 2.5)
 
 - **DHT Signed Announcements** - Cryptographically signed DHT network announcements

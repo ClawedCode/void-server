@@ -16,11 +16,13 @@ const lmstudioCli = require('../services/lmstudio-cli');
 router.get('/', async (req, res) => {
   // limit=0 means no limit (fetch all), undefined defaults to 100
   const limitParam = req.query.limit;
-  const limit = limitParam !== undefined ? parseInt(limitParam) : 100;
+  const parsedLimit = limitParam !== undefined ? parseInt(limitParam, 10) : 100;
+  const limit = isNaN(parsedLimit) ? 100 : Math.max(0, Math.min(parsedLimit, 10000));
 
   // Sort parameters: sort=timestamp|importance|relevance|interactions, order=DESC|ASC
-  const sort = req.query.sort || 'timestamp';
-  const order = req.query.order || 'DESC';
+  const allowedSorts = ['timestamp', 'importance', 'relevance', 'interactions'];
+  const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'timestamp';
+  const order = req.query.order === 'ASC' ? 'ASC' : 'DESC';
 
   console.log(`📋 GET /api/memories (limit=${limit}, sort=${sort}, order=${order})`);
 

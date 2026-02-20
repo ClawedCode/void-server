@@ -19,13 +19,20 @@ const { requireFederationAuth, requireFederationRole, requirePeerTrustLevel } = 
 const { validateFederationEndpoint } = require('../utils/endpoint-validation');
 
 // Rate limiting configuration (can be overridden via environment variables)
-const RATE_LIMIT_WINDOW_MS = parseInt(process.env.FEDERATION_RATE_LIMIT_WINDOW_MS || '60000', 10); // 1 minute
-const RATE_LIMIT_MAX = parseInt(process.env.FEDERATION_RATE_LIMIT_MAX || '60', 10); // 60 requests per window
-const RATE_LIMIT_MEMORY_MAX = parseInt(process.env.FEDERATION_RATE_LIMIT_MEMORY_MAX || '10', 10); // 10 memory ops per window
+// Bounded env var parser to prevent DoS via misconfiguration
+function boundedInt(envVar, defaultVal, min, max) {
+  const val = parseInt(process.env[envVar], 10);
+  if (isNaN(val)) return defaultVal;
+  return Math.max(min, Math.min(max, val));
+}
+
+const RATE_LIMIT_WINDOW_MS = boundedInt('FEDERATION_RATE_LIMIT_WINDOW_MS', 60000, 1000, 3600000); // 1 minute
+const RATE_LIMIT_MAX = boundedInt('FEDERATION_RATE_LIMIT_MAX', 60, 1, 1000); // 60 requests per window
+const RATE_LIMIT_MEMORY_MAX = boundedInt('FEDERATION_RATE_LIMIT_MEMORY_MAX', 10, 1, 100); // 10 memory ops per window
 
 // Body size limits (in bytes)
-const MAX_BODY_SIZE = parseInt(process.env.FEDERATION_MAX_BODY_SIZE || String(5 * 1024 * 1024), 10); // 5MB default
-const MAX_MEMORY_IMPORT_SIZE = parseInt(process.env.FEDERATION_MAX_MEMORY_IMPORT_SIZE || String(10 * 1024 * 1024), 10); // 10MB for imports
+const MAX_BODY_SIZE = boundedInt('FEDERATION_MAX_BODY_SIZE', 5 * 1024 * 1024, 1024, 100 * 1024 * 1024); // 5MB default
+const MAX_MEMORY_IMPORT_SIZE = boundedInt('FEDERATION_MAX_MEMORY_IMPORT_SIZE', 10 * 1024 * 1024, 1024, 100 * 1024 * 1024); // 10MB for imports
 
 // General rate limiter for federation routes
 // Uses default IP-based key generator which handles IPv6 properly
@@ -757,7 +764,7 @@ router.get('/peers/neo4j', async (req, res) => {
 router.get('/peers/neo4j/healthy', async (req, res) => {
   console.log(`🌐 GET /api/federation/peers/neo4j/healthy`);
 
-  const minHealth = parseFloat(req.query.minHealth) || 0.5;
+  const minHealth = Math.max(0, Math.min(1, parseFloat(req.query.minHealth) || 0.5));
   const peerService = ensurePeerServiceInitialized();
   const peers = await peerService.getHealthyPeers(minHealth);
 
@@ -1066,9 +1073,9 @@ router.get('/marketplace/top-memories', async (req, res) => {
 
   const marketplace = await ensureMarketplaceInitialized();
   const memories = await marketplace.getTopMemories({
-    limit: parseInt(limit) || 20,
+    limit: Math.min(parseInt(limit, 10) || 20, 1000),
     category: category || null,
-    minScore: parseFloat(minScore) || 0
+    minScore: Math.max(0, parseFloat(minScore) || 0)
   });
 
   res.json({
@@ -1085,7 +1092,7 @@ router.get('/marketplace/top-contributors', async (req, res) => {
 
   const marketplace = await ensureMarketplaceInitialized();
   const contributors = await marketplace.getTopContributors({
-    limit: parseInt(limit) || 20
+    limit: Math.min(parseInt(limit, 10) || 20, 1000)
   });
 
   res.json({
@@ -1239,7 +1246,7 @@ router.get('/ipfs/memories', async (req, res) => {
   console.log(`🌐 GET /api/federation/ipfs/memories category=${category || 'all'}`);
 
   const memories = await memoryIpfs.listPinnedMemories({
-    limit: parseInt(limit) || 100,
+    limit: Math.min(parseInt(limit, 10) || 100, 1000),
     category: category || null
   });
 
@@ -1323,8 +1330,8 @@ router.post('/ipfs/auto-pin', async (req, res) => {
   console.log(`🌐 POST /api/federation/ipfs/auto-pin threshold=${threshold || 'default'}`);
 
   const result = await memoryIpfs.autoPinHighQualityMemories({
-    threshold: parseFloat(threshold) || undefined,
-    limit: parseInt(limit) || undefined
+    threshold: threshold ? Math.max(0, Math.min(1, parseFloat(threshold))) : undefined,
+    limit: limit ? Math.min(parseInt(limit, 10) || 100, 1000) : undefined
   });
 
   res.json(result);

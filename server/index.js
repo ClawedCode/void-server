@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const http = require('http');
 const { Server } = require('socket.io');
 const { spawn } = require('child_process');
@@ -70,9 +71,13 @@ if (!BOOTSTRAP_MODE) {
 
 const app = express();
 const server = http.createServer(app);
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:4401', 'http://localhost:4480', 'http://127.0.0.1:4401', 'http://127.0.0.1:4480'];
+
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST"]
   }
 });
@@ -80,6 +85,21 @@ const io = new Server(server, {
 // Set up broadcast utility with socket.io instance (skip in bootstrap mode)
 if (!BOOTSTRAP_MODE && setIO) {
   setIO(io);
+}
+
+// Middleware: require local access or admin token for sensitive endpoints
+function requireLocalOrAdmin(req, res, next) {
+  const ip = req.ip || req.connection?.remoteAddress;
+  const isLocal = ip === '127.0.0.1' || ip === '::1' || ip?.startsWith('::ffff:127.');
+  if (isLocal) return next();
+
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (adminToken) {
+    const header = req.headers.authorization || '';
+    if (header === `Bearer ${adminToken}`) return next();
+  }
+
+  return res.status(403).json({ success: false, error: 'Forbidden: local access or admin token required' });
 }
 
 const PORT = process.env.PORT || 4401;
@@ -227,8 +247,18 @@ const setupLogStreaming = () => {
   return { close: () => watcher?.close() };
 };
 
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -489,7 +519,7 @@ app.get('/api/plugins/manifest', (req, res) => {
 });
 
 // API to install a plugin
-app.post('/api/plugins/install', async (req, res) => {
+app.post('/api/plugins/install', requireLocalOrAdmin, async (req, res) => {
   const { plugin, gitUrl, branch, name } = req.body;
 
   // Either plugin name from manifest or gitUrl required
@@ -530,7 +560,7 @@ app.post('/api/plugins/install', async (req, res) => {
 });
 
 // API to uninstall a plugin
-app.delete('/api/plugins/:name', (req, res) => {
+app.delete('/api/plugins/:name', requireLocalOrAdmin, (req, res) => {
   const { name } = req.params;
 
   // Validate plugin name format
@@ -549,7 +579,7 @@ app.delete('/api/plugins/:name', (req, res) => {
 });
 
 // API to enable/disable a plugin
-app.put('/api/plugins/:name/enable', (req, res) => {
+app.put('/api/plugins/:name/enable', requireLocalOrAdmin, (req, res) => {
   const { name } = req.params;
   const { enabled } = req.body;
 
@@ -588,7 +618,7 @@ app.put('/api/plugins/:name/enable', (req, res) => {
 });
 
 // API to update plugin configuration
-app.put('/api/plugins/:name/config', (req, res) => {
+app.put('/api/plugins/:name/config', requireLocalOrAdmin, (req, res) => {
   const { name } = req.params;
   const { mountPath, navSection, navTitle, navIcon } = req.body;
 
@@ -647,7 +677,7 @@ app.get('/api/plugins/:name/check-update', async (req, res) => {
 });
 
 // API to update a plugin
-app.post('/api/plugins/:name/update', async (req, res) => {
+app.post('/api/plugins/:name/update', requireLocalOrAdmin, async (req, res) => {
   const { name } = req.params;
   const result = await pluginManager.updatePlugin(name);
   res.json(result);
@@ -655,7 +685,7 @@ app.post('/api/plugins/:name/update', async (req, res) => {
 } // End of !BOOTSTRAP_MODE block for plugin routes
 
 // API to restart the server
-app.post('/api/server/restart', (req, res) => {
+app.post('/api/server/restart', requireLocalOrAdmin, (req, res) => {
   console.log('🔄 Server restart requested via API');
   res.json({ success: true, message: 'Server restarting...' });
 
@@ -711,7 +741,7 @@ app.get('/api/pm2/logs', (req, res) => {
   const { exec } = require('child_process');
   const processName = req.query.process || 'all';
   const initialLines = parseInt(req.query.lines) || 100;
-  const streamId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const streamId = `${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
 
   // Set SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
@@ -864,6 +894,15 @@ if (isDev) {
     res.send('Void Server Core is running. Client build not found. Please build the client.');
   });
 }
+
+// Global async error handler - catches unhandled errors in async route handlers
+app.use((err, req, res, _next) => {
+  const status = err.statusCode || err.status || 500;
+  console.error(`❌ Unhandled route error [${req.method} ${req.path}]:`, err.message);
+  if (!res.headersSent) {
+    res.status(status).json({ success: false, error: status === 500 ? 'Internal server error' : err.message });
+  }
+});
 
 server.listen(PORT, () => {
   if (BOOTSTRAP_MODE) {

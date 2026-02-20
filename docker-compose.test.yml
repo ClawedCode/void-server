@@ -23,6 +23,7 @@ services:
       - EMBEDDING_PROVIDER=auto
       - IPFS_API_URL=http://ipfs-test:5001
       - IPFS_GATEWAY_URL=http://ipfs-test:8080
+      - FEDERATION_TRUST_GATING=false
     volumes:
       - ./test-data:/app/data
       - ./coverage:/app/coverage

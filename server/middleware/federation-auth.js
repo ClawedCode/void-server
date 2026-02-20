@@ -189,7 +189,14 @@ function requirePeerTrustLevel(requiredLevels, options = {}) {
 
     // When auth mode is active, require cryptographic identity proof
     const authMode = process.env.FEDERATION_AUTH_MODE || 'off';
-    if (authMode !== 'off' && peer.publicKey) {
+    if (authMode !== 'off') {
+      if (!peer.publicKey) {
+        return res.status(403).json({
+          success: false,
+          error: 'Peer has no public key on record — cannot verify identity'
+        });
+      }
+
       const signature = req.headers['x-federation-signature'] || req.body?.requesterSignature;
       const timestamp = req.headers['x-federation-timestamp'] || req.body?.requesterTimestamp;
 

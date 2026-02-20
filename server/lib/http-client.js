@@ -146,7 +146,10 @@ const request = async (url, options = {}) => {
   // Parse response
   if (json) {
     const text = await response.text();
-    data = text ? JSON.parse(text) : null;
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch { data = { parseError: true, raw: text.slice(0, 500) }; }
+    }
   } else {
     data = await response.text();
   }

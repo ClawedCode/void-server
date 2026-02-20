@@ -64,8 +64,9 @@ router.post('/pin/file', express.raw({ type: '*/*', limit: '100mb' }), async (re
     });
   }
 
-  // Get filename from header or query
-  const filename = req.query.filename || req.headers['x-filename'] || 'unnamed';
+  // Get filename from header or query - sanitize to prevent path traversal
+  const rawFilename = req.query.filename || req.headers['x-filename'] || 'unnamed';
+  const filename = path.basename(rawFilename).replace(/[^a-zA-Z0-9._-]/g, '_');
 
   // Save to temp file
   const tempPath = path.join(os.tmpdir(), `ipfs-upload-${Date.now()}-${filename}`);
@@ -126,6 +127,16 @@ router.post('/pin/directory', async (req, res) => {
     });
   }
 
+  // Validate directory is within allowed paths (data dir only)
+  const dataDir = path.resolve(process.env.DATA_DIR || path.join(__dirname, '../../data'));
+  const resolvedDir = path.resolve(dirPath);
+  if (!resolvedDir.startsWith(dataDir)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Directory must be within the data directory'
+    });
+  }
+
   // Check daemon first
   const status = await ipfsService.checkDaemon();
   if (!status.online) {
@@ -136,7 +147,7 @@ router.post('/pin/directory', async (req, res) => {
   }
 
   // Verify directory exists
-  const stats = await fs.stat(dirPath);
+  const stats = await fs.stat(resolvedDir);
   if (!stats.isDirectory()) {
     return res.status(400).json({
       success: false,
@@ -144,8 +155,8 @@ router.post('/pin/directory', async (req, res) => {
     });
   }
 
-  console.log(`📤 Pinning directory: ${dirPath}`);
-  const pin = await ipfsService.pinDirectory(dirPath, { name });
+  console.log(`📤 Pinning directory: ${resolvedDir}`);
+  const pin = await ipfsService.pinDirectory(resolvedDir, { name });
 
   res.json({ success: true, pin });
 });

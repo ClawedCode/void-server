@@ -588,15 +588,21 @@ const OverviewTab = ({ wallet, onBuyToken }) => (
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="rounded-full flex-shrink-0 overflow-hidden" style={{ width: '40px', height: '40px', minWidth: '40px', minHeight: '40px' }}>
                   {token.logoURI ? (
-                    <img
-                      src={token.logoURI}
-                      alt={token.symbol}
-                      className="w-full h-full object-cover rounded-full"
-                      style={{ width: '40px', height: '40px' }}
-                      onError={(e) => {
-                        e.target.parentElement.innerHTML = `<div style="width:40px;height:40px;border-radius:50%;background:rgba(var(--color-primary-rgb),0.2);display:flex;align-items:center;justify-content:center;color:var(--color-primary);font-weight:bold">${token.symbol?.slice(0, 2) || '??'}</div>`;
-                      }}
-                    />
+                    <>
+                      <img
+                        src={token.logoURI}
+                        alt={token.symbol}
+                        className="w-full h-full object-cover rounded-full"
+                        style={{ width: '40px', height: '40px' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');
+                        }}
+                      />
+                      <div className="w-full h-full rounded-full bg-[var(--color-primary)]/20 items-center justify-center text-[var(--color-primary)] font-bold" style={{ display: 'none', width: '40px', height: '40px' }}>
+                        {token.symbol?.slice(0, 2) || '??'}
+                      </div>
+                    </>
                   ) : (
                     <div className="w-full h-full rounded-full bg-[var(--color-primary)]/20 flex items-center justify-center text-[var(--color-primary)] font-bold">
                       {token.symbol?.slice(0, 2) || '??'}

@@ -7,7 +7,7 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 const EventEmitter = require('events');
@@ -114,7 +114,11 @@ class BackupService extends EventEmitter {
       const files = await fs.readdir(this.config.backupPath);
       backupCount = files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz')).length;
 
-      const { stdout } = await execAsync(`du -sk "${this.config.backupPath}"`).catch(() => ({ stdout: '0' }));
+      const { stdout } = await new Promise((resolve) => {
+        execFile('du', ['-sk', this.config.backupPath], (err, stdout) => {
+          resolve({ stdout: err ? '0' : stdout });
+        });
+      });
       const sizeKB = parseInt(stdout.split('\t')[0]) || 0;
       backupDirSize = sizeKB * 1024;
     }
@@ -465,7 +469,9 @@ class BackupService extends EventEmitter {
   async restoreFromFile(fileName) {
     await this.initialize();
 
-    const backupPath = path.join(this.config.backupPath, fileName);
+    // Prevent path traversal - only allow basenames
+    const sanitizedFileName = path.basename(fileName);
+    const backupPath = path.join(this.config.backupPath, sanitizedFileName);
     const exists = await fs.access(backupPath).then(() => true).catch(() => false);
     if (!exists) {
       return { success: false, error: `Backup file not found: ${fileName}` };
@@ -474,7 +480,7 @@ class BackupService extends EventEmitter {
     let content = await fs.readFile(backupPath, 'utf8');
 
     // Handle gzipped files
-    if (fileName.endsWith('.gz')) {
+    if (sanitizedFileName.endsWith('.gz')) {
       const zlib = require('zlib');
       const buffer = await fs.readFile(backupPath);
       content = zlib.gunzipSync(buffer).toString('utf8');

@@ -323,7 +323,11 @@ class RelayClientService {
 
     // Fall back to first wallet if selected not found
     if (!authWallet) {
-      authWallet = groups[0].addresses[0];
+      authWallet = groups[0]?.addresses?.[0];
+    }
+
+    if (!authWallet) {
+      return { success: false, error: 'No wallet address available for federation auth' };
     }
 
     const publicKey = authWallet.publicKey;
@@ -416,8 +420,10 @@ class RelayClientService {
           this.clearPersistedSession();  // Force fresh auth
           this.authenticate().then(authResult => {
             if (authResult.success) {
-              this.register();
+              return this.register();
             }
+          }).catch(err => {
+            console.error('🌐 Relay: Re-authentication failed:', err.message);
           });
         }
       }
@@ -536,10 +542,16 @@ class RelayClientService {
     // Check for registered handler
     const handler = this.messageHandlers.get(type);
     if (handler) {
-      const response = handler(from, parsedPayload);
-      if (typeof ackCallback === 'function') {
-        ackCallback(response);
-      }
+      Promise.resolve(handler(from, parsedPayload)).then(response => {
+        if (typeof ackCallback === 'function') {
+          ackCallback(response);
+        }
+      }).catch(err => {
+        console.error(`🌐 Relay: Handler error for ${type}:`, err.message);
+        if (typeof ackCallback === 'function') {
+          ackCallback({ success: false, error: err.message });
+        }
+      });
     } else {
       console.log(`🌐 Relay: No handler for message type: ${type}`);
       if (typeof ackCallback === 'function') {
@@ -557,7 +569,9 @@ class RelayClientService {
 
     const handler = this.messageHandlers.get(`broadcast:${type}`);
     if (handler) {
-      handler(from, payload);
+      Promise.resolve(handler(from, payload)).catch(err => {
+        console.error(`🌐 Relay: Broadcast handler error for ${type}:`, err.message);
+      });
     }
   }
 

@@ -70,6 +70,11 @@ router.post('/restore', async (req, res) => {
     return res.status(400).json({ success: false, error: 'fileName is required' });
   }
 
+  // Reject path traversal attempts at the route level
+  if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+    return res.status(400).json({ success: false, error: 'Invalid fileName' });
+  }
+
   const result = await backupService.restoreFromFile(fileName);
   res.json(result);
 });

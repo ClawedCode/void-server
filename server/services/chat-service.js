@@ -222,12 +222,12 @@ function getMessagePath(chat, messageId) {
  */
 function getBranchMessages(chat, branchId) {
   const branch = chat.branches?.find(b => b.id === branchId);
-  if (!branch) {
+  if (!branch?.tipMessageId) {
     return [];
   }
 
-  const path = getMessagePath(chat, branch.tipMessageId);
-  return path.map(id => chat.messages[id]);
+  const msgPath = getMessagePath(chat, branch.tipMessageId);
+  return msgPath.map(id => chat.messages[id]).filter(Boolean);
 }
 
 /**

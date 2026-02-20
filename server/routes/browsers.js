@@ -80,6 +80,10 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Browser ID is required' });
   }
 
+  if (port !== undefined && (isNaN(port) || port < 1024 || port > 65535)) {
+    return res.status(400).json({ success: false, error: 'Port must be between 1024-65535' });
+  }
+
   const result = await browserService.createBrowser(id, { name, description, port, autoAssignPort, startUrl });
 
   if (!result.success) {
