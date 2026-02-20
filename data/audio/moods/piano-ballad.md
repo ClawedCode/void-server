@@ -1,7 +1,7 @@
 ---
 category: ballad
 energy: low
-tags: [piano, emotional, minimal]
+tags: [piano, emotional, minimal, intimate, classical-crossover, Maxence-Cyrin]
 ---
 ## Piano Ballad (Maxence Cyrin Style)
 
@@ -176,3 +176,46 @@ window.initToneJsEngine = async function() {
 - **Strings**: 0.45-0.55 volume, only in chorus for swells
 - **Pad**: 0.10-0.20 volume, barely audible atmospheric layer
 - **Overall**: Intimate mix with space, gentle reverb, piano always in focus
+
+### Reference Tracks
+
+1. **Maxence Cyrin - Where Is My Mind** - Piano cover of Pixies classic, defining the intimate piano reimagination style
+2. **Nils Frahm - Said and Done** - Sparse piano with gentle dynamics, masterful use of silence
+3. **Yann Tiersen - Comptine d'un autre ete** - Iconic repeating melody, building emotional weight through simplicity
+4. **Ryuichi Sakamoto - Merry Christmas Mr. Lawrence** - Elegant minor-key piano with restrained orchestral swells
+5. **Ludovico Einaudi - Nuvole Bianche** - Ascending arpeggiated phrases, major-key emotionality, patient build
+
+### Structural Blueprint (60s @ 65 BPM)
+
+- **0-15s (Piano Solo Intro)**: Solo piano establishes melody and mood
+  - Right hand melody with dynamic velocity (0.65-0.85)
+  - Left hand chords provide harmonic foundation
+  - Intimate reverb only, exposed and vulnerable
+  - Each note rings out with natural decay
+
+- **15-30s (Bass Enters, Atmosphere Builds)**: Bass and pad join the piano
+  - Minimal bass enters on root notes, very supportive (0.40 volume)
+  - Subtle triangle-wave pad barely audible underneath (0.15 volume)
+  - Piano remains dominant voice, unaffected by new elements
+  - Warmth and depth increase without adding density
+
+- **30-45s (Strings Swell, Emotional Chorus)**: Strings provide emotional climax
+  - Sawtooth strings with slow attack (0.8s) for gentle swells
+  - String chords mirror the piano harmony (Am - F - C - G)
+  - Peak emotional weight, but volume stays controlled
+  - Piano melody still leads, strings fill the harmonic space behind it
+
+- **45-60s (Return to Solo Piano)**: Gentle dissolution back to intimacy
+  - Strings fade, bass drops out
+  - Pad dissolves to silence
+  - Solo piano returns for seamless loop point
+  - Final notes ring with extended release, breathing into silence
+
+### Tonal Characteristics
+
+- **Harmonic**: Am - F - C - G (i-VI-III-VII), minor with hopeful major moments
+- **Melodic**: Stepwise piano melody with gentle leaps, singable phrases
+- **Rhythmic**: No percussion, rubato feel through swing and velocity variation
+- **Textural**: Intimate piano front and center, warm string swells in background
+- **Dynamic**: Very gentle arc, piano velocity drives all dynamics
+- **Production**: Intimate room reverb, minimal processing, piano always dominant

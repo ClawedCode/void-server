@@ -19,7 +19,8 @@ const CATEGORY_NAMES = {
   electronic: 'Electronic / House',
   triphop: 'Trip-Hop / Downtempo',
   experimental: 'Experimental',
-  ballad: 'Ballad / Acoustic'
+  ballad: 'Ballad / Acoustic',
+  neoclassical: 'Neoclassical / Modern Classical'
 };
 
 /**
