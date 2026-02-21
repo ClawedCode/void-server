@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.17.1] - 2026-02-20
+
+Patch release.
+
+### Fixes
+
+- **Windows deployment fix** - Fix ERR_CONNECTION_REFUSED on Windows caused by IPv4/IPv6 localhost resolution mismatch; bind Express to `0.0.0.0`, use `127.0.0.1` in all proxy targets, and add dynamic CORS origins for dev port
+- **Resilient plugin loading** - Catch plugin require/init errors so one bad plugin doesn't crash the entire server
+
 ## [0.17.0]
 
 ### Security Fixes (Code Audit)

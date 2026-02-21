@@ -69,11 +69,17 @@ if (!BOOTSTRAP_MODE) {
   audioRoutes = require('./routes/audio');
 }
 
+const PORT = process.env.PORT || 4401;
+
 const app = express();
 const server = http.createServer(app);
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:4401', 'http://localhost:4480', 'http://127.0.0.1:4401', 'http://127.0.0.1:4480'];
+  : [
+      `http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`,
+      'http://localhost:4401', 'http://localhost:4480',
+      'http://127.0.0.1:4401', 'http://127.0.0.1:4480'
+    ];
 
 const io = new Server(server, {
   cors: {
@@ -102,7 +108,6 @@ function requireLocalOrAdmin(req, res, next) {
   return res.status(403).json({ success: false, error: 'Forbidden: local access or admin token required' });
 }
 
-const PORT = process.env.PORT || 4401;
 if (!process.env.CONTENT_DIR) {
   // Point to the existing void-server content directory for development
   process.env.CONTENT_DIR = path.resolve(__dirname, '../../void-server/content');
@@ -439,8 +444,14 @@ function loadPlugins() {
     };
     const clientRoutes = manifest?.client?.routes || [];
 
-    // Load the plugin module
-    const plugin = require(pluginPath);
+    // Load the plugin module (wrapped to prevent one bad plugin from crashing the server)
+    let plugin;
+    try {
+      plugin = require(pluginPath);
+    } catch (err) {
+      console.log(`❌ Failed to load ${pluginName}: ${err.message}`);
+      continue;
+    }
     if (typeof plugin !== 'function') {
       console.log(`⚠️ ${pluginName} found but does not export a function`);
       continue;
@@ -462,7 +473,12 @@ function loadPlugins() {
       enabled: routeOverrides[route.path]?.enabled !== false
     }));
 
-    plugin(app, { mountPath, services: { browserService, ffmpegService, express } });
+    try {
+      plugin(app, { mountPath, services: { browserService, ffmpegService, express } });
+    } catch (err) {
+      console.log(`❌ Failed to initialize ${pluginName}: ${err.message}`);
+      continue;
+    }
 
     // Serve static assets from plugin's assets folder if it exists
     const assetsPath = path.join(pluginPath, 'assets');
@@ -864,7 +880,7 @@ if (isDev) {
   // Note: ws: false because Vite's HMR WebSocket connects directly to Vite (port 4480)
   // and we need Socket.IO WebSocket connections to stay on Express (port 4401)
   const viteProxy = createProxyMiddleware({
-    target: `http://localhost:${VITE_DEV_PORT}`,
+    target: `http://127.0.0.1:${VITE_DEV_PORT}`,
     changeOrigin: true,
     ws: false,
     // Don't proxy API routes
@@ -904,7 +920,7 @@ app.use((err, req, res, _next) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   if (BOOTSTRAP_MODE) {
     console.log(`🌐 Void Bootstrap Node running on port ${PORT}`);
     console.log(`🔗 Federation endpoints: /api/federation/*`);

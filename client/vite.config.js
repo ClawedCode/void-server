@@ -40,30 +40,32 @@ export default defineConfig({
   // Allow imports from outside the client directory (for plugins)
   server: {
     port: 4480,
+    host: '0.0.0.0',
     fs: {
       allow: ['..']
     },
     // Configure HMR to connect to Vite's port when app is loaded via Express
     hmr: {
-      port: 4480
+      port: 4480,
+      host: 'localhost'
     },
-    // Proxy API and WebSocket calls to Express server
+    // Proxy API and WebSocket calls to Express server (use 127.0.0.1 for Windows IPv4/IPv6 compat)
     proxy: {
       '/api': {
-        target: 'http://localhost:4420',
+        target: 'http://127.0.0.1:4420',
         changeOrigin: true
       },
       '/socket.io': {
-        target: 'http://localhost:4420',
+        target: 'http://127.0.0.1:4420',
         ws: true
       },
       // Plugin APIs should hit the server (UI stays on Vite)
       '/wallet/api': {
-        target: 'http://localhost:4420',
+        target: 'http://127.0.0.1:4420',
         changeOrigin: true
       },
       '/wallet/socket.io': {
-        target: 'http://localhost:4420',
+        target: 'http://127.0.0.1:4420',
         ws: true
       }
     }
