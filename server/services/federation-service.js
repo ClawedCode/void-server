@@ -282,7 +282,7 @@ class FederationService {
    * Get server manifest for federation
    */
   getManifest() {
-    return {
+    const manifest = {
       serverId: this.identity.serverId,
       publicKey: this.identity.publicKey,
       version: this.getVersion(),
@@ -291,6 +291,24 @@ class FederationService {
       uptime: process.uptime(),
       timestamp: new Date().toISOString()
     };
+    if (this.identity.customName) {
+      manifest.customName = this.identity.customName;
+    }
+    return manifest;
+  }
+
+  /**
+   * Set a custom display name for this server
+   */
+  setCustomName(name) {
+    const trimmed = (name || '').trim().slice(0, 64);
+    if (trimmed && !/^[\w\s\-.:]+$/.test(trimmed)) {
+      return { success: false, error: 'Name may only contain letters, numbers, spaces, hyphens, dots, underscores, and colons' };
+    }
+    this.identity.customName = trimmed || undefined;
+    fs.writeFileSync(IDENTITY_PATH, JSON.stringify(this.identity, null, 2));
+    console.log(`🌐 Server custom name set: ${trimmed || '(cleared)'}`);
+    return { success: true, customName: trimmed || null };
   }
 
   /**
@@ -427,6 +445,7 @@ class FederationService {
       plugins: manifest.plugins,
       trustLevel: manifest.trustLevel || existingPeer?.trustLevel || 'unknown',
       isProtected: manifest.isProtected || existingPeer?.isProtected || false,
+      customName: manifest.customName || existingPeer?.customName || null,
       lastSeen: new Date().toISOString(),
       addedAt: existingPeer?.addedAt || new Date().toISOString(),
       healthScore: 1.0,

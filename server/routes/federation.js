@@ -109,8 +109,24 @@ router.get('/identity', (req, res) => {
     success: true,
     serverId: federation.identity.serverId,
     publicKey: federation.identity.publicKey,
+    customName: federation.identity.customName || null,
     createdAt: federation.identity.createdAt
   });
+});
+
+// PUT /api/federation/identity/name - Set custom server display name
+router.put('/identity/name', requireFederationRole('admin'), (req, res) => {
+  const { name } = req.body;
+  console.log(`🌐 PUT /api/federation/identity/name name=${name || '(clear)'}`);
+
+  const federation = getFederationService();
+  const result = federation.setCustomName(name);
+
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
 });
 
 // GET /api/federation/peers - List all known peers

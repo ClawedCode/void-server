@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Globe,
   Server,
@@ -19,6 +19,9 @@ import {
   Wallet,
   Crown,
   Zap,
+  Edit2,
+  Check,
+  ChevronDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useWebSocket } from '../contexts/WebSocketContext';
@@ -27,6 +30,7 @@ const StatusBadge = ({ status, label }) => {
   const config = {
     connected: { color: 'text-green-400', bg: 'bg-green-400/10' },
     healthy: { color: 'text-green-400', bg: 'bg-green-400/10' },
+    seen: { color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
     verified: { color: 'text-blue-400', bg: 'bg-blue-400/10' },
     trusted: { color: 'text-purple-400', bg: 'bg-purple-400/10' },
     unknown: { color: 'text-gray-400', bg: 'bg-gray-400/10' },
@@ -39,6 +43,53 @@ const StatusBadge = ({ status, label }) => {
     <span className={`px-2 py-0.5 rounded text-xs font-medium ${color} ${bg}`}>
       {label || status}
     </span>
+  );
+};
+
+const TRUST_OPTIONS = ['unknown', 'seen', 'verified', 'trusted'];
+
+const TrustLevelSelector = ({ serverId, currentLevel, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 cursor-pointer"
+      >
+        <StatusBadge status={currentLevel} />
+        <ChevronDown className="w-3 h-3 text-void-fg-muted" />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 py-1 bg-void-bg-secondary border border-void-border rounded-lg shadow-lg min-w-[120px]">
+          {TRUST_OPTIONS.map((level) => (
+            <button
+              key={level}
+              onClick={() => {
+                onChange(serverId, level);
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-void-bg-tertiary flex items-center gap-2 ${
+                level === currentLevel ? 'text-void-accent' : 'text-void-fg-primary'
+              }`}
+            >
+              <StatusBadge status={level} />
+              {level === currentLevel && <Check className="w-3 h-3 ml-auto" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -87,6 +138,7 @@ const TrustGraph = ({ nodes, edges }) => {
     const colors = {
       trusted: '#a855f7',
       verified: '#3b82f6',
+      seen: '#eab308',
       unknown: '#6b7280',
       blocked: '#ef4444',
     };
@@ -164,6 +216,8 @@ const FederationPage = () => {
   const [confirmAction, setConfirmAction] = useState(null); // { type: 'block'|'delete', peer }
   const [cryptoTest, setCryptoTest] = useState(null); // { loading, results }
   const [reconnecting, setReconnecting] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const { on, off } = useWebSocket();
 
   const fetchData = useCallback(async () => {
@@ -253,6 +307,37 @@ const FederationPage = () => {
       fetchData();
     } else {
       toast.error(data.message || 'Failed to reconnect');
+    }
+  };
+
+  const changeTrustLevel = async (serverId, level) => {
+    const res = await fetch(`/api/federation/peers/neo4j/${serverId}/trust`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trustLevel: level }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success(`Trust set to ${level}`);
+      fetchData();
+    } else {
+      toast.error(data.error || 'Failed to update trust level');
+    }
+  };
+
+  const saveCustomName = async () => {
+    const res = await fetch('/api/federation/identity/name', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: nameInput }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success(data.customName ? `Name set to "${data.customName}"` : 'Name cleared');
+      setEditingName(false);
+      fetchData();
+    } else {
+      toast.error(data.error || 'Failed to set name');
     }
   };
 
@@ -375,6 +460,50 @@ const FederationPage = () => {
               <code className="block text-void-fg-primary font-mono text-sm bg-void-bg-primary px-2 py-1 rounded border border-void-border">
                 {manifest?.serverId}
               </code>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-void-fg-muted text-sm">Display Name</span>
+                {!editingName && (
+                  <button
+                    onClick={() => {
+                      setNameInput(manifest?.customName || '');
+                      setEditingName(true);
+                    }}
+                    className="p-1 hover:bg-void-bg-tertiary rounded"
+                    title="Edit display name"
+                  >
+                    <Edit2 className="w-3 h-3 text-void-fg-muted" />
+                  </button>
+                )}
+              </div>
+              {editingName ? (
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder={manifest?.serverId}
+                    maxLength={64}
+                    className="flex-1 px-2 py-1 bg-void-bg-primary border border-void-border rounded text-sm text-void-fg-primary placeholder:text-void-fg-muted focus:outline-none focus:border-void-accent font-mono"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveCustomName();
+                      if (e.key === 'Escape') setEditingName(false);
+                    }}
+                  />
+                  <button
+                    onClick={saveCustomName}
+                    className="px-2 py-1 bg-void-accent/10 hover:bg-void-accent/20 text-void-accent rounded text-xs"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <code className="block text-void-fg-primary font-mono text-sm bg-void-bg-primary px-2 py-1 rounded border border-void-border">
+                  {manifest?.customName || <span className="text-void-fg-muted italic">Not set</span>}
+                </code>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -680,8 +809,8 @@ const FederationPage = () => {
                   const isOnlineNow = relayStatus?.peers?.some(p => p.serverId === peer.serverId);
                   return (
                   <tr key={peer.serverId} className="text-void-fg-primary">
-                    <td className="py-2 font-mono text-xs">
-                      {peer.serverId}
+                    <td className="py-2 font-mono text-xs" title={peer.serverId}>
+                      {peer.customName || peer.serverId}
                       {isOnlineNow && (
                         <span className="ml-1 inline-block w-2 h-2 bg-green-400 rounded-full" title="Online now" />
                       )}
@@ -697,7 +826,15 @@ const FederationPage = () => {
                       )}
                     </td>
                     <td className="py-2">
-                      <StatusBadge status={peer.trustLevel} />
+                      {peer.isProtected || peer.trustLevel === 'blocked' ? (
+                        <StatusBadge status={peer.trustLevel} />
+                      ) : (
+                        <TrustLevelSelector
+                          serverId={peer.serverId}
+                          currentLevel={peer.trustLevel}
+                          onChange={changeTrustLevel}
+                        />
+                      )}
                     </td>
                     <td className="py-2">
                       <div className="flex items-center gap-2">

@@ -1,8 +1,14 @@
 # Changelog
 
-## [0.17.2] - 2026-02-20
+## [0.17.3] - 2026-02-20
 
-Patch release.
+### Features
+
+- **Federation trust level selector** - Click a peer's trust badge to change it (unknown/seen/verified/trusted) via dropdown; protected and blocked peers show static badges
+- **Custom server names** - Set a human-friendly display name for your server in the identity card; name persists to identity.json, propagates via manifest to relay peers, and displays in peers table and trust graph
+- **`seen` trust level styling** - Yellow badge and graph node color for the `seen` trust level
+
+## [0.17.2] - 2026-02-20
 
 ### Fixes
 

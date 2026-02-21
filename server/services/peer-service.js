@@ -143,6 +143,7 @@ class PeerService {
           p.plugins = $plugins,
           p.trustLevel = $trustLevel,
           p.isProtected = $isProtected,
+          p.customName = $customName,
           p.healthScore = $healthScore,
           p.failedChecks = $failedChecks,
           p.lastSeen = datetime($lastSeen),
@@ -161,6 +162,7 @@ class PeerService {
             ELSE $trustLevel
           END,
           p.isProtected = COALESCE(p.isProtected, $isProtected),
+          p.customName = COALESCE($customName, p.customName),
           p.healthScore = $healthScore,
           p.failedChecks = $failedChecks,
           p.lastSeen = datetime($lastSeen),
@@ -179,6 +181,7 @@ class PeerService {
       plugins: JSON.stringify(peer.plugins || []),
       trustLevel: peer.trustLevel || 'unknown',
       isProtected: peer.isProtected || false,
+      customName: peer.customName || null,
       healthScore: peer.healthScore ?? 1.0,
       failedChecks: peer.failedChecks || 0,
       lastSeen: peer.lastSeen || new Date().toISOString(),
@@ -628,7 +631,7 @@ class PeerService {
       const peer = this.formatPeer(row.p);
       nodes.push({
         id: peer.serverId,
-        label: peer.serverId,
+        label: peer.customName || peer.serverId,
         trustLevel: peer.trustLevel,
         healthScore: peer.healthScore
       });
@@ -665,6 +668,7 @@ class PeerService {
       plugins: props.plugins ? JSON.parse(props.plugins) : [],
       trustLevel: props.trustLevel || 'unknown',
       isProtected: props.isProtected || false,
+      customName: props.customName || null,
       healthScore: typeof props.healthScore === 'number' ? props.healthScore : 1.0,
       failedChecks: props.failedChecks || 0,
       lastSeen: props.lastSeen?.toString() || null,
