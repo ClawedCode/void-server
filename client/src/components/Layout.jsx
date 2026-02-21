@@ -22,9 +22,9 @@ const Layout = () => {
       .then(res => res.json())
       .then(data => {
         // API returns { installed, available, loadedPlugins }
-        // Navigation needs the installed plugins that are enabled
-        const enabledPlugins = (data.installed || []).filter(p => p.enabled !== false);
-        setPlugins(enabledPlugins);
+        // Navigation needs loadedPlugins (runtime state with mountPath/navConfig)
+        const loadedPlugins = (data.loadedPlugins || []).filter(p => p.mountPath);
+        setPlugins(loadedPlugins);
       })
       .catch(err => console.error('Failed to fetch plugins:', err));
   }, []);

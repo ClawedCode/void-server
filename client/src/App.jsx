@@ -26,8 +26,9 @@ function App() {
       .then(res => res.json())
       .then(data => {
         // API returns { installed, available, loadedPlugins }
-        const enabledPlugins = (data.installed || []).filter(p => p.enabled !== false);
-        setPlugins(enabledPlugins);
+        // Use loadedPlugins (runtime state with mountPath) rather than installed (catalog)
+        const loadedPlugins = (data.loadedPlugins || []).filter(p => p.mountPath);
+        setPlugins(loadedPlugins);
         setPluginsLoaded(true);
       })
       .catch(err => {

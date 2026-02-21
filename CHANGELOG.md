@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.2] - 2026-02-20
+
+Patch release.
+
+### Fixes
+
+- **Fix plugin route crash on fresh install** - Use `loadedPlugins` (runtime state with mountPath) instead of `installed` (catalog without mountPath) for dynamic route generation and navigation
+
 ## [0.17.1] - 2026-02-20
 
 Patch release.
