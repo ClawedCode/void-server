@@ -51,6 +51,7 @@ const TRUST_OPTIONS = ['unknown', 'seen', 'verified', 'trusted'];
 const TrustLevelSelector = ({ serverId, currentLevel, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -61,17 +62,34 @@ const TrustLevelSelector = ({ serverId, currentLevel, onChange }) => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const dropdownHeight = TRUST_OPTIONS.length * 32 + 8; // approx height
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpward = spaceBelow < dropdownHeight + 8;
+      setPos({
+        top: openUpward ? rect.top - dropdownHeight - 4 : rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+    setOpen(!open);
+  };
+
   return (
-    <div className="relative" ref={ref}>
+    <div ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className="flex items-center gap-1 cursor-pointer"
       >
         <StatusBadge status={currentLevel} />
         <ChevronDown className="w-3 h-3 text-void-fg-muted" />
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 py-1 bg-void-bg-secondary border border-void-border rounded-lg shadow-lg min-w-[120px]">
+        <div
+          className="fixed z-50 py-1 border border-[var(--color-border)] rounded-lg shadow-lg min-w-[120px]"
+          style={{ top: pos.top, left: pos.left, backgroundColor: 'var(--color-surface-solid)' }}
+        >
           {TRUST_OPTIONS.map((level) => (
             <button
               key={level}
@@ -79,8 +97,8 @@ const TrustLevelSelector = ({ serverId, currentLevel, onChange }) => {
                 onChange(serverId, level);
                 setOpen(false);
               }}
-              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-void-bg-tertiary flex items-center gap-2 ${
-                level === currentLevel ? 'text-void-accent' : 'text-void-fg-primary'
+              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--color-border)] flex items-center gap-2 ${
+                level === currentLevel ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-primary)]'
               }`}
             >
               <StatusBadge status={level} />
@@ -249,12 +267,13 @@ const FederationPage = () => {
     };
 
     const handlePeerUpdate = (data) => {
+      const peerName = data.peer?.customName || data.peer?.serverId;
       if (data.type === 'joined') {
-        toast.success(`Peer joined: ${data.peer.serverId}`, { duration: 3000 });
+        toast.success(`Peer joined: ${peerName}`, { duration: 3000 });
       } else if (data.type === 'left') {
-        toast(`Peer left: ${data.peer.serverId}`, { icon: '👋', duration: 2000 });
+        toast(`Peer left: ${peerName}`, { icon: '👋', duration: 2000 });
       } else if (data.type === 'added') {
-        toast.success(`New peer: ${data.peer.serverId}`, { duration: 3000 });
+        toast.success(`New peer: ${peerName}`, { duration: 3000 });
       }
       // Refresh peer list
       fetchData();
@@ -725,8 +744,9 @@ const FederationPage = () => {
                     <span
                       key={peer.serverId}
                       className="px-2 py-0.5 text-xs bg-green-400/10 text-green-400 rounded font-mono"
+                      title={peer.serverId}
                     >
-                      {peer.serverId}
+                      {peer.customName || peer.serverId}
                     </span>
                   ))}
                 </div>

@@ -470,7 +470,8 @@ class FederationService {
         endpoint: peer.endpoint,
         capabilities: peer.capabilities,
         trustLevel: peer.trustLevel,
-        isProtected: peer.isProtected
+        isProtected: peer.isProtected,
+        customName: peer.customName
       }
     });
 
