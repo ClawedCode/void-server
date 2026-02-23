@@ -198,14 +198,17 @@ class RelayClientService {
       this.connectedPeers.set(serverId, manifest);
       console.log(`🌐 Relay: Peer joined: ${serverId}`);
 
+      // Ensure serverId is in the manifest (it lives at peer top-level, not inside manifest)
+      const fullManifest = { ...manifest, serverId };
+
       // Notify federation service
       if (this.federationService) {
-        this.federationService.addPeer(manifest, `relay://${serverId}`);
+        this.federationService.addPeer(fullManifest, `relay://${serverId}`);
       }
 
       // Persist to Neo4j via peer service
       const peerService = getPeerService();
-      peerService.handleRelayPeerJoined(serverId, manifest);
+      peerService.handleRelayPeerJoined(serverId, fullManifest);
 
       broadcast('federation:peer-update', {
         type: 'joined',
@@ -396,13 +399,20 @@ class RelayClientService {
 
         // Update connected peers
         this.connectedPeers.clear();
+        const peerService = getPeerService();
         for (const peer of response.peers) {
           this.connectedPeers.set(peer.serverId, peer.manifest);
 
+          // Ensure serverId is in the manifest (it lives at peer top-level, not inside manifest)
+          const fullManifest = { ...peer.manifest, serverId: peer.serverId };
+
           // Add to federation service
           if (this.federationService) {
-            this.federationService.addPeer(peer.manifest, `relay://${peer.serverId}`);
+            this.federationService.addPeer(fullManifest, `relay://${peer.serverId}`);
           }
+
+          // Persist to Neo4j (matches relay:peer-joined behavior)
+          peerService.handleRelayPeerJoined(peer.serverId, fullManifest);
         }
 
         broadcast('federation:relay-registered', {
