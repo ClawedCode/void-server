@@ -299,7 +299,8 @@ class FederationService {
           signal: AbortSignal.timeout(10000)
         });
 
-        if (!response.ok) continue;
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || !contentType.includes('application/json')) continue;
 
         const data = await response.json();
         const manifest = data.manifest || data;
@@ -322,7 +323,8 @@ class FederationService {
             signal: AbortSignal.timeout(10000)
           });
 
-          if (peersResponse.ok) {
+          const peersContentType = peersResponse.headers.get('content-type') || '';
+          if (peersResponse.ok && peersContentType.includes('application/json')) {
             const peersData = await peersResponse.json();
             const peers = peersData.peers || [];
 
