@@ -245,6 +245,111 @@ class FederationService {
     this.setupRelayMessageHandlers();
 
     console.log('🌐 Federation: Using relay mode (NAT-friendly)');
+
+    // Bootstrap from known nodes after relay connection establishes
+    setTimeout(() => {
+      this.bootstrapFromKnownNodes().catch(err => {
+        console.error(`🌐 Bootstrap discovery failed: ${err.message}`);
+      });
+    }, 5000);
+
+    // Periodically re-discover peers (every 5 minutes)
+    this._bootstrapInterval = setInterval(() => {
+      this.bootstrapFromKnownNodes().catch(err => {
+        console.error(`🌐 Periodic bootstrap discovery failed: ${err.message}`);
+      });
+    }, 5 * 60 * 1000);
+  }
+
+  /**
+   * Discover peers from bootstrap nodes via HTTP manifest fetch.
+   * Works in relay mode to populate the peers list even when no other
+   * servers happen to be online at the relay hub at registration time.
+   * Also fetches each bootstrap node's known peer list to discover
+   * relay-connected peers that have no public HTTP endpoint.
+   */
+  async bootstrapFromKnownNodes() {
+    const BOOTSTRAP_PATH = path.join(DATA_DIR, 'federation', 'bootstrap-nodes.json');
+
+    const defaultBootstrap = [
+      { endpoint: 'https://void-mud.onrender.com', name: 'ClawedCode Primary', trusted: true, protected: true }
+    ];
+
+    let customNodes = [];
+    if (fs.existsSync(BOOTSTRAP_PATH)) {
+      try {
+        customNodes = JSON.parse(fs.readFileSync(BOOTSTRAP_PATH, 'utf8'));
+      } catch (e) {
+        console.error(`🌐 Failed to read bootstrap-nodes.json: ${e.message}`);
+      }
+    }
+
+    const bootstrapNodes = [...defaultBootstrap, ...customNodes];
+    console.log(`🌐 Relay bootstrap: Discovering peers from ${bootstrapNodes.length} node(s)...`);
+
+    let discovered = 0;
+
+    for (const node of bootstrapNodes) {
+      try {
+        // Fetch the bootstrap node's own manifest
+        const baseUrl = node.endpoint.replace(/\/$/, '');
+        const manifestUrl = `${baseUrl}/api/federation/manifest`;
+        const response = await fetch(manifestUrl, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) continue;
+
+        const data = await response.json();
+        const manifest = data.manifest || data;
+
+        if (manifest.serverId && manifest.serverId !== this.identity.serverId) {
+          // Enrich with trust info from bootstrap config
+          if (node.trusted) manifest.trustLevel = 'trusted';
+          if (node.protected) manifest.isProtected = true;
+
+          this.addPeer(manifest, node.endpoint);
+          discovered++;
+          console.log(`🌐 Relay bootstrap: Discovered ${manifest.serverId} at ${node.endpoint}`);
+        }
+
+        // Also fetch this node's known peers to discover relay-connected peers
+        try {
+          const peersUrl = `${baseUrl}/api/federation/peers`;
+          const peersResponse = await fetch(peersUrl, {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(10000)
+          });
+
+          if (peersResponse.ok) {
+            const peersData = await peersResponse.json();
+            const peers = peersData.peers || [];
+
+            for (const peer of peers) {
+              if (!peer.serverId || peer.serverId === this.identity.serverId) continue;
+
+              const isNew = !this.peers.has(peer.serverId);
+              // Use the peer's reported endpoint, or fall back to relay://
+              const peerEndpoint = peer.endpoint || `relay://${peer.serverId}`;
+              this.addPeer(peer, peerEndpoint);
+              if (isNew) {
+                discovered++;
+                console.log(`🌐 Relay bootstrap: Discovered peer ${peer.serverId} via ${node.name || node.endpoint}`);
+              }
+            }
+          }
+        } catch (peerErr) {
+          // Peer list fetch is best-effort; may require auth on some servers
+          console.log(`🌐 Relay bootstrap: Could not fetch peer list from ${node.name || node.endpoint}: ${peerErr.message}`);
+        }
+      } catch (err) {
+        console.log(`🌐 Relay bootstrap: Failed to reach ${node.name || node.endpoint}: ${err.message}`);
+      }
+    }
+
+    console.log(`🌐 Relay bootstrap: Discovered ${discovered} peer(s) total`);
+    return { discovered, total: bootstrapNodes.length };
   }
 
   /**
