@@ -1,6 +1,7 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { VoidWorld } from '../../support/world';
+import { AIProviderResponse, CreateChatResponse } from '../../support/types';
 
 Then('I should see the chat interface', async function (this: VoidWorld) {
   await expect(
@@ -16,7 +17,7 @@ Then('I should see the chat sidebar', async function (this: VoidWorld) {
 
 Given('at least one AI provider is enabled', async function (this: VoidWorld) {
   const response = await this.request.get(`${this.config.appUrl}/api/ai-providers`);
-  const data = await response.json();
+  const data: AIProviderResponse = await response.json();
   if (!data.activeProvider) {
     this.skip();
   }
@@ -26,7 +27,7 @@ Given('I have an active chat', async function (this: VoidWorld) {
   const response = await this.request.post(`${this.config.appUrl}/api/chat`, {
     data: { templateId: 'clawedegregore' },
   });
-  const chat = await response.json();
+  const chat: CreateChatResponse = await response.json();
   this.testData.chatId = chat.id;
   await this.page.goto(`${this.config.appUrl}/chat/${chat.id}`);
   await this.page.waitForLoadState('networkidle');

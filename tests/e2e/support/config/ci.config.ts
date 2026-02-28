@@ -1,4 +1,6 @@
-export const ciConfig = {
+import { TestConfig } from '../types';
+
+export const ciConfig: TestConfig = {
   appUrl: 'http://localhost:4420',
   services: {
     neo4j: {

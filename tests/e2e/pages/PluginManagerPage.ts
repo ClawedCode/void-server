@@ -45,7 +45,7 @@ export class PluginManagerPage extends BasePage {
   }
 
   async togglePlugin(pluginName: string, enable: boolean): Promise<void> {
-    const pluginCard = await this.getPluginCard(pluginName);
+    const pluginCard = this.getPluginCard(pluginName);
     const toggle = pluginCard.locator('input[type="checkbox"], button[role="switch"]');
     const isEnabled = await toggle.isChecked();
     if (isEnabled !== enable) {
@@ -54,18 +54,18 @@ export class PluginManagerPage extends BasePage {
   }
 
   async configurePlugin(pluginName: string): Promise<void> {
-    const pluginCard = await this.getPluginCard(pluginName);
+    const pluginCard = this.getPluginCard(pluginName);
     await pluginCard.locator('text=Configure').click();
   }
 
   async expectPluginInstalled(pluginName: string): Promise<void> {
     await this.goToInstalledTab();
-    const pluginCard = await this.getPluginCard(pluginName);
+    const pluginCard = this.getPluginCard(pluginName);
     await expect(pluginCard).toBeVisible();
   }
 
   async expectBuiltInBadge(pluginName: string): Promise<void> {
-    const pluginCard = await this.getPluginCard(pluginName);
+    const pluginCard = this.getPluginCard(pluginName);
     await expect(pluginCard.locator('text=built-in')).toBeVisible();
   }
 

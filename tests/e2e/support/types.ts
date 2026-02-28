@@ -3,6 +3,42 @@
  * Provides type safety for API responses used in test assertions
  */
 
+// Test Configuration Types
+export interface Neo4jServiceConfig {
+  uri: string;
+  user: string;
+  password: string;
+  mock: boolean;
+}
+
+export interface IPFSServiceConfig {
+  url: string;
+  gateway: string;
+  mock: boolean;
+}
+
+export interface BaseServiceConfig {
+  url: string;
+  mock: boolean;
+}
+
+export interface TimeoutConfig {
+  page: number;
+  api: number;
+  element: number;
+}
+
+export interface TestConfig {
+  appUrl: string;
+  services: {
+    neo4j: Neo4jServiceConfig;
+    ipfs: IPFSServiceConfig;
+    lmstudio: BaseServiceConfig;
+    ollama?: BaseServiceConfig;
+  };
+  timeouts: TimeoutConfig;
+}
+
 // Health & Version APIs
 export interface HealthResponse {
   status: string;
@@ -94,6 +130,8 @@ export interface InstalledPlugin {
   name: string;
   enabled: boolean;
   loaded?: boolean;
+  builtIn?: boolean;
+  userInstalled?: boolean;
   status?: 'active' | 'stopped' | 'error';
   version?: string;
 }
@@ -177,6 +215,31 @@ export interface UpdateCheckResponse {
   latestVersion?: string;
 }
 
+// Error response for API error assertions
+export interface ErrorResponse {
+  error: string;
+}
+
+// Environment info from version endpoint
+export interface EnvironmentResponse {
+  isDocker?: boolean;
+  updateMethod?: string;
+}
+
+// Plugin list item for untyped plugin arrays
+export interface PluginListItem {
+  name: string;
+  enabled?: boolean;
+  builtIn?: boolean;
+  userInstalled?: boolean;
+  status?: string;
+}
+
+// Update check from the check endpoint (distinct from UpdateCheckResponse)
+export interface UpdateAvailableResponse {
+  updateAvailable?: boolean;
+}
+
 // Test Data Interface
 export interface TestData {
   lastResponse?: unknown;
@@ -199,4 +262,23 @@ export function isPluginsResponse(obj: unknown): obj is PluginsResponse {
 
 export function isHealthResponse(obj: unknown): obj is HealthResponse {
   return typeof obj === 'object' && obj !== null && 'status' in obj;
+}
+
+export function isErrorResponse(obj: unknown): obj is ErrorResponse {
+  return typeof obj === 'object' && obj !== null && 'error' in obj;
+}
+
+export function isVersionResponse(obj: unknown): obj is VersionResponse {
+  return typeof obj === 'object' && obj !== null && 'version' in obj;
+}
+
+/**
+ * Assert that a test response is of expected type.
+ * Throws with a descriptive message if the response is null/undefined.
+ */
+export function assertResponse<T>(response: unknown, typeName: string): T {
+  if (response === null || response === undefined) {
+    throw new Error(`Expected ${typeName} response but got ${response}`);
+  }
+  return response as T;
 }

@@ -1,11 +1,12 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { VoidWorld } from '../../support/world';
+import { PluginsResponse, InstalledPlugin } from '../../support/types';
 
 Given('the wallet plugin is enabled', async function (this: VoidWorld) {
   const response = await this.request.get(`${this.config.appUrl}/api/plugins`);
-  const data = await response.json();
-  const walletPlugin = data.installed?.find((p: {name: string}) => p.name === 'void-plugin-wallet');
+  const data: PluginsResponse = await response.json();
+  const walletPlugin = data.installed?.find((p: InstalledPlugin) => p.name === 'void-plugin-wallet');
   if (!walletPlugin || !walletPlugin.enabled) {
     this.skip();
   }

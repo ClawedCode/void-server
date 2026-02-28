@@ -1,10 +1,11 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { VoidWorld } from '../../support/world';
+import { MemoryStatusResponse } from '../../support/types';
 
 Given('Neo4j is running and configured', async function (this: VoidWorld) {
   const response = await this.request.get(`${this.config.appUrl}/api/memories/status`);
-  const status = await response.json();
+  const status: MemoryStatusResponse = await response.json();
   if (!status.neo4j?.connected) {
     this.skip();
   }

@@ -5,6 +5,7 @@ import {
   AfterAll,
   setDefaultTimeout,
   Status,
+  ITestCaseHookParameter,
 } from '@cucumber/cucumber';
 import { chromium, Browser, request } from '@playwright/test';
 import { VoidWorld } from './world';
@@ -36,7 +37,7 @@ Before(async function (this: VoidWorld) {
   });
 });
 
-After(async function (this: VoidWorld, { result }) {
+After(async function (this: VoidWorld, { result }: ITestCaseHookParameter) {
   if (result?.status === Status.FAILED && this.page) {
     const screenshot = await this.page.screenshot();
     this.attach(screenshot, 'image/png');

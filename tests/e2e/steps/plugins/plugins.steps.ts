@@ -1,6 +1,7 @@
 import { Then, When } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { VoidWorld } from '../../support/world';
+import { ErrorResponse, PluginListItem, assertResponse } from '../../support/types';
 
 Then('I should see installed plugins', async function (this: VoidWorld) {
   await expect(this.page.locator('.plugin-list, [data-testid="plugins"]')).toBeVisible();
@@ -42,20 +43,20 @@ When('I POST plugin install with name {string}', async function (this: VoidWorld
 });
 
 Then('the response should mention plugin name format', async function (this: VoidWorld) {
-  const response = this.testData.lastResponse as Record<string, unknown>;
+  const response = assertResponse<ErrorResponse>(this.testData.lastResponse, 'ErrorResponse');
   expect(response.error).toMatch(/void-plugin-|name/i);
 });
 
 Then('the response should mention already installed', async function (this: VoidWorld) {
-  const response = this.testData.lastResponse as Record<string, unknown>;
+  const response = assertResponse<ErrorResponse>(this.testData.lastResponse, 'ErrorResponse');
   expect(response.error).toMatch(/already installed/i);
 });
 
 Then('user plugins should be from data directory', async function (this: VoidWorld) {
-  const response = this.testData.lastResponse as Record<string, unknown>;
-  // User-installed plugins should have userInstalled: true flag
-  // Built-in plugins should not
-  const plugins = (response.installed || response.plugins || []) as Array<Record<string, unknown>>;
+  const response = assertResponse<{ installed?: PluginListItem[]; plugins?: PluginListItem[] }>(
+    this.testData.lastResponse, 'PluginsResponse'
+  );
+  const plugins = response.installed || response.plugins || [];
   const builtInPlugins = plugins.filter(p => p.builtIn);
   const userPlugins = plugins.filter(p => p.userInstalled);
 
