@@ -1,11 +1,17 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { VoidWorld } from '../../support/world';
+import {
+  EnvironmentResponse,
+  ErrorResponse,
+  UpdateAvailableResponse,
+  assertResponse,
+} from '../../support/types';
 
 Given('an update is available', async function (this: VoidWorld) {
   // Skip if no update available - this is for testing the UI behavior
   const response = await this.request.get(`${this.config.appUrl}/api/version/check`);
-  const data = await response.json();
+  const data: UpdateAvailableResponse = await response.json();
   if (!data.updateAvailable) {
     this.skip();
   }
@@ -13,7 +19,7 @@ Given('an update is available', async function (this: VoidWorld) {
 
 Given('I am running in Docker', async function (this: VoidWorld) {
   const response = await this.request.get(`${this.config.appUrl}/api/version/environment`);
-  const data = await response.json();
+  const data: EnvironmentResponse = await response.json();
   if (!data.isDocker) {
     this.skip();
   }
@@ -53,18 +59,18 @@ Then('I should see Docker-specific update instructions', async function (this: V
 });
 
 Then('the response should contain environment info', async function (this: VoidWorld) {
-  const response = this.testData.lastResponse as Record<string, unknown>;
+  const response = assertResponse<EnvironmentResponse>(this.testData.lastResponse, 'EnvironmentResponse');
   expect(response.isDocker !== undefined).toBeTruthy();
 });
 
 Then('the response should indicate update method', async function (this: VoidWorld) {
-  const response = this.testData.lastResponse as Record<string, unknown>;
+  const response = assertResponse<EnvironmentResponse>(this.testData.lastResponse, 'EnvironmentResponse');
   expect(response.updateMethod).toBeDefined();
   expect(['watchtower', 'script']).toContain(response.updateMethod);
 });
 
 Then('the response should indicate Docker error', async function (this: VoidWorld) {
-  const response = this.testData.lastResponse as Record<string, unknown>;
+  const response = assertResponse<ErrorResponse>(this.testData.lastResponse, 'ErrorResponse');
   expect(this.testData.lastStatus).toBe(400);
   expect(response.error).toContain('Docker');
 });

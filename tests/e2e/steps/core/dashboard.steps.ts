@@ -1,10 +1,11 @@
 import { Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { VoidWorld } from '../../support/world';
+import { HealthResponse } from '../../support/types';
 
 Then('the health check should return ok', async function (this: VoidWorld) {
   const response = await this.request.get(`${this.config.appUrl}/health`);
-  const data = await response.json();
+  const data: HealthResponse = await response.json();
   expect(data.status).toBe('ok');
 });
 

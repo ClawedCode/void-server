@@ -1,4 +1,6 @@
-export const dockerConfig = {
+import { TestConfig } from '../types';
+
+export const dockerConfig: TestConfig = {
   appUrl: 'http://localhost:4420',
   services: {
     neo4j: {

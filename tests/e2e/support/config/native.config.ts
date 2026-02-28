@@ -1,7 +1,8 @@
 // Native/hybrid mode configuration
 // void-server runs with PM2, infrastructure in Docker
+import { TestConfig } from '../types';
 
-export const nativeConfig = {
+export const nativeConfig: TestConfig = {
   appUrl: 'http://localhost:4420',
   services: {
     neo4j: {

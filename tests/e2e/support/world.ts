@@ -3,7 +3,7 @@ import { Page, BrowserContext, APIRequestContext } from '@playwright/test';
 import { dockerConfig } from './config/docker.config';
 import { ciConfig } from './config/ci.config';
 import { nativeConfig } from './config/native.config';
-import { TestData } from './types';
+import { TestData, TestConfig } from './types';
 
 export interface VoidWorldParameters {
   appUrl: string;
@@ -11,7 +11,7 @@ export interface VoidWorldParameters {
   useMocks?: boolean;
 }
 
-export type TestConfig = typeof dockerConfig;
+export type { TestConfig };
 
 export class VoidWorld extends World<VoidWorldParameters> {
   page!: Page;
